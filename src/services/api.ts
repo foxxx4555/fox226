@@ -17,10 +17,19 @@ export const api = {
     try {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
-      const { data: profile } = await supabase.from('profiles').select('*, user_roles(role)').eq('id', data.user.id).maybeSingle();
+
+      // جلب البروفايل والدور بشكل متوازي لتحسين الأداء والدقة
+      const [profileRes, roleRes] = await Promise.all([
+        supabase.from('profiles').select('*').eq('id', data.user.id).maybeSingle(),
+        supabase.from('user_roles').select('role').eq('user_id', data.user.id).maybeSingle()
+      ]);
+
+      const profile = profileRes.data;
+      const roleData = roleRes.data;
+
       return {
         profile: profile as unknown as UserProfile,
-        role: ((profile as any)?.user_roles?.[0]?.role || 'shipper') as UserRole
+        role: (roleData?.role || 'shipper') as UserRole
       };
     } catch (e) { throw e; }
   },
@@ -40,11 +49,18 @@ export const api = {
     } catch (e) { throw e; }
   },
 
-  async registerUser(email: string, password: string, profile: { full_name: string; phone: string; role: UserRole }) {
+  async registerUser(email: string, password: string, profile: { full_name: string; phone: string; role: UserRole; email: string }) {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { full_name: profile.full_name, phone: profile.phone, role: profile.role } },
+      options: {
+        data: {
+          full_name: profile.full_name,
+          phone: profile.phone,
+          role: profile.role,
+          email: profile.email // إرسال البريد هنا يضمن وصوله لـ Trigger قاعدة البيانات
+        }
+      },
     });
     if (error) throw error;
 
@@ -162,6 +178,29 @@ export const api = {
       if (error) throw error;
       return data || [];
     } catch (e) { return []; }
+  },
+
+  async deleteUser(userId: string) {
+    try {
+      // حذف من الجداول المرتبطة أولاً (Profiles سيحذف تلقائياً بسبب Cascade إذا تم ضبطه)
+      const { error } = await supabase.from('profiles').delete().eq('id', userId);
+      if (error) throw error;
+      return true;
+    } catch (e) { throw e; }
+  },
+
+  async adminResetPassword(userId: string, newPassword: string) {
+    try {
+      // ملاحظة: تغيير كلمة السر لمستخدم آخر يحتاج صلاحيات أدمن (Service Role)
+      // أو استخدام Edge Function. حالياً سنحاول استخدام تحديث RPC إذا كان متاحاً
+      // أو إبلاغ المستخدم بضرورة إعداد Edge Function لهذه الميزة الحساسة
+      const { error } = await supabase.rpc('admin_update_user_password', {
+        target_user_id: userId,
+        new_password: newPassword
+      });
+      if (error) throw error;
+      return true;
+    } catch (e) { throw e; }
   },
 
   async getAllLoads() {
