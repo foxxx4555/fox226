@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { Loader2, ArrowLeft, Mail, Lock, ShieldCheck } from 'lucide-react';
+import { Loader2, ArrowLeft, Mail, Lock, ShieldCheck, Eye, EyeOff } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function LoginPage() {
@@ -21,6 +21,8 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [adminEmail, setAdminEmail] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showAdminPassword, setShowAdminPassword] = useState(false);
 
   const handleUserLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -114,14 +116,21 @@ export default function LoginPage() {
                     <div className="relative group">
                       <Lock className="absolute start-4 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors" size={18} />
                       <Input
-                        type="password"
+                        type={showPassword ? "text" : "password"}
                         value={password}
                         onChange={e => setPassword(e.target.value)}
                         required
                         dir="ltr"
-                        className="ps-12 h-14 rounded-2xl border-2 border-transparent bg-muted/50 focus:bg-white focus:border-primary transition-all text-base font-medium"
+                        className="ps-12 pe-12 h-14 rounded-2xl border-2 border-transparent bg-muted/50 focus:bg-white focus:border-primary transition-all text-base font-medium"
                         placeholder="••••••••"
                       />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute end-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary transition-colors"
+                      >
+                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </button>
                     </div>
                   </div>
 
@@ -162,14 +171,21 @@ export default function LoginPage() {
                     <div className="relative group">
                       <Lock className="absolute start-4 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors" size={18} />
                       <Input
-                        type="password"
+                        type={showAdminPassword ? "text" : "password"}
                         value={adminPassword}
                         onChange={e => setAdminPassword(e.target.value)}
                         required
                         dir="ltr"
-                        className="ps-12 h-14 rounded-2xl border-2 border-transparent bg-muted/50 focus:bg-white focus:border-primary transition-all text-base"
+                        className="ps-12 pe-12 h-14 rounded-2xl border-2 border-transparent bg-muted/50 focus:bg-white focus:border-primary transition-all text-base"
                         placeholder="••••••••"
                       />
+                      <button
+                        type="button"
+                        onClick={() => setShowAdminPassword(!showAdminPassword)}
+                        className="absolute end-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary transition-colors"
+                      >
+                        {showAdminPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </button>
                     </div>
                   </div>
 
@@ -185,3 +201,4 @@ export default function LoginPage() {
     </div>
   );
 }
+
