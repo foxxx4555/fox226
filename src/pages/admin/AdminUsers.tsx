@@ -1,17 +1,32 @@
 import { useEffect, useState } from 'react';
 import AdminLayout from '@/components/AdminLayout';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, Search, UserCheck, UserX, UserSearch, Shield, MapPin, Phone } from 'lucide-react';
+import { Loader2, Search, UserCheck, UserX, UserSearch, Shield, MapPin, Phone, Trash2, Key, Eye, EyeOff } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
+import { api } from '@/services/api';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Label } from '@/components/ui/label';
 
 export default function AdminUsers() {
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isUpdatingPass, setIsUpdatingPass] = useState(false);
 
   const fetchUsers = async () => {
     try {
@@ -40,11 +55,36 @@ export default function AdminUsers() {
     fetchUsers();
   }, []);
 
-  const handleToggleStatus = async (userId: string, currentRole: string) => {
-    // في النظام الحالي، قد لا يوجد حقل 'is_active' مباشر في profiles
-    // لكن يمكننا إضافة حالة تعليق أو حظر في قاعدة البيانات مستقبلاً
-    // حالياً سنعرض رسالة فقط للتوضيح
-    toast.info('ميزة تفعيل/تعطيل الحسابات سيتم ربطها قريباً مع نظام التوثيق');
+  const handleDeleteUser = async (userId: string) => {
+    if (!confirm('هل أنت متأكد من حذف هذا الحساب نهائياً؟')) return;
+    setIsDeleting(true);
+    try {
+      await api.deleteUser(userId);
+      toast.success('تم حذف المستخدم بنجاح');
+      fetchUsers();
+    } catch (e) {
+      toast.error('فشل حذف المستخدم');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (!newPassword || newPassword.length < 6) {
+      toast.error('كلمة المرور يجب أن تكون 6 أحرف على الأقل');
+      return;
+    }
+    setIsUpdatingPass(true);
+    try {
+      await api.adminResetPassword(selectedUser.id, newPassword);
+      toast.success('تم تغيير كلمة المرور بنجاح');
+      setSelectedUser(null);
+      setNewPassword('');
+    } catch (e: any) {
+      toast.error(e.message || 'فشل تغيير كلمة المرور');
+    } finally {
+      setIsUpdatingPass(false);
+    }
   };
 
   const filteredUsers = users.filter(user =>
@@ -104,12 +144,53 @@ export default function AdminUsers() {
                     </div>
                   </div>
 
-                  <div className="flex gap-3 w-full md:w-auto">
-                    <Button onClick={() => handleToggleStatus(user.id, user.role)} variant="outline" className="flex-1 md:flex-none h-12 rounded-xl font-bold border-rose-200 text-rose-500 hover:bg-rose-50 hover:border-rose-300">
-                      <UserX size={18} className="me-2" /> حظر
+                  <div className="flex flex-wrap gap-2 w-full md:w-auto">
+                    <Dialog open={!!selectedUser} onOpenChange={(open) => !open && setSelectedUser(null)}>
+                      <DialogTrigger asChild>
+                        <Button onClick={() => setSelectedUser(user)} variant="outline" className="h-10 rounded-xl font-bold bg-slate-50 text-slate-700 hover:bg-slate-100 border-slate-200">
+                          <Key size={16} className="me-2" /> كلمة السر
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="rounded-3xl p-8" dir="rtl">
+                        <DialogHeader>
+                          <DialogTitle className="text-2xl font-black text-slate-800">تغيير كلمة المرو لـ {selectedUser?.full_name}</DialogTitle>
+                        </DialogHeader>
+                        <div className="space-y-4 py-8">
+                          <div className="space-y-2">
+                            <Label className="text-sm font-bold text-slate-600">كلمة المرور الجديدة</Label>
+                            <div className="relative">
+                              <Input
+                                type={showNewPassword ? "text" : "password"}
+                                value={newPassword}
+                                onChange={(e) => setNewPassword(e.target.value)}
+                                className="h-14 rounded-2xl border-2 bg-slate-50 focus:bg-white focus:border-primary transition-all font-bold ps-4 pe-12"
+                                placeholder="أدخل 6 أحرف على الأقل"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setShowNewPassword(!showNewPassword)}
+                                className="absolute end-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-primary transition-colors"
+                              >
+                                {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                        <DialogFooter className="gap-2">
+                          <Button onClick={() => setSelectedUser(null)} variant="ghost" className="h-12 rounded-xl font-bold">إلغاء</Button>
+                          <Button onClick={handleChangePassword} disabled={isUpdatingPass} className="h-12 rounded-xl font-bold bg-primary hover:bg-primary/90 text-white flex-1">
+                            {isUpdatingPass ? <Loader2 className="animate-spin" /> : 'حفظ التغييرات'}
+                          </Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
+
+                    <Button onClick={() => handleDeleteUser(user.id)} variant="outline" className="h-10 rounded-xl font-bold border-rose-100 text-rose-500 hover:bg-rose-50 hover:border-rose-200">
+                      <Trash2 size={16} className="me-2" /> حذف
                     </Button>
-                    <Button className="flex-1 md:flex-none h-12 rounded-xl font-bold bg-slate-900 hover:bg-slate-800 text-white shadow-lg shadow-slate-900/20">
-                      <Shield size={18} className="me-2" /> توثيق الحساب
+
+                    <Button className="h-10 rounded-xl font-bold bg-slate-900 hover:bg-slate-800 text-white shadow-lg shadow-slate-900/20">
+                      <Shield size={16} className="me-2" /> توثيق
                     </Button>
                   </div>
                 </CardContent>
