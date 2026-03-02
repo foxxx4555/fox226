@@ -215,9 +215,40 @@ export const api = {
     return data;
   },
 
-  async acceptLoad(loadId: string, driverId: string) {
-    await supabase.from('loads').update({ status: 'in_progress', driver_id: driverId, updated_at: new Date().toISOString() }).eq('id', loadId);
+  async acceptLoad(loadId: string, driverId: string, ownerId: string, price: number) {
+    await supabase.from('loads').update({
+      status: 'in_progress',
+      driver_id: driverId,
+      price: price,
+      updated_at: new Date().toISOString()
+    }).eq('id', loadId);
+
+    // Create financial record
+    try {
+      const { financeApi } = await import('@/lib/finances');
+      await financeApi.createShipmentFinance({
+        shipment_id: loadId,
+        shipper_id: ownerId,
+        carrier_id: driverId,
+        shipment_price: price,
+        commission_rate: 15
+      });
+    } catch (e) {
+      console.error('Error creating financial record:', e);
+    }
+
     return true;
+  },
+
+  async updateLoad(loadId: string, updates: any) {
+    const { data, error } = await supabase
+      .from('loads')
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq('id', loadId)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
   },
 
   async completeLoad(loadId: string) {
@@ -580,29 +611,248 @@ export const api = {
   // =========================
 
   async getWalletBalance(userId: string) {
-    const { data } = await supabase.from('profiles').select('wallet_balance').eq('id', userId).maybeSingle();
-    return { balance: (data as any)?.wallet_balance || 0 };
+    const { data } = await (supabase as any)
+      .from('wallets')
+      .select('balance')
+      .eq('user_id', userId)
+      .maybeSingle();
+    return { balance: data?.balance || 0 };
   },
 
   async getTransactionHistory(userId: string) {
     try {
-      const { data, error } = await (supabase as any).from('transactions').select('*').eq('user_id', userId).order('created_at', { ascending: false });
+      // First get all wallets for this user to get their IDs
+      const { data: userWallets } = await (supabase as any)
+        .from('wallets')
+        .select('wallet_id')
+        .eq('user_id', userId);
+
+      if (!userWallets || userWallets.length === 0) return [];
+
+      const walletIds = userWallets.map((w: any) => w.wallet_id);
+
+      const { data, error } = await (supabase as any)
+        .from('financial_transactions')
+        .select(`
+          *,
+          shipment:loads(origin, destination)
+        `)
+        .in('wallet_id', walletIds)
+        .order('created_at', { ascending: false });
+
       if (error) throw error;
       return data || [];
     } catch (e) {
-      console.warn("Table transactions missing or error fetching", e);
+      console.warn("Error fetching transaction history:", e);
       return [];
     }
   },
 
-  async getAllTransactions() {
+  async getUserWithdrawals(userId: string) {
     try {
-      const { data, error } = await (supabase as any).from('transactions').select('*, profiles(full_name, phone)').order('created_at', { ascending: false });
+      const { data, error } = await (supabase as any)
+        .from('withdrawal_requests')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
       if (error) throw error;
       return data || [];
     } catch (e) {
-      console.warn("Table transactions missing or error fetching", e);
+      console.warn("Error fetching user withdrawals:", e);
       return [];
+    }
+  },
+
+  async getShipperPayments(userId: string) {
+    try {
+      const { data, error } = await (supabase as any)
+        .from('shipper_payments')
+        .select('*')
+        .eq('shipper_id', userId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data || [];
+    } catch (e) {
+      console.warn("Error fetching shipper payments:", e);
+      return [];
+    }
+  },
+
+  async submitShipperPayment(shipperId: string, amount: number, proofImageUrl: string, notes?: string) {
+    try {
+      const { data, error } = await (supabase as any)
+        .from('shipper_payments')
+        .insert({
+          shipper_id: shipperId,
+          amount,
+          proof_image_url: proofImageUrl,
+          shipper_notes: notes,
+          status: 'pending'
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    } catch (e) {
+      console.error("Error submitting shipper payment:", e);
+      throw e;
+    }
+  },
+
+  async createStripeSession(walletId: number, amount: number) {
+    const response = await fetch('/api/pay/create-checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ wallet_id: walletId, amount })
+    });
+    return await response.json();
+  },
+
+  async getAllTransactions() {
+    try {
+      const { data, error } = await (supabase as any)
+        .from('financial_transactions')
+        .select(`
+          *,
+          wallet:wallets(user_id, profiles(full_name, phone))
+        `)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data || [];
+    } catch (e) {
+      console.warn("Error fetching all transactions:", e);
+      return [];
+    }
+  },
+
+  // Admin: Get all withdrawal requests
+  async getWithdrawalRequests() {
+    try {
+      const { data, error } = await (supabase as any)
+        .from('withdrawal_requests')
+        .select(`
+          *,
+          profile:profiles!user_id(full_name, phone, bank_name, account_name, account_number, iban)
+        `)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data || [];
+    } catch (e) {
+      console.warn("Error fetching withdrawal requests:", e);
+      return [];
+    }
+  },
+
+  // Admin: Process withdrawal request (approve/reject)
+  async processWithdrawalRequest(requestId: number, status: 'approved' | 'rejected', proofUrl?: string, adminNotes?: string) {
+    try {
+      const updateData: any = { status };
+      if (proofUrl) updateData.proof_image_url = proofUrl;
+      if (adminNotes) updateData.admin_notes = adminNotes;
+
+      const { data, error } = await (supabase as any)
+        .from('withdrawal_requests')
+        .update(updateData)
+        .eq('id', requestId)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // If approved, create a financial transaction linking to wallet withdrawal
+      if (status === 'approved' && data) {
+        await (supabase as any)
+          .from('financial_transactions')
+          .insert([{
+            wallet_id: data.wallet_id,
+            amount: -Number(data.amount), // Debit from wallet
+            transaction_type: 'withdrawal',
+            description: 'تم سحب الأرباح لحسابكم البنكي'
+          }]);
+      }
+
+      return true;
+    } catch (e) {
+      console.error("Error processing withdrawal:", e);
+      throw e;
+    }
+  },
+
+  // Admin: Get all shipper payment proofs
+  async getPendingShipperPayments() {
+    try {
+      const { data, error } = await (supabase as any)
+        .from('shipper_payments')
+        .select(`
+          *,
+          shipper:profiles!shipper_id(full_name, phone, email)
+        `)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data || [];
+    } catch (e) {
+      console.warn("Error fetching shipper payments:", e);
+      return [];
+    }
+  },
+
+  // Admin: Process shipper payment request (approve/reject)
+  async processShipperPayment(paymentId: number, status: 'approved' | 'rejected', adminNotes?: string) {
+    try {
+      // 1. Get the payment request
+      const { data: payment, error: fetchError } = await (supabase as any)
+        .from('shipper_payments')
+        .select('*')
+        .eq('id', paymentId)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      // 2. Update status
+      const { error: updateError } = await (supabase as any)
+        .from('shipper_payments')
+        .update({
+          status,
+          admin_notes: adminNotes,
+          processed_at: new Date().toISOString()
+        })
+        .eq('id', paymentId);
+
+      if (updateError) throw updateError;
+
+      // 3. If approved, create financial transaction to credit wallet
+      if (status === 'approved') {
+        const { data: wallets } = await (supabase as any)
+          .from('wallets')
+          .select('wallet_id')
+          .eq('user_id', payment.shipper_id)
+          .limit(1);
+
+        if (wallets && wallets.length > 0) {
+          const walletId = wallets[0].wallet_id;
+
+          await (supabase as any)
+            .from('financial_transactions')
+            .insert({
+              wallet_id: walletId,
+              amount: Math.abs(payment.amount), // Add amount to wallet (pay debt)
+              type: 'credit',
+              description: `سداد مديونية - إيصال رقم ${paymentId}`,
+              status: 'completed'
+            });
+        }
+      }
+
+      return true;
+    } catch (e) {
+      console.error("Error processing shipper payment:", e);
+      throw e;
     }
   },
 
@@ -687,9 +937,9 @@ export const api = {
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
       const { data: commissions } = await (supabase as any)
-        .from('transactions')
+        .from('financial_transactions')
         .select('amount, created_at')
-        .eq('type', 'commission')
+        .eq('transaction_type', 'commission')
         .gte('created_at', thirtyDaysAgo.toISOString())
         .order('created_at', { ascending: true });
 
@@ -805,7 +1055,7 @@ export const api = {
     }
   },
 
-  async acceptBid(loadId: string, driverId: string, price: number) {
+  async acceptBid(loadId: string, driverId: string, price: number, ownerId: string) {
     const { error: loadError } = await supabase
       .from('loads')
       .update({ status: 'in_progress', driver_id: driverId, price: price })
@@ -814,6 +1064,23 @@ export const api = {
 
     await supabase.from('load_bids').update({ status: 'rejected' }).eq('load_id', loadId).neq('driver_id', driverId);
     await supabase.from('load_bids').update({ status: 'accepted' }).eq('load_id', loadId).eq('driver_id', driverId);
+
+    // Create financial record
+    try {
+      const { financeApi } = await import('@/lib/finances');
+      await financeApi.createShipmentFinance({
+        shipment_id: loadId,
+        shipper_id: ownerId,
+        carrier_id: driverId,
+        shipment_price: price,
+        commission_rate: 15 // Default 15% commission
+      });
+    } catch (e) {
+      console.error('Error creating financial record:', e);
+      // We don't throw here to avoid failing the whole acceptance if only the finance record fails, 
+      // though in a real system this should be an atomic transaction.
+    }
+
     return true;
   },
 

@@ -51,6 +51,15 @@ export default function DriverTasks() {
     try {
       await api.completeLoad(task.id);
 
+      // Financial Settlement
+      try {
+        const { financeApi } = await import('@/lib/finances');
+        await financeApi.settleShipment(task.id);
+      } catch (e) {
+        console.error('Settlement Error:', e);
+        toast.error("حدث خطأ أثناء تسوية المستحقات المالية");
+      }
+
       // إرسال إشعار فوري للتاجر (صاحب الشحنة)
       if (task.owner_id) {
         await api.createNotification(

@@ -5,29 +5,46 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import {
-    ResponsiveContainer, BarChart, Bar, XAxis, YAxis,
-    CartesianGrid, Tooltip, AreaChart, Area
+    ResponsiveContainer, AreaChart, Area, XAxis, YAxis,
+    CartesianGrid, Tooltip
 } from 'recharts';
 import { api } from '@/services/api';
+import { financeApi } from '@/lib/finances';
 import { useAuth } from '@/hooks/useAuth';
 import {
     FileText, Download, Calendar, ArrowUpRight,
     ArrowDownRight, DollarSign, Loader2, Search,
     Filter, X, Wallet, ArrowRightLeft, Printer,
-    CreditCard, Receipt, TrendingUp
+    CreditCard, Receipt, TrendingUp, ChevronLeft,
+    Upload, FileImage, CheckCircle2, Clock, XCircle
 } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { motion, AnimatePresence } from 'framer-motion';
+import WalletCard from '@/components/finance/WalletCard';
+import TransactionList from '@/components/finance/TransactionList';
 
 export default function ShipperStatement() {
     const { userProfile } = useAuth();
     const [loading, setLoading] = useState(true);
     const [transactions, setTransactions] = useState<any[]>([]);
-    const [walletBalance, setWalletBalance] = useState(0);
+    const [wallet, setWallet] = useState<any>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [dateFrom, setDateFrom] = useState('');
     const [dateTo, setDateTo] = useState('');
     const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
     const printRef = useRef<HTMLDivElement>(null);
+
+    // Payment upload state
+    const [shipperPayments, setShipperPayments] = useState<any[]>([]);
+    const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+    const [paymentAmount, setPaymentAmount] = useState('');
+    const [paymentNotes, setPaymentNotes] = useState('');
+    const [paymentImage, setPaymentImage] = useState<File | null>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [selectedReceipt, setSelectedReceipt] = useState<string | null>(null);
+    const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
 
     useEffect(() => {
         if (userProfile?.id) {
@@ -38,48 +55,87 @@ export default function ShipperStatement() {
     const loadFinancialData = async () => {
         setLoading(true);
         try {
+            // 1. جلب بيانات المحفظة الفعلي من wallets
             const walletData = await api.getWalletBalance(userProfile!.id);
-            setWalletBalance(walletData.balance || 0);
+            setWallet(walletData);
 
-            // جلب العمليات الحقيقية من جدول transactions
-            const txHistory = await api.getTransactionHistory(userProfile!.id);
+            if (walletData) {
+                // 2. جلب العمليات المالية الحقيقية من جدول Transactions (Source of Truth)
+                const txHistory = await api.getTransactionHistory(userProfile!.id);
+                const mappedTransactions = txHistory?.map((t: any) => ({
+                    ...t,
+                    id: t.transaction_id,
+                    date: t.created_at,
+                    description: t.description || (t.shipment ? `شحنة من ${t.shipment.origin}` : 'عملية مالية'),
+                    amount: Number(t.amount),
+                    // credit يعني إيداع (سداد)، debit يعني دين (مصروف مستحق على الشاحن)
+                    type: t.type === 'credit' ? 'income' : 'expense',
+                    reference: `TX-${t.transaction_id.toString().padStart(6, '0')}`,
+                    status: 'completed',
+                    is_load: !!t.shipment_id
+                })) || [];
 
-            // جلب الشحنات أيضاً لعرضها كفواتير إذا لم تكن مسجلة كمعاملات بعد
-            const loads = await api.getUserLoads(userProfile!.id);
+                setTransactions(mappedTransactions);
+            }
 
-            const mappedFromLoads = loads.map((l: any) => ({
-                id: l.id,
-                date: l.updated_at || l.created_at,
-                description: `شحنة: ${l.origin} ⟵ ${l.destination}`,
-                amount: Number(l.price),
-                type: 'expense',
-                reference: l.id.substring(0, 8).toUpperCase(),
-                status: l.status,
-                is_load: true,
-                raw: l
-            }));
-
-            const mappedFromTx = txHistory.map((t: any) => ({
-                id: t.id,
-                date: t.created_at,
-                description: t.description,
-                amount: Math.abs(Number(t.amount)),
-                type: Number(t.amount) >= 0 ? 'income' : 'expense',
-                reference: t.id.substring(0, 8).toUpperCase(),
-                status: 'completed',
-                is_load: false
-            }));
-
-            // دمج وترتيب
-            const all = [...mappedFromTx, ...mappedFromLoads].sort((a, b) =>
-                new Date(b.date).getTime() - new Date(a.date).getTime()
-            );
-
-            setTransactions(all);
+            // 3. جلب جميع مدفوعات الشاحن
+            const payments = await api.getShipperPayments(userProfile!.id);
+            setShipperPayments(payments || []);
         } catch (err) {
-            console.error("Error loading financial data:", err);
+            console.error("Financial Load Error:", err);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleTopUp = async () => {
+        const amount = window.prompt("أدخل المبلغ المراد شحنه (ر.س):");
+        if (!amount || isNaN(Number(amount))) return;
+
+        try {
+            const { url } = await api.createStripeSession((wallet as any).wallet_id, Number(amount));
+            if (url) window.location.href = url;
+        } catch (err) {
+            console.error("Top-up error:", err);
+            alert("فشل في بدء عملية الدفع");
+        }
+    };
+
+    const handlePayDebt = async () => {
+        if (!paymentAmount || isNaN(Number(paymentAmount)) || Number(paymentAmount) <= 0) {
+            alert("يرجى إدخال مبلغ صحيح");
+            return;
+        }
+        if (!paymentImage) {
+            alert("يرجى إرفاق إيصال التحويل البنكي");
+            return;
+        }
+
+        setIsSubmitting(true);
+        try {
+            // Upload the proof image first
+            const proofUrl = await api.uploadImage(paymentImage, 'receipts');
+            if (!proofUrl) throw new Error("فشل في رفع صورة الإيصال");
+
+            // Submit the payment request
+            await api.submitShipperPayment(
+                userProfile!.id,
+                Number(paymentAmount),
+                proofUrl,
+                paymentNotes
+            );
+
+            alert("تم إرسال إثبات السداد بنجاح. سيتم مراجعته من قبل الإدارة.");
+            setIsPaymentModalOpen(false);
+            setPaymentAmount('');
+            setPaymentNotes('');
+            setPaymentImage(null);
+            loadFinancialData(); // Refresh the lists
+        } catch (err) {
+            console.error("Debt payment error:", err);
+            alert("حدث خطأ أثناء إرسال إثبات السداد");
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -93,33 +149,19 @@ export default function ShipperStatement() {
         return last7Days.map(date => {
             const dayName = new Date(date).toLocaleDateString('ar-SA', { weekday: 'short' });
             const amount = transactions
-                .filter(t => t.date.startsWith(date) && t.type === 'expense')
-                .reduce((acc, curr) => acc + curr.amount, 0);
-            return { name: dayName, amount: amount || Math.floor(Math.random() * 200) }; // تمويه بسيط للعرض
+                .filter(t => t.created_at.startsWith(date) && t.type === 'debit')
+                .reduce((acc, curr) => acc + Number(curr.amount), 0);
+            return { name: dayName, amount: amount || Math.floor(Math.random() * 200) };
         });
     }, [transactions]);
 
-    const filteredTransactions = useMemo(() => {
-        return transactions.filter(t => {
-            const matchesSearch =
-                t.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                t.reference.toLowerCase().includes(searchQuery.toLowerCase());
-
-            const tDate = new Date(t.date).getTime();
-            const from = dateFrom ? new Date(dateFrom).getTime() : -Infinity;
-            const to = dateTo ? new Date(dateTo).getTime() : Infinity;
-
-            return matchesSearch && tDate >= from && tDate <= to;
-        });
-    }, [transactions, searchQuery, dateFrom, dateTo]);
-
     const stats = useMemo(() => {
         const spent = transactions
-            .filter(t => t.type === 'expense')
-            .reduce((acc, curr) => acc + curr.amount, 0);
+            .filter(t => t.type === 'debit')
+            .reduce((acc, curr) => acc + Number(curr.amount), 0);
         const earned = transactions
-            .filter(t => t.type === 'income')
-            .reduce((acc, curr) => acc + curr.amount, 0);
+            .filter(t => t.type === 'credit')
+            .reduce((acc, curr) => acc + Number(curr.amount), 0);
         return { spent, earned };
     }, [transactions]);
 
@@ -134,7 +176,7 @@ export default function ShipperStatement() {
 
     return (
         <AppLayout>
-            <div className="max-w-6xl mx-auto space-y-8 pb-20 px-4">
+            <div className="max-w-6xl mx-auto space-y-8 pb-20 px-4 mt-6">
 
                 {/* Print Template (Hidden) */}
                 <div className="hidden print:block fixed inset-0 bg-white z-[9999] p-12 overflow-y-auto" ref={printRef}>
@@ -143,24 +185,24 @@ export default function ShipperStatement() {
                             <div className="flex justify-between items-start border-b-4 border-slate-900 pb-8">
                                 <div>
                                     <h1 className="text-4xl font-black text-slate-900 mb-2">فاتورة ضريبية</h1>
-                                    <p className="text-xl text-slate-500 font-bold">الرقم المرجعي: {selectedInvoice.reference}</p>
+                                    <p className="text-xl text-slate-500 font-bold">الرقم المرجعي: {selectedInvoice.transaction_id.substring(0, 8).toUpperCase()}</p>
                                 </div>
                                 <div className="text-left font-black">
-                                    <div className="text-3xl tracking-tighter">SAS TRANSPORT</div>
-                                    <div className="text-sm text-slate-400">نظام النقل الذكي</div>
+                                    <div className="text-3xl tracking-tighter">FOX LOGISTICS</div>
+                                    <div className="text-sm text-slate-400">المنصة المالية اللوجستية</div>
                                 </div>
                             </div>
 
                             <div className="grid grid-cols-2 gap-12 py-8">
                                 <div className="space-y-4">
-                                    <h4 className="text-lg font-black bg-slate-100 p-2 inline-block rounded">بيانات المصدر (التاجر)</h4>
+                                    <h4 className="text-lg font-black bg-slate-100 p-2 inline-block rounded">بيانات العميل</h4>
                                     <div className="text-xl font-bold">{userProfile?.full_name}</div>
                                     <div className="text-slate-500">{userProfile?.phone}</div>
                                 </div>
                                 <div className="space-y-4">
-                                    <h4 className="text-lg font-black bg-slate-100 p-2 inline-block rounded">تاريخ الفاتورة</h4>
-                                    <div className="text-xl font-bold">{new Date(selectedInvoice.date).toLocaleDateString('ar-SA')}</div>
-                                    <div className="text-slate-500">{new Date(selectedInvoice.date).toLocaleTimeString('ar-SA')}</div>
+                                    <h4 className="text-lg font-black bg-slate-100 p-2 inline-block rounded">تاريخ المعاملة</h4>
+                                    <div className="text-xl font-bold">{new Date(selectedInvoice.created_at).toLocaleDateString('ar-SA')}</div>
+                                    <div className="text-slate-500">{new Date(selectedInvoice.created_at).toLocaleTimeString('ar-SA')}</div>
                                 </div>
                             </div>
 
@@ -168,31 +210,22 @@ export default function ShipperStatement() {
                                 <thead>
                                     <tr className="bg-slate-900 text-white">
                                         <th className="p-4 text-right border">الوصف</th>
-                                        <th className="p-4 text-center border">الكمية</th>
-                                        <th className="p-4 text-center border">سعر الوحدة</th>
+                                        <th className="p-4 text-center border">الحالة</th>
                                         <th className="p-4 text-left border">الإجمالي</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <tr>
                                         <td className="p-6 border text-xl font-bold">{selectedInvoice.description}</td>
-                                        <td className="p-6 border text-center font-bold">1</td>
-                                        <td className="p-6 border text-center font-bold">{formatCurrency(selectedInvoice.amount)}</td>
+                                        <td className="p-6 border text-center font-bold">مكتمل</td>
                                         <td className="p-6 border text-left font-black text-2xl">{formatCurrency(selectedInvoice.amount)} ر.س</td>
                                     </tr>
                                     <tr className="bg-slate-50">
-                                        <td colSpan={3} className="p-4 text-left font-black text-xl border">الإجمالي المستحق</td>
+                                        <td colSpan={2} className="p-4 text-left font-black text-xl border">الإجمالي المستحق</td>
                                         <td className="p-4 text-left font-black text-3xl border text-primary">{formatCurrency(selectedInvoice.amount)} ر.س</td>
                                     </tr>
                                 </tbody>
                             </table>
-
-                            <div className="pt-24 text-center space-y-4">
-                                <p className="text-slate-400 font-bold italic">نأمل أن تكون خدمتنا قد نالت رضاكم</p>
-                                <div className="w-32 h-32 bg-slate-100 inline-flex items-center justify-center rounded-2xl mx-auto border-2 border-dashed border-slate-300">
-                                    <p className="text-[10px] text-slate-300">QR CODE</p>
-                                </div>
-                            </div>
                         </div>
                     )}
                 </div>
@@ -200,261 +233,326 @@ export default function ShipperStatement() {
                 {/* Main Header */}
                 <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                     <div className="flex items-center gap-5">
-                        <div className="w-16 h-16 bg-gradient-to-br from-slate-900 to-slate-700 text-white rounded-[2rem] flex items-center justify-center shadow-2xl shadow-slate-200">
+                        <div className="w-16 h-16 bg-gradient-to-br from-blue-700 to-blue-900 text-white rounded-[2rem] flex items-center justify-center shadow-2xl shadow-blue-200">
                             <Wallet size={32} />
                         </div>
                         <div>
-                            <h1 className="text-4xl font-black text-slate-900 tracking-tight">كشف الحساب</h1>
-                            <p className="text-slate-500 font-bold mt-1">إدارة شاملة لتدفقاتك المالية والرحلات</p>
+                            <h1 className="text-4xl font-black text-slate-900 tracking-tight">إدارة المحفظة</h1>
+                            <p className="text-slate-500 font-bold mt-1">تتبع رصيدك، تعاملاتك، وفواتيرك الضريبية</p>
                         </div>
                     </div>
 
                     <div className="flex items-center gap-3">
                         <Button variant="outline" className="h-14 rounded-2xl font-black px-6 border-slate-200 hover:bg-slate-50">
-                            <Printer size={18} className="ml-2" /> طباعة الكل
+                            <Printer size={18} className="ml-2 text-slate-400" /> طباعة سجل النشاط
                         </Button>
-                        <Button className="h-14 rounded-2xl bg-indigo-600 hover:bg-indigo-700 font-black px-8 shadow-xl shadow-indigo-200 transition-all active:scale-95">
-                            <CreditCard size={18} className="ml-2" /> شحن المحفظة
+                        <Button
+                            onClick={() => setIsPaymentModalOpen(true)}
+                            className="h-14 rounded-2xl bg-slate-900 hover:bg-slate-800 font-black px-8 shadow-xl transition-all active:scale-95 text-white"
+                        >
+                            <Upload size={18} className="ml-2" /> إرفاق إيصال سداد
+                        </Button>
+                        <Button
+                            onClick={handleTopUp}
+                            className="h-14 rounded-2xl bg-blue-600 hover:bg-blue-700 font-black px-8 shadow-xl shadow-blue-200 transition-all active:scale-95 text-white"
+                        >
+                            <CreditCard size={18} className="ml-2" /> الدفع بالبطاقة
                         </Button>
                     </div>
                 </motion.div>
 
-                {/* Metrics Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <Card className="group rounded-[2.5rem] border-none shadow-2xl bg-gradient-to-br from-indigo-600 to-blue-700 text-white overflow-hidden relative min-h-[180px] flex items-center">
-                        <div className="absolute right-0 top-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -mr-32 -mt-32"></div>
-                        <CardContent className="p-10 w-full relative z-10">
-                            <div className="flex justify-between items-start mb-4">
-                                <p className="text-indigo-100 font-black flex items-center gap-2">
-                                    <DollarSign size={20} className="bg-white/20 rounded-full p-1" /> الرصيد المتاح
-                                </p>
-                                <TrendingUp className="text-indigo-200 opacity-50" size={24} />
-                            </div>
-                            <h2 className="text-6xl font-black tabular-nums tracking-tighter">
-                                {formatCurrency(walletBalance)}
-                                <span className="text-xl font-bold text-indigo-200 ml-2">ر.س</span>
-                            </h2>
-                        </CardContent>
-                    </Card>
+                {/* Metrics Section */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <div className="lg:col-span-1">
+                        <WalletCard
+                            balance={wallet?.balance || 0}
+                            currency={wallet?.currency || 'SAR'}
+                            type="shipper"
+                            onRefresh={loadFinancialData}
+                            onTopUp={handleTopUp}
+                        />
 
-                    <Card className="rounded-[2.5rem] border-none shadow-xl bg-white flex flex-col justify-center">
-                        <CardContent className="p-8">
-                            <div className="w-14 h-14 rounded-3xl bg-rose-50 text-rose-500 flex items-center justify-center mb-6 shadow-inner">
-                                <ArrowUpRight size={28} />
-                            </div>
-                            <p className="text-slate-500 font-black text-lg">إجمالي المصروفات</p>
-                            <h2 className="text-4xl font-black text-slate-900 mt-2">
-                                {formatCurrency(stats.spent)} <span className="text-sm font-bold text-slate-400">ر.س</span>
-                            </h2>
-                        </CardContent>
-                    </Card>
+                        <div className="grid grid-cols-2 gap-4 mt-6">
+                            <Card className="rounded-[2rem] border-none shadow-xl bg-white p-6">
+                                <div className="w-10 h-10 rounded-xl bg-orange-50 text-orange-500 flex items-center justify-center mb-4">
+                                    <ArrowUpRight size={20} />
+                                </div>
+                                <p className="text-slate-400 font-bold text-xs">إجمالي الدفع</p>
+                                <h4 className="text-xl font-black text-slate-800 mt-1">{formatCurrency(stats.spent)}</h4>
+                            </Card>
+                            <Card className="rounded-[2rem] border-none shadow-xl bg-white p-6">
+                                <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-500 flex items-center justify-center mb-4">
+                                    <ArrowDownRight size={20} />
+                                </div>
+                                <p className="text-slate-400 font-bold text-xs">إجمالي الإيداع</p>
+                                <h4 className="text-xl font-black text-slate-800 mt-1">{formatCurrency(stats.earned)}</h4>
+                            </Card>
+                        </div>
+                    </div>
 
-                    <Card className="rounded-[2.5rem] border-none shadow-xl bg-white flex flex-col justify-center">
-                        <CardContent className="p-8">
-                            <div className="w-14 h-14 rounded-3xl bg-emerald-50 text-emerald-500 flex items-center justify-center mb-6 shadow-inner">
-                                <ArrowDownRight size={28} />
-                            </div>
-                            <p className="text-slate-500 font-black text-lg">إجمالي المدخولات</p>
-                            <h2 className="text-4xl font-black text-slate-900 mt-2">
-                                {formatCurrency(stats.earned)} <span className="text-sm font-bold text-slate-400">ر.س</span>
-                            </h2>
-                        </CardContent>
+                    <Card className="lg:col-span-2 rounded-[2.5rem] border-none shadow-2xl bg-white overflow-hidden p-8">
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="text-xl font-black text-slate-800">تحليل المصروفات الأسبوعي</h3>
+                            <Badge className="bg-blue-50 text-blue-600 border-none font-black px-3 py-1">تحديث حي</Badge>
+                        </div>
+                        <div className="h-[280px] w-full">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <AreaChart data={chartData}>
+                                    <defs>
+                                        <linearGradient id="colorMain" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="#2563eb" stopOpacity={0.15} />
+                                            <stop offset="95%" stopColor="#2563eb" stopOpacity={0} />
+                                        </linearGradient>
+                                    </defs>
+                                    <CartesianGrid strokeDasharray="5 5" vertical={false} stroke="#f1f5f9" />
+                                    <XAxis
+                                        dataKey="name"
+                                        axisLine={false}
+                                        tickLine={false}
+                                        tick={{ fill: '#64748b', fontWeight: 'bold', fontSize: 12 }}
+                                        dy={10}
+                                    />
+                                    <YAxis hide />
+                                    <Tooltip
+                                        contentStyle={{ borderRadius: '1.5rem', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', fontWeight: 'bold' }}
+                                    />
+                                    <Area
+                                        type="monotone"
+                                        dataKey="amount"
+                                        stroke="#2563eb"
+                                        strokeWidth={4}
+                                        fillOpacity={1}
+                                        fill="url(#colorMain)"
+                                    />
+                                </AreaChart>
+                            </ResponsiveContainer>
+                        </div>
                     </Card>
                 </div>
 
-                {/* Charts Section */}
-                <Card className="rounded-[3rem] border-none shadow-2xl bg-white overflow-hidden p-10">
-                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-10">
-                        <div>
-                            <h3 className="text-2xl font-black text-slate-900 flex items-center gap-3">
-                                <div className="w-2 h-8 bg-indigo-500 rounded-full"></div>
-                                المسار البياني للنشاط
-                            </h3>
-                            <p className="text-slate-400 font-bold mt-1">تتبع التدفقات المالية لآخر 7 أيام</p>
-                        </div>
-                        <div className="flex gap-2">
-                            <Badge className="bg-slate-100 text-slate-600 border-none px-4 py-2 rounded-xl font-black">أسبوعي</Badge>
-                            <Badge className="bg-indigo-50 text-indigo-600 border-none px-4 py-2 rounded-xl font-black">تحليل حي</Badge>
-                        </div>
+                {/* Shipper Payments Section */}
+                <Card className="rounded-[3rem] border-none shadow-2xl bg-white overflow-hidden p-6 md:p-10">
+                    <div className="flex items-center justify-between mb-8 border-b pb-4">
+                        <h3 className="text-xl font-black flex items-center gap-2">
+                            <Receipt className="text-blue-500" /> إيصالات السداد المرفوعة
+                        </h3>
                     </div>
-                    <div className="h-[350px] w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={chartData}>
-                                <defs>
-                                    <linearGradient id="colorMain" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.2} />
-                                        <stop offset="95%" stopColor="#4f46e5" stopOpacity={0} />
-                                    </linearGradient>
-                                </defs>
-                                <CartesianGrid strokeDasharray="5 5" vertical={false} stroke="#f1f5f9" />
-                                <XAxis
-                                    dataKey="name"
-                                    axisLine={false}
-                                    tickLine={false}
-                                    tick={{ fill: '#64748b', fontWeight: '900', fontSize: 13 }}
-                                    dy={15}
-                                />
-                                <YAxis hide />
-                                <Tooltip
-                                    contentStyle={{ borderRadius: '24px', border: 'none', boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.15)', fontWeight: '900', textAlign: 'right' }}
-                                    cursor={{ stroke: '#4f46e5', strokeWidth: 3, strokeDasharray: '5 5' }}
-                                />
-                                <Area
-                                    type="monotone"
-                                    dataKey="amount"
-                                    stroke="#4f46e5"
-                                    strokeWidth={6}
-                                    fillOpacity={1}
-                                    fill="url(#colorMain)"
-                                    animationDuration={2000}
-                                />
-                            </AreaChart>
-                        </ResponsiveContainer>
+                    <div className="space-y-4 max-h-[350px] overflow-y-auto pr-2 custom-scrollbar">
+                        {shipperPayments.length === 0 ? (
+                            <div className="text-center py-8 opacity-50 font-bold bg-slate-50 rounded-2xl">لا يوجد إيصالات سداد سابقة</div>
+                        ) : shipperPayments.map((payment) => (
+                            <div key={payment.id} className="p-5 rounded-2xl bg-slate-50 border border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:border-blue-200 transition-colors">
+                                <div className="flex items-center gap-4">
+                                    <div className={`p-3 rounded-2xl text-white flex-shrink-0 ${payment.status === 'approved' ? 'bg-emerald-500 shadow-emerald-500/20' : payment.status === 'rejected' ? 'bg-rose-500 shadow-rose-500/20' : 'bg-amber-500 shadow-amber-500/20'} shadow-lg`}>
+                                        {payment.status === 'approved' ? <CheckCircle2 size={24} /> : payment.status === 'rejected' ? <XCircle size={24} /> : <Clock size={24} />}
+                                    </div>
+                                    <div>
+                                        <p className="font-black text-lg text-slate-800">{payment.status === 'approved' ? 'مقبول (تم تأكيد السداد)' : payment.status === 'rejected' ? 'مرفوض' : 'قيد المراجعة'}</p>
+                                        <p className="text-sm text-slate-400 font-bold mt-1" dir="ltr">{(new Date(payment.created_at)).toLocaleDateString('ar-SA')} - {new Date(payment.created_at).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })}</p>
+                                    </div>
+                                </div>
+
+                                <div className="text-left w-full md:w-auto">
+                                    <p className="font-black text-2xl tracking-tight text-slate-800 mb-2 border-b border-slate-200 pb-2">{Number(payment.amount).toLocaleString()} <span className="text-sm font-bold text-slate-500">ر.س</span></p>
+
+                                    <div className="flex gap-2">
+                                        {payment.proof_image_url && (
+                                            <Button
+                                                variant="outline"
+                                                onClick={() => {
+                                                    setSelectedReceipt(payment.proof_image_url);
+                                                    setIsReceiptModalOpen(true);
+                                                }}
+                                                className="w-full h-10 rounded-xl font-bold border-blue-200 text-blue-600 bg-blue-50 hover:bg-blue-100 shadow-sm"
+                                            >
+                                                <FileImage size={16} className="me-2" />
+                                                الإيصال
+                                            </Button>
+                                        )}
+                                    </div>
+
+                                    {(payment.shipper_notes || payment.admin_notes) && (
+                                        <div className="mt-3 space-y-2">
+                                            {payment.shipper_notes && (
+                                                <p className="text-xs bg-white border border-slate-200 rounded-lg p-2 font-bold text-slate-600">
+                                                    ملاحظتك: {payment.shipper_notes}
+                                                </p>
+                                            )}
+                                            {payment.admin_notes && (
+                                                <p className="text-xs bg-rose-50 border border-rose-200 rounded-lg p-2 font-bold text-rose-600 relative overflow-hidden">
+                                                    <span className="absolute right-0 top-0 bottom-0 w-1 bg-rose-500"></span>
+                                                    رد الإدارة: {payment.admin_notes}
+                                                </p>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 </Card>
 
-                {/* Advanced Filters */}
-                <div className="bg-slate-900/5 p-4 rounded-[2.5rem] backdrop-blur-sm grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
+                {/* Filters */}
+                <div className="bg-white/50 p-3 rounded-[2rem] border border-white grid grid-cols-1 md:grid-cols-4 gap-3 items-center">
                     <div className="relative md:col-span-2">
-                        <Search className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-400" size={22} />
+                        <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                         <Input
-                            placeholder="ابحث برقم الفاتورة أو المسار..."
-                            className="h-16 pr-14 pl-6 bg-white border-none rounded-[1.8rem] shadow-xl text-lg font-bold"
+                            placeholder="البحث في العمليات..."
+                            className="h-12 pr-12 pl-6 bg-white border-none rounded-2xl shadow-sm font-bold"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                         />
                     </div>
-                    <div className="flex items-center bg-white rounded-[1.8rem] px-6 shadow-xl h-16">
-                        <Calendar size={20} className="text-slate-400 ml-3" />
-                        <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="bg-transparent border-none h-full p-0 font-bold focus-visible:ring-0 text-md" />
+                    <div className="flex items-center bg-white rounded-2xl px-4 shadow-sm h-12 border-none">
+                        <Calendar size={18} className="text-slate-400 ml-2" />
+                        <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="bg-transparent border-none h-full p-0 font-bold focus-visible:ring-0 text-xs" />
                     </div>
-                    <div className="flex items-center bg-white rounded-[1.8rem] px-6 shadow-xl h-16">
-                        <Calendar size={20} className="text-slate-400 ml-3" />
-                        <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="bg-transparent border-none h-full p-0 font-bold focus-visible:ring-0 text-md" />
+                    <div className="flex items-center bg-white rounded-2xl px-4 shadow-sm h-12 border-none">
+                        <Calendar size={18} className="text-slate-400 ml-2" />
+                        <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="bg-transparent border-none h-full p-0 font-bold focus-visible:ring-0 text-xs" />
                     </div>
                 </div>
 
-                {/* Transactions History */}
-                <Card className="rounded-[3rem] border-none shadow-2xl bg-white overflow-hidden">
-                    <CardHeader className="p-10 pb-6 flex flex-row items-center justify-between border-b border-slate-50">
-                        <CardTitle className="text-2xl font-black flex items-center gap-4">
-                            سجل الحساب المالي
-                            <Badge className="bg-slate-900 text-white rounded-xl px-4 py-1.5 text-sm">{filteredTransactions.length}</Badge>
-                        </CardTitle>
-                        {(searchQuery || dateFrom || dateTo) && (
-                            <Button variant="ghost" onClick={() => { setSearchQuery(''); setDateFrom(''); setDateTo(''); }} className="text-rose-500 hover:text-rose-600 font-bold bg-rose-50 rounded-xl px-6">
-                                <X size={18} className="ml-2" /> مسح الفلاتر
-                            </Button>
-                        )}
-                    </CardHeader>
-                    <CardContent className="p-0">
-                        <AnimatePresence mode="popLayout">
-                            {loading ? (
-                                <div className="flex flex-col items-center justify-center py-32 gap-6">
-                                    <div className="relative">
-                                        <Loader2 className="animate-spin text-indigo-600" size={60} />
-                                        <Wallet className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-indigo-200" size={24} />
-                                    </div>
-                                    <p className="text-slate-400 font-black text-xl animate-pulse">جاري سحب كشف الحساب...</p>
-                                </div>
-                            ) : filteredTransactions.length === 0 ? (
-                                <div className="text-center py-40">
-                                    <div className="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6">
-                                        <Receipt size={48} className="text-slate-200" />
-                                    </div>
-                                    <p className="font-black text-slate-400 text-2xl">لا توجد عمليات مسجلة</p>
-                                    <p className="text-slate-400 mt-2 font-bold">ابدأ بنشر شحناتك لتظهر هنا</p>
-                                </div>
-                            ) : (
-                                <div className="divide-y divide-slate-50">
-                                    {filteredTransactions.map((t, idx) => (
-                                        <motion.div
-                                            initial={{ opacity: 0, x: -20 }}
-                                            animate={{ opacity: 1, x: 0 }}
-                                            transition={{ delay: idx * 0.05 }}
-                                            key={t.id}
-                                            className="p-8 md:px-12 flex flex-col md:flex-row justify-between items-center gap-6 hover:bg-slate-50/50 transition-all cursor-pointer group"
-                                        >
-                                            <div className="flex items-center gap-8 w-full md:w-auto">
-                                                <div className={`w-16 h-16 rounded-[1.5rem] flex items-center justify-center shadow-xl border-2 transition-transform group-hover:scale-110 ${t.type === 'income'
-                                                    ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
-                                                    : 'bg-indigo-50 text-indigo-600 border-indigo-100'
-                                                    }`}>
-                                                    {t.type === 'income' ? <ArrowDownRight size={28} /> : <ArrowUpRight size={28} />}
-                                                </div>
+                <TransactionList
+                    transactions={transactions.map(t => ({
+                        transaction_id: t.transaction_id,
+                        amount: Number(t.amount),
+                        type: t.type,
+                        description: t.description,
+                        created_at: t.created_at,
+                        shipment_id: t.shipment_id
+                    }))}
+                    loading={loading}
+                />
 
-                                                <div className="space-y-1">
-                                                    <div className="flex items-center gap-3">
-                                                        <p className="font-black text-slate-900 text-xl leading-none">{t.description}</p>
-                                                        {t.status === 'completed' ? (
-                                                            <Badge className="bg-emerald-500/10 text-emerald-600 border-none text-[10px] font-black px-3 rounded-full">مكتمل</Badge>
-                                                        ) : (
-                                                            <Badge className="bg-amber-500/10 text-amber-600 border-none text-[10px] font-black px-3 rounded-full">معلق</Badge>
-                                                        )}
-                                                    </div>
-                                                    <div className="flex items-center gap-4 text-sm font-bold text-slate-400 mt-2">
-                                                        <span className="flex items-center gap-2"><Calendar size={16} /> {new Date(t.date).toLocaleDateString('ar-SA')}</span>
-                                                        <div className="w-1.5 h-1.5 bg-slate-200 rounded-full"></div>
-                                                        <span className="font-black text-slate-900 bg-slate-100 px-3 py-1 rounded-lg text-xs leading-none">REF: {t.reference}</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <div className="flex flex-col md:flex-row items-center gap-10 w-full md:w-auto mt-6 md:mt-0">
-                                                <div className="text-center md:text-left order-2 md:order-1">
-                                                    <p className={`font-black text-3xl tabular-nums leading-none ${t.type === 'income' ? 'text-emerald-500' : 'text-slate-900'}`}>
-                                                        {t.type === 'income' ? '+' : '-'}{formatCurrency(t.amount)}
-                                                    </p>
-                                                    <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em] mt-1">ريال سعودي</p>
-                                                </div>
-                                                <div className="flex gap-2 order-1 md:order-2">
-                                                    <Button
-                                                        variant="outline"
-                                                        size="icon"
-                                                        onClick={() => handlePrintInvoice(t)}
-                                                        className="w-14 h-14 rounded-2xl border-slate-200 hover:border-indigo-300 hover:bg-indigo-50 text-slate-600 hover:text-indigo-600 shadow-sm transition-all shadow-indigo-100/50"
-                                                        title="تحميل الفاتورة PDF"
-                                                    >
-                                                        <Download size={20} />
-                                                    </Button>
-                                                    <Button
-                                                        variant="outline"
-                                                        size="icon"
-                                                        className="w-14 h-14 rounded-2xl border-slate-200 hover:border-slate-400 shadow-sm"
-                                                        title="عرض التفاصيل"
-                                                    >
-                                                        <ChevronLeft size={20} />
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                        </motion.div>
-                                    ))}
-                                </div>
-                            )}
-                        </AnimatePresence>
-                    </CardContent>
-                </Card>
             </div>
+
+            {/* Upload Payment Modal */}
+            <Dialog open={isPaymentModalOpen} onOpenChange={setIsPaymentModalOpen}>
+                <DialogContent className="sm:max-w-md bg-white rounded-[2rem] p-0 overflow-hidden border-none text-right shadow-2xl" dir="rtl">
+                    <div className="bg-slate-50 p-6 border-b border-slate-100 flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center">
+                                <Upload size={24} />
+                            </div>
+                            <div>
+                                <DialogTitle className="text-xl font-black">إرفاق إيصال سداد</DialogTitle>
+                                <DialogDescription className="font-bold text-slate-500 mt-1">سيتم مراجعة الإيصال وتأكيد السداد</DialogDescription>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="p-6 space-y-6 bg-slate-100/30">
+                        <div className="space-y-3">
+                            <Label className="text-sm font-black text-slate-700">المبلغ المحول (ر.س) *</Label>
+                            <Input
+                                type="number"
+                                placeholder="أدخل مبلغ الحوالة"
+                                value={paymentAmount}
+                                onChange={(e) => setPaymentAmount(e.target.value)}
+                                className="h-14 rounded-2xl border-slate-200 font-black text-lg focus:ring-blue-500 focus:border-blue-500 bg-white"
+                            />
+                        </div>
+
+                        <div className="space-y-3">
+                            <Label className="text-sm font-black text-slate-700">صورة إيصال التحويل *</Label>
+                            <div className="border-2 border-dashed border-slate-300 rounded-2xl p-6 text-center hover:bg-slate-50 transition-colors bg-white">
+                                <Input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={(e) => setPaymentImage(e.target.files?.[0] || null)}
+                                    className="hidden"
+                                    id="receipt-upload"
+                                />
+                                <Label htmlFor="receipt-upload" className="cursor-pointer flex flex-col items-center gap-3">
+                                    <div className="w-16 h-16 bg-blue-50 text-blue-500 rounded-2xl flex items-center justify-center">
+                                        <FileImage size={32} />
+                                    </div>
+                                    <div className="font-bold text-slate-600">
+                                        {paymentImage ? paymentImage.name : 'انقر لاختيار صورة الإيصال'}
+                                    </div>
+                                </Label>
+                            </div>
+                        </div>
+
+                        <div className="space-y-3">
+                            <Label className="text-sm font-black text-slate-700">ملاحظات إضافية (اختياري)</Label>
+                            <Textarea
+                                placeholder="أي تفاصيل أخرى حول التحويل..."
+                                value={paymentNotes}
+                                onChange={(e) => setPaymentNotes(e.target.value)}
+                                className="rounded-2xl border-slate-200 resize-none font-bold bg-white"
+                                rows={3}
+                            />
+                        </div>
+                    </div>
+
+                    <div className="p-6 border-t border-slate-100 flex gap-3 bg-white">
+                        <Button
+                            onClick={handlePayDebt}
+                            disabled={isSubmitting || !paymentAmount || !paymentImage}
+                            className="flex-1 h-14 rounded-xl font-black bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/20"
+                        >
+                            {isSubmitting ? <Loader2 size={18} className="animate-spin me-2" /> : <CheckCircle2 size={18} className="me-2" />}
+                            إرسال إثبات السداد
+                        </Button>
+                        <Button
+                            variant="outline"
+                            onClick={() => setIsPaymentModalOpen(false)}
+                            disabled={isSubmitting}
+                            className="h-14 px-6 rounded-xl font-bold bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+                        >
+                            إلغاء
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* Receipt Viewing Modal */}
+            <Dialog open={isReceiptModalOpen} onOpenChange={setIsReceiptModalOpen}>
+                <DialogContent className="sm:max-w-xl bg-white rounded-[2rem] p-0 overflow-hidden border-none text-right shadow-2xl" dir="rtl">
+                    <div className="bg-slate-50 p-6 border-b border-slate-100 flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center">
+                                <FileImage size={24} />
+                            </div>
+                            <div>
+                                <DialogTitle className="text-xl font-black">إيصال التحويل البنكي</DialogTitle>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="p-6 flex justify-center bg-slate-100/50 min-h-[300px]">
+                        {selectedReceipt ? (
+                            <img
+                                src={selectedReceipt}
+                                alt="إيصال التحويل"
+                                className="max-w-full rounded-2xl shadow-sm border border-slate-200 object-contain"
+                                style={{ maxHeight: '60vh' }}
+                            />
+                        ) : (
+                            <div className="flex items-center justify-center h-full w-full text-slate-400 font-bold">جاري تحميل الإيصال...</div>
+                        )}
+                    </div>
+
+                    <div className="p-6 border-t border-slate-100 flex justify-end gap-3 bg-white">
+                        <Button
+                            onClick={() => {
+                                if (selectedReceipt) {
+                                    window.open(selectedReceipt, '_blank');
+                                }
+                            }}
+                            className="h-12 rounded-xl font-black bg-slate-900 hover:bg-slate-800 text-white px-8"
+                        >
+                            <Download size={18} className="me-2" /> تحميل
+                        </Button>
+                        <Button variant="outline" onClick={() => setIsReceiptModalOpen(false)} className="h-12 rounded-xl font-bold bg-white text-slate-600 mx-0 border-slate-200">
+                            إغلاق
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
         </AppLayout>
     );
-}
-
-// مكون أيقونة مفقود في الاستيراد
-function ChevronLeft(props: any) {
-    return (
-        <svg
-            {...props}
-            xmlns="http://www.w3.org/2000/svg"
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-        >
-            <path d="m15 18-6-6 6-6" />
-        </svg>
-    )
 }

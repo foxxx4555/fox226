@@ -4,12 +4,14 @@ import { useAuth } from '@/hooks/useAuth';
 import AppLayout from '@/components/AppLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, MapPin, Package, Clock, Truck, Navigation, Trash2, CheckCircle2, FileText, Printer, XCircle } from 'lucide-react';
+import { Loader2, MapPin, Package, Clock, Truck, Navigation, Trash2, CheckCircle2, FileText, Printer, XCircle, CreditCard, ShieldCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { WaybillPreview } from '@/components/WaybillPreview';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import PaymentModal from '@/components/finance/PaymentModal';
+import { financeApi } from '@/lib/finances';
 
 export default function ShipperLoads() {
   const { userProfile } = useAuth();
@@ -19,12 +21,34 @@ export default function ShipperLoads() {
   const [selectedLoadForWaybill, setSelectedLoadForWaybill] = useState<any>(null);
   const [showWaybillModal, setShowWaybillModal] = useState(false);
 
+  const [selectedLoadForPayment, setSelectedLoadForPayment] = useState<any>(null);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [walletBalance, setWalletBalance] = useState(0);
+  const [finances, setFinances] = useState<Record<string, any>>({});
+
   const fetchLoads = async () => {
     if (userProfile?.id) {
       try {
         const data = await api.getUserLoads(userProfile.id);
         const active = data.filter((l: any) => ['available', 'pending', 'in_progress'].includes(l.status));
         setActiveLoads(active);
+
+        // Fetch wallet balance
+        const wallet = await financeApi.getWallet(userProfile.id, 'shipper');
+        setWalletBalance(wallet?.balance || 0);
+
+        // Fetch financial status for each load
+        const { data: finData } = await supabase
+          .from('shipment_finances')
+          .select('*')
+          .in('shipment_id', active.map(l => l.id));
+
+        const finMap: Record<string, any> = {};
+        finData?.forEach(f => {
+          finMap[f.shipment_id] = f;
+        });
+        setFinances(finMap);
+
       } catch (err) {
         console.error(err);
       } finally {
@@ -39,6 +63,7 @@ export default function ShipperLoads() {
     // Realtime updates
     const channel = supabase.channel('shipper_active_loads')
       .on('postgres_changes' as any, { event: '*', schema: 'public', table: 'loads', filter: `owner_id=eq.${userProfile?.id}` }, fetchLoads)
+      .on('postgres_changes' as any, { event: '*', schema: 'public', table: 'shipment_finances' }, fetchLoads)
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
@@ -76,7 +101,13 @@ export default function ShipperLoads() {
     }
   };
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string, shipmentId: string) => {
+    const finStatus = finances[shipmentId];
+
+    if (finStatus?.payment_status === 'paid_to_escrow') {
+      return <div className="flex items-center gap-2 bg-blue-100 text-blue-700 px-4 py-2 rounded-full font-bold text-sm"><ShieldCheck size={16} /> مدفوع (في الضمان)</div>;
+    }
+
     switch (status) {
       case 'available':
       case 'pending':
@@ -93,16 +124,17 @@ export default function ShipperLoads() {
   };
 
   return (
-    <AppLayout>
-      <div className="max-w-5xl mx-auto space-y-8">
+    <AppLayout title="إدارة الشحنات">
+      <div className="max-w-5xl mx-auto space-y-8 pb-20 mt-6">
         <div className="flex items-center justify-between gap-6">
           <div className="flex items-center gap-4">
             <div className="p-3 bg-primary/10 rounded-2xl text-primary"><Package size={32} /></div>
             <div>
-              <h1 className="text-4xl font-black tracking-tight">الطلبات الحالية (شحناتي)</h1>
-              <p className="text-muted-foreground font-medium mt-1">تابع شحناتك النشطة وتواصل مع السائقين</p>
+              <h1 className="text-4xl font-black tracking-tight">شحناتي النشطة</h1>
+              <p className="text-muted-foreground font-medium mt-1">تابع شحناتك، سدد المستحقات وتتبع السائقين</p>
             </div>
           </div>
+          <Button onClick={() => navigate('/shipper/post')} className="bg-primary text-white font-bold h-12 rounded-xl shadow-lg hover:bg-primary/90">إضافة شحنة جديدة</Button>
         </div>
 
         {loading ? (
@@ -118,68 +150,77 @@ export default function ShipperLoads() {
           </div>
         ) : (
           <div className="grid gap-6">
-            {activeLoads.map(load => (
-              <Card key={load.id} className="rounded-[2rem] border-none shadow-sm hover:shadow-xl transition-all bg-white overflow-hidden">
-                <CardContent className="p-0">
-                  <div className="p-6 md:p-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 border-b border-slate-50">
-                    <div className="flex flex-col gap-3">
-                      <div className="flex flex-wrap items-center gap-3 mb-2">
-                        {getStatusBadge(load.status)}
-                        <span className="font-bold text-xs text-slate-400">رقم: #{load.id.substring(0, 8).toUpperCase()}</span>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <span className="font-black text-xl md:text-2xl text-slate-800 flex items-center gap-2"><MapPin className="text-primary" size={20} /> {load.origin}</span>
-                        <div className="h-px bg-slate-300 w-6 md:w-16"></div>
-                        <span className="font-black text-xl md:text-2xl text-slate-800 flex items-center gap-2"><MapPin className="text-emerald-500" size={20} /> {load.destination}</span>
-                      </div>
-                    </div>
-                    <div className="text-right bg-slate-50 p-4 md:p-6 rounded-2xl w-full md:w-auto">
-                      <p className="text-sm font-bold text-slate-400 mb-1">المبلغ المعروض</p>
-                      <p className="font-black text-3xl text-emerald-500">{load.price} <span className="text-lg">ر.س</span></p>
-                    </div>
-                  </div>
+            {activeLoads.map(load => {
+              const finStatus = finances[load.id];
+              const isPaid = finStatus?.payment_status === 'paid_to_escrow';
 
-                  <div className="p-6 md:px-8 bg-white flex flex-col md:flex-row items-center justify-between gap-4">
-                    <div className="flex flex-wrap gap-4 md:gap-6 text-sm font-bold text-slate-600 bg-slate-50 p-3 rounded-xl w-full md:w-auto">
-                      <span className="bg-white px-3 py-1 rounded-md shadow-sm">الوزن: {load.weight} طن</span>
-                      <span className="bg-white px-3 py-1 rounded-md shadow-sm">البضاعة: {load.package_type || 'غير محدد'}</span>
+              return (
+                <Card key={load.id} className="rounded-[2rem] border-none shadow-sm hover:shadow-xl transition-all bg-white overflow-hidden">
+                  <CardContent className="p-0">
+                    <div className="p-6 md:p-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 border-b border-slate-50">
+                      <div className="flex flex-col gap-3">
+                        <div className="flex flex-wrap items-center gap-3 mb-2">
+                          {getStatusBadge(load.status, load.id)}
+                          <span className="font-bold text-xs text-slate-400">ID: #{load.id.substring(0, 8).toUpperCase()}</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="font-black text-xl md:text-2xl text-slate-800 flex items-center gap-2"><MapPin className="text-primary" size={20} /> {load.origin}</span>
+                          <div className="h-px bg-slate-300 w-6 md:w-12"></div>
+                          <span className="font-black text-xl md:text-2xl text-slate-800 flex items-center gap-2"><MapPin className="text-emerald-500" size={20} /> {load.destination}</span>
+                        </div>
+                      </div>
+                      <div className="text-right bg-slate-50 p-4 rounded-2xl w-full md:w-auto min-w-[150px]">
+                        <p className="text-xs font-bold text-slate-400 mb-1">المبلغ الإجمالي</p>
+                        <p className="font-black text-3xl text-slate-800">{load.price} <span className="text-sm font-bold opacity-50">ر.س</span></p>
+                      </div>
                     </div>
-                    <div className="flex w-full md:w-auto gap-3">
-                      <Button
-                        onClick={() => {
-                          setSelectedLoadForWaybill(load);
-                          setShowWaybillModal(true);
-                        }}
-                        variant="secondary"
-                        className="flex-1 md:flex-none h-12 rounded-xl font-bold bg-slate-100 text-slate-700 hover:bg-slate-200"
-                      >
-                        <FileText size={18} className="me-2" /> بوليصة الشحن
-                      </Button>
-                      {(load.status === 'available' || load.status === 'pending') && (
-                        <Button onClick={() => handleCancelLoad(load.id, load.status)} variant="outline" className="flex-1 md:flex-none h-12 rounded-xl font-bold border-rose-200 text-rose-500 hover:bg-rose-50 hover:border-rose-300">
-                          <Trash2 size={18} className="me-2" /> حذف الشحنة
-                        </Button>
-                      )}
-                      {load.driver_id && load.status === 'in_progress' && (
-                        <>
+
+                    <div className="p-6 md:px-8 bg-white flex flex-col md:flex-row items-center justify-between gap-4">
+                      <div className="flex flex-wrap gap-4 text-xs font-bold text-slate-500">
+                        <span className="bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100">الوزن: {load.weight} طن</span>
+                        <span className="bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100">النوع: {load.package_type || 'بضائع عامة'}</span>
+                      </div>
+                      <div className="flex w-full md:w-auto gap-3">
+                        {!isPaid && (load.status === 'in_progress' || load.status === 'pending') && (
                           <Button
-                            onClick={() => handleUnassignDriver(load.id)}
-                            variant="outline"
-                            className="h-12 w-12 rounded-xl border-rose-100 text-rose-500 hover:bg-rose-500 hover:text-white p-0 transition-all"
-                            title="إلغاء تعيين السائق"
+                            onClick={() => {
+                              setSelectedLoadForPayment(load);
+                              setShowPaymentModal(true);
+                            }}
+                            className="flex-1 md:flex-none h-12 rounded-xl font-black bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/20"
                           >
-                            <XCircle size={22} />
+                            <CreditCard size={18} className="me-2" /> سدد المستحقات
                           </Button>
-                          <Button onClick={() => navigate('/shipper/track')} className="flex-1 md:flex-none h-12 rounded-xl font-bold bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/20">
-                            <Navigation size={18} className="me-2" /> تتبع السائق
+                        )}
+
+                        <Button
+                          onClick={() => {
+                            setSelectedLoadForWaybill(load);
+                            setShowWaybillModal(true);
+                          }}
+                          variant="secondary"
+                          className="flex-1 md:flex-none h-12 rounded-xl font-bold bg-slate-100 text-slate-700 hover:bg-slate-200"
+                        >
+                          <FileText size={18} className="me-2" /> بوليصة الشحن
+                        </Button>
+
+                        {load.driver_id && load.status === 'in_progress' && (
+                          <Button onClick={() => navigate('/shipper/track')} className="flex-1 md:flex-none h-12 rounded-xl font-bold bg-emerald-500 hover:bg-emerald-600 text-white">
+                            <Navigation size={18} className="me-2" /> تتبع
                           </Button>
-                        </>
-                      )}
+                        )}
+
+                        {(load.status === 'available' || load.status === 'pending') && (
+                          <Button onClick={() => handleCancelLoad(load.id, load.status)} variant="outline" className="flex-1 md:flex-none h-12 rounded-xl font-bold border-rose-100 text-rose-500 hover:bg-rose-50 p-2">
+                            <Trash2 size={18} />
+                          </Button>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         )}
       </div>
@@ -195,16 +236,29 @@ export default function ShipperLoads() {
             </DialogTitle>
           </DialogHeader>
           <div className="p-4 md:p-8 bg-slate-100">
-            <div className="print:m-0">
-              <WaybillPreview
-                load={selectedLoadForWaybill}
-                shipper={userProfile}
-                driver={selectedLoadForWaybill?.driver}
-              />
-            </div>
+            <WaybillPreview
+              load={selectedLoadForWaybill}
+              shipper={userProfile}
+              driver={selectedLoadForWaybill?.driver}
+            />
           </div>
         </DialogContent>
       </Dialog>
+
+      {selectedLoadForPayment && (
+        <PaymentModal
+          isOpen={showPaymentModal}
+          onClose={() => setShowPaymentModal(false)}
+          shipment={{
+            id: selectedLoadForPayment.id,
+            price: Number(selectedLoadForPayment.price),
+            origin: selectedLoadForPayment.origin,
+            destination: selectedLoadForPayment.destination
+          }}
+          walletBalance={walletBalance}
+          onSuccess={fetchLoads}
+        />
+      )}
 
       {/* Hidden Print Wrapper */}
       <div className="hidden print:block fixed inset-0 bg-white z-[99999] overflow-visible p-0 m-0">

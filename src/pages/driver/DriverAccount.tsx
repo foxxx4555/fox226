@@ -24,6 +24,10 @@ export default function DriverAccount() {
     id_number: (userProfile as any)?.id_number || '',
     plate_number: (userProfile as any)?.plate_number || '',
     password: '',
+    bank_name: (userProfile as any)?.bank_name || '',
+    account_name: (userProfile as any)?.account_name || '',
+    account_number: (userProfile as any)?.account_number || '',
+    iban: (userProfile as any)?.iban || '',
   });
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
@@ -95,7 +99,11 @@ export default function DriverAccount() {
         full_name: form.full_name,
         phone: form.phone,
         id_number: form.id_number,
-        plate_number: form.plate_number
+        plate_number: form.plate_number,
+        bank_name: form.bank_name,
+        account_name: form.account_name,
+        account_number: form.account_number,
+        iban: form.iban
       });
 
       if (updatedData) {
@@ -250,6 +258,32 @@ export default function DriverAccount() {
                   <div className="space-y-3">
                     <Label className="font-black text-sm text-slate-700 mr-2 uppercase tracking-wide">رقم اللوحة</Label>
                     <Input value={form.plate_number} onChange={e => setForm(p => ({ ...p, plate_number: e.target.value }))} className="h-14 rounded-2xl bg-slate-50 border-slate-100 font-bold px-6 text-center" dir="ltr" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Bank Details Section */}
+              <div className="mt-12 pt-10 border-t border-slate-50">
+                <div className="flex items-center gap-3 mb-8 text-emerald-600 justify-end">
+                  <h4 className="text-xl font-black">المعلومات البنكية المعتمدة للسداد</h4>
+                  <Building size={24} />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-right">
+                  <div className="space-y-3">
+                    <Label className="font-black text-sm text-slate-700 mr-2 uppercase tracking-wide">اسم البنك</Label>
+                    <Input placeholder="مثال: مصرف الراجحي" value={form.bank_name} onChange={e => setForm(p => ({ ...p, bank_name: e.target.value }))} className="h-14 rounded-2xl bg-slate-50 border-slate-100 font-bold px-6" />
+                  </div>
+                  <div className="space-y-3">
+                    <Label className="font-black text-sm text-slate-700 mr-2 uppercase tracking-wide">اسم صاحب الحساب</Label>
+                    <Input placeholder="كما هو مسجل في البنك" value={form.account_name} onChange={e => setForm(p => ({ ...p, account_name: e.target.value }))} className="h-14 rounded-2xl bg-slate-50 border-slate-100 font-bold px-6" />
+                  </div>
+                  <div className="space-y-3">
+                    <Label className="font-black text-sm text-slate-700 mr-2 uppercase tracking-wide">رقم الحساب</Label>
+                    <Input placeholder="رقم الحساب البنكي" value={form.account_number} onChange={e => setForm(p => ({ ...p, account_number: e.target.value }))} className="h-14 rounded-2xl bg-slate-50 border-slate-100 font-bold px-6 text-center" dir="ltr" />
+                  </div>
+                  <div className="space-y-3">
+                    <Label className="font-black text-sm text-slate-700 mr-2 uppercase tracking-wide">رقم الآيبان (IBAN)</Label>
+                    <Input placeholder="SA..." value={form.iban} onChange={e => setForm(p => ({ ...p, iban: e.target.value }))} className="h-14 rounded-2xl bg-slate-50 border-slate-100 font-bold px-6 text-center" dir="ltr" />
                   </div>
                 </div>
               </div>
