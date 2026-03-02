@@ -63,10 +63,10 @@ export const financeApi = {
 
     /**
      * Settle shipment (transfer funds from escrow to carrier and platform)
-     * This calls the PostgREST RPC for the fn_execute_settlement function
+     * This calls the PostgREST RPC for the process_shipment_settlement function
      */
     async settleShipment(shipmentId: string) {
-        const { error } = await (supabase as any).rpc('fn_execute_settlement', {
+        const { error } = await (supabase as any).rpc('process_shipment_settlement', {
             p_shipment_id: shipmentId
         });
 

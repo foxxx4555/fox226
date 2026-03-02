@@ -70,3 +70,45 @@ CREATE POLICY "Admins can view and manage all payments" ON shipper_payments
 -- 4. إعداد مساحة تخزين (Storage) للإيصالات
 -- يجب عليك إنشاء Bucket جديد في Supabase Storage باسم 'receipts' وتعيينه ليكون 'Public'
 -- ستقوم واجهات المستخدم برفع صور الحوالات (سواء من الشاحن أو الإدارة) إلى هذا المُستودع.
+
+-- 5. إضافة دالة إنهاء التسوية (Settlement Function) إلى قاعدة البيانات
+-- هذه الدالة ضرورية لمعالجة زر "Settle Shipment" وتحويل الرصيد للسائق
+CREATE OR REPLACE FUNCTION process_shipment_settlement(p_shipment_id UUID)
+RETURNS VOID AS $$
+DECLARE
+    v_shipper_wallet_id UUID;
+    v_carrier_wallet_id UUID;
+    v_platform_wallet_id UUID;
+    v_shipment RECORD;
+BEGIN
+    -- الحصول على تفاصيل الشحنة
+    SELECT * INTO v_shipment FROM shipment_finances WHERE shipment_id = p_shipment_id FOR UPDATE;
+
+    IF v_shipment.settlement_status = 'settled' THEN
+        RAISE EXCEPTION 'This shipment has already been settled';
+    END IF;
+
+    -- الحصول على حوافظ المستخدمين
+    SELECT wallet_id INTO v_shipper_wallet_id FROM wallets WHERE user_id = v_shipment.shipper_id AND user_type = 'shipper';
+    SELECT wallet_id INTO v_carrier_wallet_id FROM wallets WHERE user_id = v_shipment.carrier_id AND user_type = 'carrier';
+    SELECT wallet_id INTO v_platform_wallet_id FROM wallets WHERE user_type = 'platform' LIMIT 1;
+
+    -- 1. خصم مبلغ الشحنة من محفظة الشاحن
+    UPDATE wallets SET balance = balance - v_shipment.shipment_price WHERE wallet_id = v_shipper_wallet_id;
+    INSERT INTO financial_transactions (wallet_id, shipment_id, amount, type, description)
+    VALUES (v_shipper_wallet_id, p_shipment_id, v_shipment.shipment_price, 'debit', 'Payment for shipment ' || p_shipment_id);
+
+    -- 2. إيداع مستحقات السائق في محفظته
+    UPDATE wallets SET balance = balance + v_shipment.carrier_amount WHERE wallet_id = v_carrier_wallet_id;
+    INSERT INTO financial_transactions (wallet_id, shipment_id, amount, type, description)
+    VALUES (v_carrier_wallet_id, p_shipment_id, v_shipment.carrier_amount, 'credit', 'Earnings from shipment ' || p_shipment_id);
+
+    -- 3. إيداع عمولة المنصة
+    UPDATE wallets SET balance = balance + v_shipment.platform_commission WHERE wallet_id = v_platform_wallet_id;
+    INSERT INTO financial_transactions (wallet_id, shipment_id, amount, type, description)
+    VALUES (v_platform_wallet_id, p_shipment_id, v_shipment.platform_commission, 'credit', 'Commission from shipment ' || p_shipment_id);
+
+    -- تحديث حالة التسوية إلى مكتملة
+    UPDATE shipment_finances SET settlement_status = 'settled' WHERE shipment_id = p_shipment_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
