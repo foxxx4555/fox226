@@ -160,7 +160,7 @@ export default function AdminUsers() {
 
   const handleVerifyDriver = async (userId: string) => {
     try {
-      const { error } = await supabase.rpc('admin_update_user_status' as any, {
+      const { error } = await supabase.rpc('admin_update_user_status', {
         target_user_id: userId,
         new_status: 'active',
         is_verified_status: true

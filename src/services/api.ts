@@ -581,7 +581,9 @@ export const api = {
   },
 
   async deleteUser(userId: string) {
-    const { error } = await supabase.auth.admin.deleteUser(userId);
+    const { data, error } = await supabase.functions.invoke('delete-user', {
+      body: { user_id: userId }
+    });
     if (error) throw error;
     return true;
   },

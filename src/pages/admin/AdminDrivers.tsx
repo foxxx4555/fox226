@@ -95,7 +95,7 @@ export default function AdminDrivers() {
     const handleVerifyDriver = async (driverId: string) => {
         try {
             // استخدام RPC لتجاوز RLS حيث لا يستطيع الأدمن تعديل بروفايلات الآخرين مباشرة
-            const { error } = await supabase.rpc('admin_update_user_status' as any, {
+            const { error } = await supabase.rpc('admin_update_user_status', {
                 target_user_id: driverId,
                 new_status: 'active', // اختياري لو كنت عايز تعتمد التفعيل معاه
                 is_verified_status: true
@@ -123,7 +123,7 @@ export default function AdminDrivers() {
         try {
             const newStatus = action === 'activate' ? 'active' : 'suspended';
 
-            const { error } = await supabase.rpc('admin_update_user_status' as any, {
+            const { error } = await supabase.rpc('admin_update_user_status', {
                 target_user_id: driverId,
                 new_status: newStatus,
                 is_verified_status: null // لا تغير حالة التوثيق الحالية
