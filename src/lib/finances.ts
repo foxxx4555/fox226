@@ -123,7 +123,7 @@ export const financeApi = {
      * Create a withdrawal request
      */
     async requestWithdrawal(userId: string, amount: number, details: any) {
-        const { data: wallet } = await this.getWallet(userId, 'carrier');
+        const wallet = await this.getWallet(userId, 'carrier');
         if (!wallet || wallet.balance < amount) {
             throw new Error("رصيد غير كافٍ للسحب");
         }

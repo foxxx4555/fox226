@@ -56,9 +56,11 @@ const WalletCard: React.FC<WalletCardProps> = ({
             <CardContent>
                 <div className="space-y-6 relative z-10">
                     <div>
-                        <p className="text-white/60 text-sm font-medium mb-1">الرصيد المتاح</p>
+                        <p className="text-white/60 text-sm font-medium mb-1">
+                            {type === 'shipper' ? 'إجمالي المديونية الحالية' : 'الرصيد المتاح'}
+                        </p>
                         <h2 className="text-4xl font-black tracking-tight">
-                            {balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                            {type === 'shipper' ? Math.abs(balance).toLocaleString(undefined, { minimumFractionDigits: 2 }) : balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                             <span className="text-xl font-bold text-white/40 ms-2">{currency}</span>
                         </h2>
                     </div>

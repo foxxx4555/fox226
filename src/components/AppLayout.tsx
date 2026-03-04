@@ -79,7 +79,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         table: 'notifications',
         filter: `user_id=eq.${userProfile.id}`
       }, (payload: any) => {
-        const newNotif = payload.new;
+        const newNotif = payload?.new;
+        if (!newNotif) return;
         setNotifications(prev => {
           if (prev.find(n => n.id === newNotif.id)) return prev;
           playNotificationSound(newNotif.type);
@@ -89,7 +90,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         });
       })
       .on('broadcast' as any, { event: 'new_notification' }, (payload: any) => {
-        const newNotif = payload.payload;
+        const newNotif = payload?.payload;
+        if (!newNotif) return;
         setNotifications(prev => {
           if (prev.find(n => n.id === newNotif.id)) return prev;
           playNotificationSound(newNotif.type);

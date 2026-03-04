@@ -612,13 +612,14 @@ export const api = {
   // 💰 المحفظة والبيانات المالية
   // =========================
 
-  async getWalletBalance(userId: string) {
+  async getWalletBalance(userId: string, userType: string = 'carrier') {
     const { data } = await (supabase as any)
       .from('wallets')
-      .select('balance')
+      .select('*')
       .eq('user_id', userId)
+      .eq('user_type', userType)
       .maybeSingle();
-    return { balance: data?.balance || 0 };
+    return data || { balance: 0, currency: 'SAR' };
   },
 
   async getTransactionHistory(userId: string) {
@@ -738,7 +739,7 @@ export const api = {
         .from('withdrawal_requests')
         .select(`
           *,
-          profile:profiles!user_id(full_name, phone, bank_name, account_name, account_number, iban)
+          profile:profiles(full_name, phone, bank_name, account_name, account_number, iban)
         `)
         .order('created_at', { ascending: false });
 
@@ -751,7 +752,7 @@ export const api = {
   },
 
   // Admin: Process withdrawal request (approve/reject)
-  async processWithdrawalRequest(requestId: number, status: 'approved' | 'rejected', proofUrl?: string, adminNotes?: string) {
+  async processWithdrawalRequest(requestId: string, status: 'approved' | 'rejected', proofUrl?: string, adminNotes?: string) {
     try {
       const updateData: any = { status };
       if (proofUrl) updateData.proof_image_url = proofUrl;
@@ -772,9 +773,10 @@ export const api = {
           .from('financial_transactions')
           .insert([{
             wallet_id: data.wallet_id,
-            amount: -Number(data.amount), // Debit from wallet
+            amount: Math.abs(Number(data.amount)), // Amount should be positive for debit type
+            type: 'debit',
             transaction_type: 'withdrawal',
-            description: 'تم سحب الأرباح لحسابكم البنكي'
+            description: adminNotes || 'تم سحب الأرباح لحسابكم البنكي'
           }]);
       }
 
@@ -839,15 +841,23 @@ export const api = {
         if (wallets && wallets.length > 0) {
           const walletId = wallets[0].wallet_id;
 
+          // 1. تسجيل حركة السداد (لتحديث الرصيد)
           await (supabase as any)
             .from('financial_transactions')
             .insert({
               wallet_id: walletId,
-              amount: Math.abs(payment.amount), // Add amount to wallet (pay debt)
+              amount: Math.abs(payment.amount),
               type: 'credit',
+              transaction_type: 'settlement',
               description: `سداد مديونية - إيصال رقم ${paymentId}`,
               status: 'completed'
             });
+
+          // 2. تصفية الديون ومسح سجلات الحركة (Clear & Settlement)
+          await (supabase as any).rpc('clear_settled_debts', {
+            p_wallet_id: walletId,
+            p_amount: Math.abs(payment.amount)
+          });
         }
       }
 

@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import AppLayout from '@/components/AppLayout';
+import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,19 +15,20 @@ import { useAuth } from '@/hooks/useAuth';
 import {
     FileText, Download, Calendar, ArrowUpRight,
     ArrowDownRight, DollarSign, Loader2, Search,
-    Filter, X, Wallet, ArrowRightLeft, Printer,
-    CreditCard, Receipt, TrendingUp, ChevronLeft,
-    Upload, FileImage, CheckCircle2, Clock, XCircle
+    Wallet, Printer, CreditCard, Receipt,
+    CheckCircle2, Clock, XCircle, FileImage, Info, Upload
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import WalletCard from '@/components/finance/WalletCard';
 import TransactionList from '@/components/finance/TransactionList';
+import { toast } from 'sonner';
 
 export default function ShipperStatement() {
     const { userProfile } = useAuth();
+    const printRef = useRef<HTMLDivElement>(null);
     const [loading, setLoading] = useState(true);
     const [transactions, setTransactions] = useState<any[]>([]);
     const [wallet, setWallet] = useState<any>(null);
@@ -34,9 +36,9 @@ export default function ShipperStatement() {
     const [dateFrom, setDateFrom] = useState('');
     const [dateTo, setDateTo] = useState('');
     const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
-    const printRef = useRef<HTMLDivElement>(null);
+    const [selectedTransaction, setSelectedTransaction] = useState<any>(null); // للتفاصيل
+    const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
 
-    // Payment upload state
     const [shipperPayments, setShipperPayments] = useState<any[]>([]);
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
     const [paymentAmount, setPaymentAmount] = useState('');
@@ -46,47 +48,58 @@ export default function ShipperStatement() {
     const [selectedReceipt, setSelectedReceipt] = useState<string | null>(null);
     const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
 
-    useEffect(() => {
-        if (userProfile?.id) {
-            loadFinancialData();
-        }
-    }, [userProfile?.id]);
-
     const loadFinancialData = async () => {
+        if (!userProfile?.id) return;
         setLoading(true);
         try {
-            // 1. جلب بيانات المحفظة الفعلي من wallets
-            const walletData = await api.getWalletBalance(userProfile!.id);
+            const [walletData, txHistory, payments] = await Promise.all([
+                api.getWalletBalance(userProfile.id),
+                api.getTransactionHistory(userProfile.id),
+                api.getShipperPayments(userProfile.id)
+            ]);
+
             setWallet(walletData);
-
-            if (walletData) {
-                // 2. جلب العمليات المالية الحقيقية من جدول Transactions (Source of Truth)
-                const txHistory = await api.getTransactionHistory(userProfile!.id);
-                const mappedTransactions = txHistory?.map((t: any) => ({
-                    ...t,
-                    id: t.transaction_id,
-                    date: t.created_at,
-                    description: t.description || (t.shipment ? `شحنة من ${t.shipment.origin}` : 'عملية مالية'),
-                    amount: Number(t.amount),
-                    // credit يعني إيداع (سداد)، debit يعني دين (مصروف مستحق على الشاحن)
-                    type: t.type === 'credit' ? 'income' : 'expense',
-                    reference: `TX-${t.transaction_id.toString().padStart(6, '0')}`,
-                    status: 'completed',
-                    is_load: !!t.shipment_id
-                })) || [];
-
-                setTransactions(mappedTransactions);
-            }
-
-            // 3. جلب جميع مدفوعات الشاحن
-            const payments = await api.getShipperPayments(userProfile!.id);
             setShipperPayments(payments || []);
+
+            const mappedTransactions = txHistory?.map((t: any) => ({
+                ...t,
+                id: t.transaction_id,
+                date: t.created_at,
+                description: t.description || (t.shipment ? `شحنة من ${t.shipment.origin}` : 'عملية مالية'),
+                amount: Math.abs(Number(t.amount)),
+                type: t.type === 'debit' ? 'expense' : 'income',
+                status: t.status || 'completed'
+            })) || [];
+
+            setTransactions(mappedTransactions);
         } catch (err) {
             console.error("Financial Load Error:", err);
         } finally {
             setLoading(false);
         }
     };
+
+    useEffect(() => {
+        loadFinancialData();
+
+        // مستمع حي لتحديث المحفظة عند اعتماد الإدارة للسداد
+        if (userProfile?.id) {
+            const walletChannel = supabase
+                .channel('wallet-updates')
+                .on(
+                    'postgres_changes',
+                    { event: 'UPDATE', schema: 'public', table: 'wallets', filter: `user_id=eq.${userProfile.id}` },
+                    (payload) => {
+                        setWallet(payload.new);
+                        toast.success("تم تحديث رصيد محفظتك! 💰");
+                        loadFinancialData();
+                    }
+                )
+                .subscribe();
+
+            return () => { supabase.removeChannel(walletChannel); };
+        }
+    }, [userProfile?.id]);
 
     const handleTopUp = async () => {
         const amount = window.prompt("أدخل المبلغ المراد شحنه (ر.س):");
@@ -101,43 +114,16 @@ export default function ShipperStatement() {
         }
     };
 
-    const handlePayDebt = async () => {
-        if (!paymentAmount || isNaN(Number(paymentAmount)) || Number(paymentAmount) <= 0) {
-            alert("يرجى إدخال مبلغ صحيح");
-            return;
-        }
-        if (!paymentImage) {
-            alert("يرجى إرفاق إيصال التحويل البنكي");
-            return;
-        }
-
-        setIsSubmitting(true);
-        try {
-            // Upload the proof image first
-            const proofUrl = await api.uploadImage(paymentImage, 'receipts');
-            if (!proofUrl) throw new Error("فشل في رفع صورة الإيصال");
-
-            // Submit the payment request
-            await api.submitShipperPayment(
-                userProfile!.id,
-                Number(paymentAmount),
-                proofUrl,
-                paymentNotes
-            );
-
-            alert("تم إرسال إثبات السداد بنجاح. سيتم مراجعته من قبل الإدارة.");
-            setIsPaymentModalOpen(false);
-            setPaymentAmount('');
-            setPaymentNotes('');
-            setPaymentImage(null);
-            loadFinancialData(); // Refresh the lists
-        } catch (err) {
-            console.error("Debt payment error:", err);
-            alert("حدث خطأ أثناء إرسال إثبات السداد");
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
+    // حساب الإحصائيات (المصروفات والمدفوعات)
+    const stats = useMemo(() => {
+        const spent = transactions
+            .filter(t => t.type === 'expense')
+            .reduce((acc, curr) => acc + Number(curr.amount), 0);
+        const earned = transactions
+            .filter(t => t.type === 'income')
+            .reduce((acc, curr) => acc + Number(curr.amount), 0);
+        return { spent: wallet?.balance || 0, earned };
+    }, [transactions, wallet?.balance]);
 
     const chartData = useMemo(() => {
         const last7Days = Array.from({ length: 7 }, (_, i) => {
@@ -148,22 +134,35 @@ export default function ShipperStatement() {
 
         return last7Days.map(date => {
             const dayName = new Date(date).toLocaleDateString('ar-SA', { weekday: 'short' });
-            const amount = transactions
-                .filter(t => t.created_at.startsWith(date) && t.type === 'debit')
+            const dayAmount = transactions
+                .filter(t => t.created_at.startsWith(date) && t.type === 'expense')
                 .reduce((acc, curr) => acc + Number(curr.amount), 0);
-            return { name: dayName, amount: amount || Math.floor(Math.random() * 200) };
+            return { name: dayName, amount: dayAmount };
         });
     }, [transactions]);
 
-    const stats = useMemo(() => {
-        const spent = transactions
-            .filter(t => t.type === 'debit')
-            .reduce((acc, curr) => acc + Number(curr.amount), 0);
-        const earned = transactions
-            .filter(t => t.type === 'credit')
-            .reduce((acc, curr) => acc + Number(curr.amount), 0);
-        return { spent, earned };
-    }, [transactions]);
+    const handlePayDebt = async () => {
+        if (!paymentAmount || Number(paymentAmount) <= 0 || !paymentImage) {
+            toast.error("يرجى إكمال البيانات المطلوبة");
+            return;
+        }
+
+        setIsSubmitting(true);
+        try {
+            const proofUrl = await api.uploadImage(paymentImage, 'receipts');
+            await api.submitShipperPayment(userProfile!.id, Number(paymentAmount), proofUrl, paymentNotes);
+
+            toast.success("تم إرسال إثبات السداد بنجاح، بانتظار مراجعة الإدارة");
+            setIsPaymentModalOpen(false);
+            setPaymentAmount('');
+            setPaymentImage(null);
+            loadFinancialData();
+        } catch (err) {
+            toast.error("فشل إرسال البيانات");
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
 
     const formatCurrency = (val: number) => new Intl.NumberFormat('ar-SA').format(val);
 
@@ -277,14 +276,14 @@ export default function ShipperStatement() {
                                 <div className="w-10 h-10 rounded-xl bg-orange-50 text-orange-500 flex items-center justify-center mb-4">
                                     <ArrowUpRight size={20} />
                                 </div>
-                                <p className="text-slate-400 font-bold text-xs">إجمالي الدفع</p>
+                                <p className="text-slate-400 font-bold text-xs">إجمالي المديونية</p>
                                 <h4 className="text-xl font-black text-slate-800 mt-1">{formatCurrency(stats.spent)}</h4>
                             </Card>
                             <Card className="rounded-[2rem] border-none shadow-xl bg-white p-6">
                                 <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-500 flex items-center justify-center mb-4">
                                     <ArrowDownRight size={20} />
                                 </div>
-                                <p className="text-slate-400 font-bold text-xs">إجمالي الإيداع</p>
+                                <p className="text-slate-400 font-bold text-xs">تم سداده</p>
                                 <h4 className="text-xl font-black text-slate-800 mt-1">{formatCurrency(stats.earned)}</h4>
                             </Card>
                         </div>
@@ -414,15 +413,12 @@ export default function ShipperStatement() {
                 </div>
 
                 <TransactionList
-                    transactions={transactions.map(t => ({
-                        transaction_id: t.transaction_id,
-                        amount: Number(t.amount),
-                        type: t.type,
-                        description: t.description,
-                        created_at: t.created_at,
-                        shipment_id: t.shipment_id
-                    }))}
+                    transactions={transactions}
                     loading={loading}
+                    onViewDetails={(trx) => {
+                        setSelectedTransaction(trx);
+                        setIsDetailsModalOpen(true);
+                    }}
                 />
 
             </div>
@@ -550,6 +546,46 @@ export default function ShipperStatement() {
                             إغلاق
                         </Button>
                     </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* Modal: View Transaction Details */}
+            <Dialog open={isDetailsModalOpen} onOpenChange={setIsDetailsModalOpen}>
+                <DialogContent className="sm:max-w-md bg-white rounded-[2rem] p-0 overflow-hidden border-none text-right" dir="rtl">
+                    <div className="bg-slate-50 p-6 border-b border-slate-100 flex items-center gap-4">
+                        <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center">
+                            <Info size={24} />
+                        </div>
+                        <div>
+                            <DialogTitle className="text-xl font-black">تفاصيل المعاملة</DialogTitle>
+                            <DialogDescription className="font-bold">رقم العملية: {selectedTransaction?.id?.substring(0, 8).toUpperCase()}</DialogDescription>
+                        </div>
+                    </div>
+                    <div className="p-6 space-y-4">
+                        <div className="flex justify-between items-center p-4 bg-slate-50 rounded-2xl">
+                            <span className="font-bold text-slate-500">المبلغ:</span>
+                            <span className={`text-xl font-black ${selectedTransaction?.amount > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                {selectedTransaction?.amount?.toLocaleString()} ر.س
+                            </span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-1">
+                                <Label className="text-slate-400 text-xs">التاريخ</Label>
+                                <p className="font-bold">{(new Date(selectedTransaction?.created_at)).toLocaleDateString('ar-SA')}</p>
+                            </div>
+                            <div className="space-y-1">
+                                <Label className="text-slate-400 text-xs">الحالة</Label>
+                                <Badge className="bg-emerald-50 text-emerald-600 border-none">مكتمل</Badge>
+                            </div>
+                        </div>
+                        <div className="space-y-1">
+                            <Label className="text-slate-400 text-xs">الوصف</Label>
+                            <p className="font-bold text-slate-700 bg-white border p-3 rounded-xl">{selectedTransaction?.description}</p>
+                        </div>
+                    </div>
+                    <DialogFooter className="p-6 bg-slate-50 border-t">
+                        <Button onClick={() => setIsDetailsModalOpen(false)} className="w-full h-12 rounded-xl bg-slate-900 text-white font-bold">إغلاق</Button>
+                    </DialogFooter>
                 </DialogContent>
             </Dialog>
 

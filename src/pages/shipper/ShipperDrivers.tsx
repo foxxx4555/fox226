@@ -36,6 +36,7 @@ export default function ShipperDrivers() {
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'profiles' },
         (payload) => {
+          if (!payload?.new?.id) return;
           setDrivers((current) =>
             current.map((d) => (d.id === payload.new.id ? { ...d, ...payload.new } : d))
           );
@@ -71,8 +72,8 @@ export default function ShipperDrivers() {
           </div>
           <div className="relative w-full md:w-80">
             <Search className="absolute start-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
-            <Input 
-              placeholder="بحث باسم السائق..." 
+            <Input
+              placeholder="بحث باسم السائق..."
               className="ps-12 h-14 rounded-2xl border-2 focus:border-primary font-bold shadow-sm"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -119,7 +120,7 @@ export default function ShipperDrivers() {
                           </div>
                           <span dir="ltr">{driver.phone || "لا يوجد رقم"}</span>
                         </div>
-                        
+
                         {/* عرض الموقع الحي (إحداثيات + زر خريطة) */}
                         <div className="flex items-center justify-between gap-3 text-sm font-black text-slate-600">
                           <div className="flex items-center gap-3">
@@ -132,7 +133,7 @@ export default function ShipperDrivers() {
                             </span>
                           </div>
                           {driver.latitude && (
-                            <Button 
+                            <Button
                               variant="ghost" size="sm" className="h-8 rounded-lg text-primary bg-primary/5 hover:bg-primary/10"
                               onClick={() => window.open(`https://www.google.com/maps?q=${driver.latitude},${driver.longitude}`, '_blank')}
                             >
@@ -143,15 +144,15 @@ export default function ShipperDrivers() {
                       </div>
 
                       <div className="grid grid-cols-2 gap-3">
-                        <Button 
+                        <Button
                           onClick={() => handleCall(driver.phone)}
                           className="h-12 rounded-xl font-bold bg-slate-900 hover:bg-primary transition-all gap-2"
                         >
                           <Phone size={18} /> اتصال
                         </Button>
-                        <Button 
+                        <Button
                           onClick={() => handleWhatsApp(driver.phone)}
-                          variant="outline" 
+                          variant="outline"
                           className="h-12 rounded-xl font-bold border-2 gap-2 text-emerald-600 border-emerald-100 hover:bg-emerald-50"
                         >
                           <MessageCircle size={18} /> واتساب

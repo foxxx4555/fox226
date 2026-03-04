@@ -14,11 +14,12 @@ interface Transaction {
 }
 
 interface TransactionListProps {
-    transactions: Transaction[];
+    transactions: any[];
     loading?: boolean;
+    onViewDetails?: (trx: any) => void;
 }
 
-const TransactionList: React.FC<TransactionListProps> = ({ transactions, loading }) => {
+const TransactionList: React.FC<TransactionListProps> = ({ transactions, loading, onViewDetails }) => {
     const [search, setSearch] = React.useState('');
 
     const filtered = transactions.filter(t =>
@@ -54,8 +55,9 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, loading
                     <div className="space-y-3">
                         {filtered.map((trx) => (
                             <div
-                                key={trx.transaction_id}
-                                className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 border border-slate-100 hover:border-blue-100 transition-all group"
+                                key={trx.transaction_id || trx.id}
+                                onClick={() => onViewDetails?.(trx)}
+                                className={`flex items-center justify-between p-4 rounded-2xl bg-slate-50 border border-slate-100 transition-all group ${onViewDetails ? 'cursor-pointer hover:border-blue-200 hover:bg-blue-50/30' : ''}`}
                             >
                                 <div className="flex items-center gap-4">
                                     <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${trx.type === 'credit' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'

@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Search, Download, TrendingUp, DollarSign, CreditCard, ArrowUpRight, ArrowDownRight, FileText, CheckCircle2, Clock, Loader2 } from 'lucide-react';
+import { Search, Download, TrendingUp, DollarSign, CreditCard, ArrowUpRight, ArrowDownRight, FileText, CheckCircle2, Clock, Loader2, Pencil } from 'lucide-react';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { api } from '@/services/api';
 import { supabase } from '@/integrations/supabase/client';
@@ -50,6 +50,12 @@ export default function AdminFinance() {
     const [paymentAdminNotes, setPaymentAdminNotes] = useState('');
     const [processingPayment, setProcessingPayment] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // حالات تعديل المعاملات
+    const [isEditTransactionModalOpen, setIsEditTransactionModalOpen] = useState(false);
+    const [editingTransaction, setEditingTransaction] = useState<any>(null);
+    const [editForm, setEditForm] = useState({ amount: 0, type: '', status: '' });
+    const [isUpdating, setIsUpdating] = useState(false);
 
     // دالة إنشاء وإصدار تقرير الـ PDF باستخدام التقاط واجهة المستخدم
     const generatePDF = async () => {
@@ -123,6 +129,7 @@ export default function AdminFinance() {
                     filter: `type=eq.commission`
                 },
                 (payload) => {
+                    if (!payload?.new) return;
                     // تشغيل الصوت
                     try {
                         const audio = new Audio('/kaching.mp3'); // يجب وضع ملف بهذا الاسم في مجلد public
@@ -189,12 +196,51 @@ export default function AdminFinance() {
         if (!confirm("هل أنت متأكد من رفض طلب السحب هذا؟")) return;
 
         try {
-            await api.processWithdrawalRequest(requestId, 'rejected', undefined, 'مرفوض من قبل الإدارة');
+            await api.processWithdrawalRequest(requestId.toString(), 'rejected', undefined, 'مرفوض من قبل الإدارة');
             toast.success("تم رفض طلب السحب");
             const updatedWithdrawals = await api.getWithdrawalRequests();
             setWithdrawals(updatedWithdrawals || []);
         } catch (error) {
             toast.error("حدث خطأ أثناء رفض الطلب");
+        }
+    };
+
+    const openEditModal = (trx: any) => {
+        setEditingTransaction(trx);
+        setEditForm({
+            amount: trx.amount,
+            type: trx.transaction_type || trx.type,
+            status: trx.status
+        });
+        setIsEditTransactionModalOpen(true);
+    };
+
+    const handleUpdateTransaction = async () => {
+        if (!editingTransaction) return;
+
+        setIsUpdating(true);
+        try {
+            const { error } = await (supabase as any)
+                .from('financial_transactions')
+                .update({
+                    amount: editForm.amount,
+                    transaction_type: editForm.type,
+                    status: editForm.status
+                })
+                .eq('id', editingTransaction.id);
+
+            if (error) throw error;
+
+            toast.success("تم تحديث المعاملة بنجاح");
+            setIsEditTransactionModalOpen(false);
+
+            const trxData = await api.getAllTransactions();
+            setTransactions(trxData || []);
+        } catch (error) {
+            console.error("Error updating transaction:", error);
+            toast.error("فشل في تحديث البيانات");
+        } finally {
+            setIsUpdating(false);
         }
     };
 
@@ -245,8 +291,6 @@ export default function AdminFinance() {
     return (
         <AdminLayout>
             <div className="space-y-8 max-w-7xl mx-auto pb-20">
-
-                {/* Header Section */}
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <div>
                         <h1 className="text-3xl font-black text-slate-900 tracking-tight flex items-center gap-3">
@@ -394,29 +438,42 @@ export default function AdminFinance() {
                                         {filteredTransactions.length === 0 ? (
                                             <div className="text-center py-10 opacity-50 font-bold">لا يوجد حركات لعرضها</div>
                                         ) : filteredTransactions.map((trx, index) => (
-                                            <div key={index} className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 border border-slate-100 hover:border-blue-100 transition-all cursor-pointer">
+                                            <div key={index} className="group flex items-center justify-between p-4 rounded-2xl bg-slate-50 border border-slate-100 hover:border-blue-100 transition-all cursor-pointer">
                                                 <div className="flex items-center gap-4">
-                                                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${trx.type === 'commission' ? 'bg-amber-100 text-amber-600' : trx.type === 'deposit' || trx.type === 'collection' ? 'bg-emerald-100 text-emerald-600' :
-                                                        trx.type === 'withdrawal' || trx.type === 'payout' ? 'bg-rose-100 text-rose-600' : 'bg-slate-200 text-slate-600'
+                                                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${trx.transaction_type === 'commission' ? 'bg-amber-100 text-amber-600' : trx.transaction_type === 'deposit' || trx.transaction_type === 'collection' ? 'bg-emerald-100 text-emerald-600' :
+                                                        trx.transaction_type === 'withdrawal' || trx.transaction_type === 'payout' ? 'bg-rose-100 text-rose-600' : 'bg-slate-200 text-slate-600'
                                                         }`}>
-                                                        {trx.type === 'commission' ? <DollarSign size={20} /> : trx.type === 'deposit' || trx.type === 'collection' ? <ArrowDownRight size={20} /> :
-                                                            trx.type === 'withdrawal' || trx.type === 'payout' ? <ArrowUpRight size={20} /> : <FileText size={20} />}
+                                                        {trx.transaction_type === 'commission' ? <DollarSign size={20} /> : trx.transaction_type === 'deposit' || trx.transaction_type === 'collection' ? <ArrowDownRight size={20} /> :
+                                                            trx.transaction_type === 'withdrawal' || trx.transaction_type === 'payout' ? <ArrowUpRight size={20} /> : <FileText size={20} />}
                                                     </div>
                                                     <div>
-                                                        <p className="font-bold text-slate-800 text-sm">{trx.profiles?.full_name || 'مستخدم غير معروف'}</p>
-                                                        <p className="text-xs text-slate-400 font-bold mt-1" dir="ltr">{trx.id.substring(0, 10).toUpperCase()} - {trx.type === 'commission' ? 'عمولة' : trx.type}</p>
+                                                        <p className="font-bold text-slate-800 text-sm">{trx.profiles?.full_name || trx.wallet?.profiles?.full_name || 'مستخدم غير معروف'}</p>
+                                                        <p className="text-xs text-slate-400 font-bold mt-1" dir="ltr">{trx.id?.substring(0, 10).toUpperCase() || 'TRX-NEW'} - {trx.transaction_type === 'commission' ? 'عمولة' : (trx.transaction_type || trx.type)}</p>
                                                     </div>
                                                 </div>
-                                                <div className="text-left">
-                                                    <p className={`font-black tracking-tight ${trx.amount > 0 ? 'text-emerald-600' : 'text-slate-800'}`} dir="ltr">
-                                                        {trx.amount > 0 ? '+' : ''}{trx.amount?.toLocaleString()} ر.س
-                                                    </p>
-                                                    <div className="mt-1 flex justify-end">
-                                                        {trx.status === 'completed' ? (
-                                                            <Badge variant="outline" className="bg-emerald-50 text-emerald-600 border-none text-[10px] px-2 py-0">مكتمل</Badge>
-                                                        ) : (
-                                                            <Badge variant="outline" className="bg-amber-50 text-amber-600 border-none text-[10px] px-2 py-0">معلق</Badge>
-                                                        )}
+                                                <div className="flex items-center gap-4">
+                                                    <div className="text-left">
+                                                        <p className={`font-black tracking-tight ${trx.amount > 0 ? 'text-emerald-600' : 'text-slate-800'}`} dir="ltr">
+                                                            {trx.amount > 0 ? '+' : ''}{trx.amount?.toLocaleString()} ر.س
+                                                        </p>
+                                                        <div className="mt-1 flex justify-end gap-2 items-center">
+                                                            {trx.status === 'completed' ? (
+                                                                <Badge variant="outline" className="bg-emerald-50 text-emerald-600 border-none text-[10px] px-2 py-0">مكتمل</Badge>
+                                                            ) : (
+                                                                <Badge variant="outline" className="bg-amber-50 text-amber-600 border-none text-[10px] px-2 py-0">معلق</Badge>
+                                                            )}
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    openEditModal(trx);
+                                                                }}
+                                                                className="h-7 w-7 rounded-full bg-white shadow-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 transition-all opacity-0 group-hover:opacity-100"
+                                                            >
+                                                                <Pencil size={12} />
+                                                            </Button>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -617,10 +674,10 @@ export default function AdminFinance() {
                         </TabsContent>
                     </Tabs>
                 </div>
-            </div>
+            </div >
 
             {/* Modal: Process Withdrawal / Upload Proof */}
-            <Dialog open={isApproveModalOpen} onOpenChange={setIsApproveModalOpen}>
+            < Dialog open={isApproveModalOpen} onOpenChange={setIsApproveModalOpen} >
                 <DialogContent className="sm:max-w-md bg-white rounded-[2rem] p-0 overflow-hidden border-none text-right" dir="rtl">
                     <div className="bg-slate-50 p-6 border-b border-slate-100 flex items-center gap-4">
                         <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center">
@@ -699,6 +756,79 @@ export default function AdminFinance() {
                                 setProofImage(null);
                             }}
                             className="h-14 rounded-2xl font-bold bg-white text-slate-600 mx-0 border-slate-200"
+                        >
+                            إلغاء
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* نافذة تعديل معاملة مالية */}
+            <Dialog open={isEditTransactionModalOpen} onOpenChange={setIsEditTransactionModalOpen}>
+                <DialogContent className="sm:max-w-md bg-white rounded-[2rem] p-0 overflow-hidden border-none text-right" dir="rtl">
+                    <div className="bg-slate-50 p-6 border-b border-slate-100 flex items-center gap-4">
+                        <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center">
+                            <FileText size={24} />
+                        </div>
+                        <div>
+                            <DialogTitle className="text-xl font-black">تعديل تفاصيل المعاملة</DialogTitle>
+                            <DialogDescription className="font-bold text-slate-500 mt-1">تعديل بيانات الحركة رقم: {editingTransaction?.id?.substring(0, 8).toUpperCase()}</DialogDescription>
+                        </div>
+                    </div>
+
+                    <div className="p-6 space-y-4">
+                        <div className="space-y-2 text-right">
+                            <Label className="font-black text-slate-700">المبلغ (ر.س)</Label>
+                            <Input
+                                type="number"
+                                value={editForm.amount}
+                                onChange={(e) => setEditForm({ ...editForm, amount: Number(e.target.value) })}
+                                className="h-12 rounded-xl bg-slate-50 border-slate-200 font-bold text-right"
+                            />
+                        </div>
+
+                        <div className="space-y-2 text-right">
+                            <Label className="font-black text-slate-700">نوع المعاملة</Label>
+                            <select
+                                value={editForm.type}
+                                onChange={(e) => setEditForm({ ...editForm, type: e.target.value })}
+                                className="w-full h-12 rounded-xl bg-slate-50 border border-slate-200 font-bold px-4 outline-none focus:ring-2 ring-blue-500/20 text-right"
+                            >
+                                <option value="commission">عمولة (إيراد)</option>
+                                <option value="deposit">إيداع (شحن محفظة)</option>
+                                <option value="withdrawal">سحب (أرباح ناقل)</option>
+                                <option value="collection">تحصيل (سداد مديونية)</option>
+                                <option value="debt">مديونية شحنة</option>
+                                <option value="settlement">تسوية </option>
+                            </select>
+                        </div>
+
+                        <div className="space-y-2 text-right">
+                            <Label className="font-black text-slate-700">حالة المعاملة</Label>
+                            <select
+                                value={editForm.status}
+                                onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
+                                className="w-full h-12 rounded-xl bg-slate-50 border border-slate-200 font-bold px-4 outline-none focus:ring-2 ring-blue-500/20 text-right"
+                            >
+                                <option value="completed">مكتمل (Completed)</option>
+                                <option value="pending">معلق (Pending)</option>
+                                <option value="failed">فاشل (Failed)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <DialogFooter className="bg-slate-50 p-6 border-t border-slate-100 sm:justify-start gap-3">
+                        <Button
+                            onClick={handleUpdateTransaction}
+                            disabled={isUpdating}
+                            className="flex-1 h-14 rounded-2xl font-black text-lg bg-blue-600 hover:bg-blue-700 shadow-xl shadow-blue-500/20 text-white"
+                        >
+                            {isUpdating ? <Loader2 className="animate-spin" /> : 'حفظ التعديلات'}
+                        </Button>
+                        <Button
+                            variant="outline"
+                            onClick={() => setIsEditTransactionModalOpen(false)}
+                            className="h-14 rounded-2xl font-bold bg-white text-slate-600 border-slate-200"
                         >
                             إلغاء
                         </Button>
