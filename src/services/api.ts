@@ -581,8 +581,8 @@ export const api = {
   },
 
   async deleteUser(userId: string) {
-    const { data, error } = await supabase.functions.invoke('delete-user', {
-      body: { user_id: userId }
+    const { error } = await supabase.rpc('delete_user_by_admin', {
+      target_user_id: userId
     });
     if (error) throw error;
     return true;

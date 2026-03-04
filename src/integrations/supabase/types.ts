@@ -436,7 +436,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      admin_delete_user: {
+      delete_user_by_admin: {
         Args: {
           target_user_id: string
         }
