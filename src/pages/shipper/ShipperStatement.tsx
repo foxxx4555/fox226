@@ -24,6 +24,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { motion } from 'framer-motion';
 import WalletCard from '@/components/finance/WalletCard';
 import TransactionList from '@/components/finance/TransactionList';
+import InvoiceTemplate from '@/components/finance/InvoiceTemplate';
 import { toast } from 'sonner';
 
 export default function ShipperStatement() {
@@ -33,11 +34,20 @@ export default function ShipperStatement() {
     const [transactions, setTransactions] = useState<any[]>([]);
     const [wallet, setWallet] = useState<any>(null);
     const [searchQuery, setSearchQuery] = useState('');
+    const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
     const [dateFrom, setDateFrom] = useState('');
     const [dateTo, setDateTo] = useState('');
     const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
     const [selectedTransaction, setSelectedTransaction] = useState<any>(null); // للتفاصيل
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+    const [isGlow, setIsGlow] = useState(false);
+
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            setDebouncedSearchQuery(searchQuery);
+        }, 300);
+        return () => clearTimeout(handler);
+    }, [searchQuery]);
 
     const [shipperPayments, setShipperPayments] = useState<any[]>([]);
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
@@ -61,15 +71,22 @@ export default function ShipperStatement() {
             setWallet(walletData);
             setShipperPayments(payments || []);
 
-            const mappedTransactions = txHistory?.map((t: any) => ({
-                ...t,
-                id: t.transaction_id,
-                date: t.created_at,
-                description: t.description || (t.shipment ? `شحنة من ${t.shipment.origin}` : 'عملية مالية'),
-                amount: Math.abs(Number(t.amount)),
-                type: t.type === 'debit' ? 'expense' : 'income',
-                status: t.status || 'completed'
-            })) || [];
+            const mappedTransactions = txHistory?.map((t: any) => {
+                const amount = Math.abs(Number(t.amount) || 0);
+                // Map DB types (debit/credit) to UI common types (expense/income)
+                // In Shipper context: debit = they owe more (expense), credit = they paid (income/settlement)
+                const type = (t.type === 'debit' || t.transaction_type === 'usage') ? 'expense' : 'income';
+
+                return {
+                    ...t,
+                    id: t.id || t.transaction_id, // Safety check for ID column name
+                    date: t.created_at,
+                    description: t.description || (t.shipment ? `شحنة من ${t.shipment.origin}` : 'عملية مالية'),
+                    amount,
+                    type,
+                    status: t.status || 'completed'
+                };
+            }) || [];
 
             setTransactions(mappedTransactions);
         } catch (err) {
@@ -91,6 +108,8 @@ export default function ShipperStatement() {
                     { event: 'UPDATE', schema: 'public', table: 'wallets', filter: `user_id=eq.${userProfile.id}` },
                     (payload) => {
                         setWallet(payload.new);
+                        setIsGlow(true);
+                        setTimeout(() => setIsGlow(false), 2000);
                         toast.success("تم تحديث رصيد محفظتك! 💰");
                         loadFinancialData();
                     }
@@ -114,16 +133,32 @@ export default function ShipperStatement() {
         }
     };
 
+    const filteredTransactions = useMemo(() => {
+        return transactions.filter(t => {
+            const matchesSearch = t.description?.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
+                t.id?.includes(debouncedSearchQuery);
+            const matchesDateFrom = dateFrom ? new Date(t.date) >= new Date(dateFrom) : true;
+            const matchesDateTo = dateTo ? new Date(t.date) <= new Date(dateTo) : true;
+
+            return matchesSearch && matchesDateFrom && matchesDateTo;
+        });
+    }, [transactions, debouncedSearchQuery, dateFrom, dateTo]);
+
     // حساب الإحصائيات (المصروفات والمدفوعات)
     const stats = useMemo(() => {
-        const spent = transactions
-            .filter(t => t.type === 'expense')
-            .reduce((acc, curr) => acc + Number(curr.amount), 0);
-        const earned = transactions
+        // Total amount paid (Credits/Income)
+        const earned = filteredTransactions
             .filter(t => t.type === 'income')
-            .reduce((acc, curr) => acc + Number(curr.amount), 0);
-        return { spent: wallet?.balance || 0, earned };
-    }, [transactions, wallet?.balance]);
+            .reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
+
+        // For the "Debt" card, we want the current absolute balance
+        // For the "Earned" card, we show the total confirmed payments
+        const currentBalance = Number(wallet?.balance) || 0;
+        return {
+            debt: Math.abs(currentBalance),
+            paid: earned
+        };
+    }, [filteredTransactions, wallet?.balance]);
 
     const chartData = useMemo(() => {
         const last7Days = Array.from({ length: 7 }, (_, i) => {
@@ -135,7 +170,7 @@ export default function ShipperStatement() {
         return last7Days.map(date => {
             const dayName = new Date(date).toLocaleDateString('ar-SA', { weekday: 'short' });
             const dayAmount = transactions
-                .filter(t => t.created_at.startsWith(date) && t.type === 'expense')
+                .filter(t => (t.created_at || t.date).startsWith(date) && t.type === 'expense')
                 .reduce((acc, curr) => acc + Number(curr.amount), 0);
             return { name: dayName, amount: dayAmount };
         });
@@ -144,6 +179,11 @@ export default function ShipperStatement() {
     const handlePayDebt = async () => {
         if (!paymentAmount || Number(paymentAmount) <= 0 || !paymentImage) {
             toast.error("يرجى إكمال البيانات المطلوبة");
+            return;
+        }
+
+        if (paymentImage.size > 2 * 1024 * 1024) {
+            toast.error("حجم الصورة كبير جداً، يرجى اختيار صورة أقل من 2 ميجابايت");
             return;
         }
 
@@ -173,61 +213,42 @@ export default function ShipperStatement() {
         }, 500);
     };
 
+    if (loading || !userProfile) {
+        return (
+            <AppLayout>
+                <div className="max-w-6xl mx-auto space-y-8 pb-20 px-4 mt-6 animate-pulse">
+                    <div className="flex flex-col md:flex-row justify-between gap-6 mb-8">
+                        <div>
+                            <div className="h-10 w-48 bg-slate-200 rounded-lg mb-2"></div>
+                            <div className="h-4 w-64 bg-slate-200 rounded-lg"></div>
+                        </div>
+                        <div className="flex gap-3">
+                            <div className="h-12 w-32 bg-slate-200 rounded-xl"></div>
+                            <div className="h-12 w-32 bg-slate-200 rounded-xl"></div>
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        <div className="lg:col-span-1 space-y-6">
+                            <div className="h-48 bg-slate-200 rounded-[2.5rem]"></div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="h-32 bg-slate-200 rounded-[2rem]"></div>
+                                <div className="h-32 bg-slate-200 rounded-[2rem]"></div>
+                            </div>
+                        </div>
+                        <div className="h-[380px] lg:col-span-2 bg-slate-200 rounded-[2.5rem]"></div>
+                    </div>
+                    <div className="h-64 bg-slate-200 rounded-[3rem] mt-8"></div>
+                </div>
+            </AppLayout>
+        );
+    }
+
     return (
         <AppLayout>
             <div className="max-w-6xl mx-auto space-y-8 pb-20 px-4 mt-6">
 
                 {/* Print Template (Hidden) */}
-                <div className="hidden print:block fixed inset-0 bg-white z-[9999] p-12 overflow-y-auto" ref={printRef}>
-                    {selectedInvoice && (
-                        <div className="space-y-8 text-right" dir="rtl">
-                            <div className="flex justify-between items-start border-b-4 border-slate-900 pb-8">
-                                <div>
-                                    <h1 className="text-4xl font-black text-slate-900 mb-2">فاتورة ضريبية</h1>
-                                    <p className="text-xl text-slate-500 font-bold">الرقم المرجعي: {selectedInvoice.transaction_id.substring(0, 8).toUpperCase()}</p>
-                                </div>
-                                <div className="text-left font-black">
-                                    <div className="text-3xl tracking-tighter">FOX LOGISTICS</div>
-                                    <div className="text-sm text-slate-400">المنصة المالية اللوجستية</div>
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-12 py-8">
-                                <div className="space-y-4">
-                                    <h4 className="text-lg font-black bg-slate-100 p-2 inline-block rounded">بيانات العميل</h4>
-                                    <div className="text-xl font-bold">{userProfile?.full_name}</div>
-                                    <div className="text-slate-500">{userProfile?.phone}</div>
-                                </div>
-                                <div className="space-y-4">
-                                    <h4 className="text-lg font-black bg-slate-100 p-2 inline-block rounded">تاريخ المعاملة</h4>
-                                    <div className="text-xl font-bold">{new Date(selectedInvoice.created_at).toLocaleDateString('ar-SA')}</div>
-                                    <div className="text-slate-500">{new Date(selectedInvoice.created_at).toLocaleTimeString('ar-SA')}</div>
-                                </div>
-                            </div>
-
-                            <table className="w-full border-collapse">
-                                <thead>
-                                    <tr className="bg-slate-900 text-white">
-                                        <th className="p-4 text-right border">الوصف</th>
-                                        <th className="p-4 text-center border">الحالة</th>
-                                        <th className="p-4 text-left border">الإجمالي</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr>
-                                        <td className="p-6 border text-xl font-bold">{selectedInvoice.description}</td>
-                                        <td className="p-6 border text-center font-bold">مكتمل</td>
-                                        <td className="p-6 border text-left font-black text-2xl">{formatCurrency(selectedInvoice.amount)} ر.س</td>
-                                    </tr>
-                                    <tr className="bg-slate-50">
-                                        <td colSpan={2} className="p-4 text-left font-black text-xl border">الإجمالي المستحق</td>
-                                        <td className="p-4 text-left font-black text-3xl border text-primary">{formatCurrency(selectedInvoice.amount)} ر.س</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
-                </div>
+                <InvoiceTemplate invoice={selectedInvoice} userProfile={userProfile} printRef={printRef} />
 
                 {/* Main Header */}
                 <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -241,21 +262,21 @@ export default function ShipperStatement() {
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-3">
-                        <Button variant="outline" className="h-14 rounded-2xl font-black px-6 border-slate-200 hover:bg-slate-50">
-                            <Printer size={18} className="ml-2 text-slate-400" /> طباعة سجل النشاط
+                    <div className="flex items-center gap-2 md:gap-3">
+                        <Button variant="outline" className="h-12 md:h-14 rounded-2xl font-black px-4 md:px-6 border-slate-200 hover:bg-slate-50 text-xs md:text-sm">
+                            <Printer size={18} className="md:ml-2 text-slate-400" /> <span className="hidden md:inline">طباعة سجل النشاط</span>
                         </Button>
                         <Button
                             onClick={() => setIsPaymentModalOpen(true)}
-                            className="h-14 rounded-2xl bg-slate-900 hover:bg-slate-800 font-black px-8 shadow-xl transition-all active:scale-95 text-white"
+                            className="h-12 md:h-14 rounded-2xl bg-slate-900 hover:bg-slate-800 font-black px-4 md:px-8 shadow-xl transition-all active:scale-95 text-white text-xs md:text-sm"
                         >
-                            <Upload size={18} className="ml-2" /> إرفاق إيصال سداد
+                            <Upload size={18} className="md:ml-2" /> <span className="hidden md:inline">إرفاق إيصال سداد</span>
                         </Button>
                         <Button
                             onClick={handleTopUp}
-                            className="h-14 rounded-2xl bg-blue-600 hover:bg-blue-700 font-black px-8 shadow-xl shadow-blue-200 transition-all active:scale-95 text-white"
+                            className="h-12 md:h-14 rounded-2xl bg-blue-600 hover:bg-blue-700 font-black px-4 md:px-8 shadow-xl shadow-blue-200 transition-all active:scale-95 text-white text-xs md:text-sm"
                         >
-                            <CreditCard size={18} className="ml-2" /> الدفع بالبطاقة
+                            <CreditCard size={18} className="md:ml-2" /> <span className="hidden md:inline">الدفع بالبطاقة</span>
                         </Button>
                     </div>
                 </motion.div>
@@ -263,28 +284,30 @@ export default function ShipperStatement() {
                 {/* Metrics Section */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     <div className="lg:col-span-1">
-                        <WalletCard
-                            balance={wallet?.balance || 0}
-                            currency={wallet?.currency || 'SAR'}
-                            type="shipper"
-                            onRefresh={loadFinancialData}
-                            onTopUp={handleTopUp}
-                        />
+                        <div className={`transition-all duration-500 rounded-[2.5rem] ${isGlow ? 'ring-4 ring-emerald-400 ring-offset-4 shadow-[0_0_30px_rgba(52,211,153,0.5)]' : ''}`}>
+                            <WalletCard
+                                balance={wallet?.balance || 0}
+                                currency={wallet?.currency || 'SAR'}
+                                type="shipper"
+                                onRefresh={loadFinancialData}
+                                onTopUp={handleTopUp}
+                            />
+                        </div>
 
                         <div className="grid grid-cols-2 gap-4 mt-6">
                             <Card className="rounded-[2rem] border-none shadow-xl bg-white p-6">
                                 <div className="w-10 h-10 rounded-xl bg-orange-50 text-orange-500 flex items-center justify-center mb-4">
                                     <ArrowUpRight size={20} />
                                 </div>
-                                <p className="text-slate-400 font-bold text-xs">إجمالي المديونية</p>
-                                <h4 className="text-xl font-black text-slate-800 mt-1">{formatCurrency(stats.spent)}</h4>
+                                <p className="text-slate-400 font-bold text-xs uppercase tracking-wider">المديونية الحالية</p>
+                                <h4 className="text-2xl font-black text-slate-800 mt-1">{formatCurrency(stats.debt)} <span className="text-xs text-slate-400">ر.س</span></h4>
                             </Card>
                             <Card className="rounded-[2rem] border-none shadow-xl bg-white p-6">
                                 <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-500 flex items-center justify-center mb-4">
                                     <ArrowDownRight size={20} />
                                 </div>
-                                <p className="text-slate-400 font-bold text-xs">تم سداده</p>
-                                <h4 className="text-xl font-black text-slate-800 mt-1">{formatCurrency(stats.earned)}</h4>
+                                <p className="text-slate-400 font-bold text-xs uppercase tracking-wider">تم سداده</p>
+                                <h4 className="text-2xl font-black text-slate-800 mt-1">{formatCurrency(stats.paid)} <span className="text-xs text-slate-400">ر.س</span></h4>
                             </Card>
                         </div>
                     </div>
@@ -295,36 +318,45 @@ export default function ShipperStatement() {
                             <Badge className="bg-blue-50 text-blue-600 border-none font-black px-3 py-1">تحديث حي</Badge>
                         </div>
                         <div className="h-[280px] w-full">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <AreaChart data={chartData}>
-                                    <defs>
-                                        <linearGradient id="colorMain" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="5%" stopColor="#2563eb" stopOpacity={0.15} />
-                                            <stop offset="95%" stopColor="#2563eb" stopOpacity={0} />
-                                        </linearGradient>
-                                    </defs>
-                                    <CartesianGrid strokeDasharray="5 5" vertical={false} stroke="#f1f5f9" />
-                                    <XAxis
-                                        dataKey="name"
-                                        axisLine={false}
-                                        tickLine={false}
-                                        tick={{ fill: '#64748b', fontWeight: 'bold', fontSize: 12 }}
-                                        dy={10}
-                                    />
-                                    <YAxis hide />
-                                    <Tooltip
-                                        contentStyle={{ borderRadius: '1.5rem', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', fontWeight: 'bold' }}
-                                    />
-                                    <Area
-                                        type="monotone"
-                                        dataKey="amount"
-                                        stroke="#2563eb"
-                                        strokeWidth={4}
-                                        fillOpacity={1}
-                                        fill="url(#colorMain)"
-                                    />
-                                </AreaChart>
-                            </ResponsiveContainer>
+                            {chartData.every(d => d.amount === 0) ? (
+                                <div className="flex flex-col items-center justify-center h-full text-slate-400 bg-slate-50/50 rounded-2xl">
+                                    <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mb-3 shadow-sm border border-slate-100">
+                                        <Info size={24} className="text-slate-300" />
+                                    </div>
+                                    <p className="font-bold text-slate-500">لا توجد بيانات كافية للتحليل حالياً</p>
+                                </div>
+                            ) : (
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <AreaChart data={chartData}>
+                                        <defs>
+                                            <linearGradient id="colorMain" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="5%" stopColor="#2563eb" stopOpacity={0.15} />
+                                                <stop offset="95%" stopColor="#2563eb" stopOpacity={0} />
+                                            </linearGradient>
+                                        </defs>
+                                        <CartesianGrid strokeDasharray="5 5" vertical={false} stroke="#f1f5f9" />
+                                        <XAxis
+                                            dataKey="name"
+                                            axisLine={false}
+                                            tickLine={false}
+                                            tick={{ fill: '#64748b', fontWeight: 'bold', fontSize: 12 }}
+                                            dy={10}
+                                        />
+                                        <YAxis hide />
+                                        <Tooltip
+                                            contentStyle={{ borderRadius: '1.5rem', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', fontWeight: 'bold' }}
+                                        />
+                                        <Area
+                                            type="monotone"
+                                            dataKey="amount"
+                                            stroke="#2563eb"
+                                            strokeWidth={4}
+                                            fillOpacity={1}
+                                            fill="url(#colorMain)"
+                                        />
+                                    </AreaChart>
+                                </ResponsiveContainer>
+                            )}
                         </div>
                     </Card>
                 </div>
@@ -378,8 +410,8 @@ export default function ShipperStatement() {
                                                 </p>
                                             )}
                                             {payment.admin_notes && (
-                                                <p className="text-xs bg-rose-50 border border-rose-200 rounded-lg p-2 font-bold text-rose-600 relative overflow-hidden">
-                                                    <span className="absolute right-0 top-0 bottom-0 w-1 bg-rose-500"></span>
+                                                <p className={`text-xs bg-white border rounded-lg p-2 font-bold relative overflow-hidden ${payment.status === 'approved' ? 'border-emerald-200 text-emerald-600 bg-emerald-50' : 'border-rose-200 text-rose-600 bg-rose-50'}`}>
+                                                    <span className={`absolute right-0 top-0 bottom-0 w-1 ${payment.status === 'approved' ? 'bg-emerald-500' : 'bg-rose-500'}`}></span>
                                                     رد الإدارة: {payment.admin_notes}
                                                 </p>
                                             )}
@@ -413,7 +445,7 @@ export default function ShipperStatement() {
                 </div>
 
                 <TransactionList
-                    transactions={transactions}
+                    transactions={filteredTransactions}
                     loading={loading}
                     onViewDetails={(trx) => {
                         setSelectedTransaction(trx);

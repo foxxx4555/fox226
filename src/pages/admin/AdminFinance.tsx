@@ -249,13 +249,24 @@ export default function AdminFinance() {
 
         setProcessingPayment(true);
         try {
-            await api.processShipperPayment(selectedShipperPayment.id, 'approved', paymentAdminNotes);
+            // Ensure ID is passed as string for the RPC
+            await api.processShipperPayment(selectedShipperPayment.id.toString(), 'approved', paymentAdminNotes);
+
             toast.success("تم اعتماد سداد التاجر بنجاح وتحويل المبلغ لمحفظته ✅");
             setIsApprovePaymentModalOpen(false);
             setPaymentAdminNotes('');
 
-            // Refresh Data
-            const updatedPayments = await api.getPendingShipperPayments();
+            // Refresh ALL financial data to update charts/stats
+            const [trxData, statsData, chartRawData, updatedPayments] = await Promise.all([
+                api.getAllTransactions(),
+                api.getAdminStats(),
+                api.getFinancialChartData(),
+                api.getPendingShipperPayments()
+            ]);
+
+            setTransactions(trxData || []);
+            setStats(statsData);
+            setChartData(chartRawData);
             setShipperPayments(updatedPayments || []);
         } catch (error) {
             console.error("Error processing shipper payment:", error);
@@ -265,15 +276,17 @@ export default function AdminFinance() {
         }
     };
 
-    const handleRejectShipperPayment = async (paymentId: number) => {
-        if (!confirm("هل أنت متأكد من رفض إيصال السداد هذا؟")) return;
+    const handleRejectShipperPayment = async (paymentId: string | number) => {
+        const adminReason = window.prompt("سبب الرفض (سيظهر للتاجر):", "الإيصال المرفق غير صالح أو غير واضح، يرجى إعادة الرفع.");
+        if (adminReason === null) return;
 
         try {
-            await api.processShipperPayment(paymentId, 'rejected', 'الإيصال المرفق غير صالح أو غير واضح، يرجى إعادة الرفع.');
-            toast.success("تم رفض إيصال السداد");
+            await api.processShipperPayment(paymentId.toString(), 'rejected', adminReason);
+            toast.success("تم رفض إيصال السداد وإبلاغ التاجر");
             const updatedPayments = await api.getPendingShipperPayments();
             setShipperPayments(updatedPayments || []);
         } catch (error) {
+            console.error("Error rejecting payment:", error);
             toast.error("حدث خطأ أثناء الرفض");
         }
     };

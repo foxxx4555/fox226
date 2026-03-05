@@ -638,7 +638,7 @@ export const api = {
         .from('financial_transactions')
         .select(`
           *,
-          shipment:loads(origin, destination)
+          loads(origin, destination)
         `)
         .in('wallet_id', walletIds)
         .order('created_at', { ascending: false });
@@ -778,6 +778,20 @@ export const api = {
             transaction_type: 'withdrawal',
             description: adminNotes || 'تم سحب الأرباح لحسابكم البنكي'
           }]);
+
+        // 2. تحديث رصيد المحفظة (خصم)
+        const { data: wallet } = await (supabase as any)
+          .from('wallets')
+          .select('balance')
+          .eq('wallet_id', data.wallet_id)
+          .single();
+
+        if (wallet) {
+          await (supabase as any)
+            .from('wallets')
+            .update({ balance: Number(wallet.balance) - Math.abs(Number(data.amount)) })
+            .eq('wallet_id', data.wallet_id);
+        }
       }
 
       return true;
@@ -807,56 +821,16 @@ export const api = {
   },
 
   // Admin: Process shipper payment request (approve/reject)
-  async processShipperPayment(paymentId: number, status: 'approved' | 'rejected', adminNotes?: string) {
+  async processShipperPayment(paymentId: string, status: 'approved' | 'rejected', adminNotes?: string) {
     try {
-      // 1. Get the payment request
-      const { data: payment, error: fetchError } = await (supabase as any)
-        .from('shipper_payments')
-        .select('*')
-        .eq('id', paymentId)
-        .single();
+      // Use the RPC for atomic processing (handles transaction and wallet balance)
+      const { error } = await (supabase as any).rpc('handle_shipper_payment_approval', {
+        p_payment_id: paymentId,
+        p_status: status,
+        p_admin_notes: adminNotes
+      });
 
-      if (fetchError) throw fetchError;
-
-      // 2. Update status
-      const { error: updateError } = await (supabase as any)
-        .from('shipper_payments')
-        .update({
-          status,
-          admin_notes: adminNotes,
-          processed_at: new Date().toISOString()
-        })
-        .eq('id', paymentId);
-
-      if (updateError) throw updateError;
-
-      // 3. If approved, create financial transaction to credit wallet
-      if (status === 'approved') {
-        const { data: wallets } = await (supabase as any)
-          .from('wallets')
-          .select('wallet_id')
-          .eq('user_id', payment.shipper_id)
-          .limit(1);
-
-        if (wallets && wallets.length > 0) {
-          const walletId = wallets[0].wallet_id;
-
-          // 1. تسجيل حركة السداد (لتحديث الرصيد)
-          await (supabase as any)
-            .from('financial_transactions')
-            .insert({
-              wallet_id: walletId,
-              amount: Math.abs(payment.amount),
-              type: 'credit',
-              transaction_type: 'settlement',
-              description: `سداد مديونية - إيصال رقم ${paymentId}`,
-              status: 'completed'
-            });
-
-          // تم إزالة الكود الذي يمسح ديون التاجر القديمة، تاکہ نحافظ على شفافية السجلات.
-        }
-      }
-
+      if (error) throw error;
       return true;
     } catch (e) {
       console.error("Error processing shipper payment:", e);

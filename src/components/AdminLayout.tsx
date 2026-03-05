@@ -1,6 +1,6 @@
 import { ReactNode, useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, Users, Truck, Settings, LogOut, Menu, X, ShieldCheck, User, Star } from "lucide-react";
+import { LayoutDashboard, Users, Truck, Settings, LogOut, Menu, X, ShieldCheck, User, Star, Activity } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -97,7 +97,10 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     { label: "العمليات المالية", path: "/admin/finance", icon: <Settings size={20} />, roles: ["Super Admin", "Finance", "Admin"] as AdminRole[] },
 
     // التقارير والتحليلات: All roles
-    { label: "التقارير والتحليلات", path: "/admin/reports", icon: <Settings size={20} />, roles: ["Super Admin", "Operations", "Carrier Manager", "Vendor Manager", "Buyer Support", "Finance", "Analytics", "Admin"] as AdminRole[] },
+    { label: "التقارير والجداول", path: "/admin/reports", icon: <Settings size={20} />, roles: ["Super Admin", "Operations", "Carrier Manager", "Vendor Manager", "Buyer Support", "Finance", "Analytics", "Admin"] as AdminRole[] },
+
+    // تحليلات الأسطول المتقدمة: Phase 3
+    { label: "تحليلات الأسطول (BI)", path: "/admin/analytics", icon: <Activity size={20} />, roles: ["Super Admin", "Analytics", "Admin"] as AdminRole[] },
 
     // الأمان والتدقيق (إدارة مسؤولي النظام): Super Admin ONLY
     { label: "إدارة مسؤولي النظام", path: "/admin/admins", icon: <ShieldCheck size={20} />, roles: ["Super Admin"] as AdminRole[] },

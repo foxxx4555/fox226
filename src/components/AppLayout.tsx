@@ -1,7 +1,7 @@
 import { ReactNode, useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { LayoutDashboard, Truck, Users, Settings, LogOut, FileText, Plus, Menu, X, Bell, Search, History, Trash2, Volume2, VolumeX, Package, MapPin, MessageSquare, HelpCircle, Hammer, ShieldAlert, User } from 'lucide-react';
+import { LayoutDashboard, Truck, Users, Settings, LogOut, FileText, Plus, Menu, X, Bell, Search, History, Trash2, Volume2, VolumeX, Package, MapPin, MessageSquare, HelpCircle, Hammer, ShieldAlert, User, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -10,6 +10,9 @@ import { toast } from 'sonner';
 import { api } from '@/services/api';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useTranslation } from 'react-i18next';
+import { useTheme } from '@/components/theme-provider';
+import { Moon, Sun, Languages } from 'lucide-react';
 
 export default function AppLayout({ children }: { children: ReactNode }) {
   const { userProfile, currentRole, logout } = useAuth();
@@ -17,6 +20,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const { i18n, t } = useTranslation();
+  const { theme, setTheme } = useTheme();
 
   const audioEnabledRef = useRef(false);
 
@@ -36,6 +41,14 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       document.addEventListener(event, unlockAudio, { once: true })
     );
 
+    // Update document direction and language code on i18n change
+    const updateDir = () => {
+      const dir = i18n.language === 'ar' ? 'rtl' : 'ltr';
+      document.documentElement.dir = dir;
+      document.documentElement.lang = i18n.language;
+    };
+    updateDir();
+
     return () => {
       ['click', 'touchstart', 'keydown'].forEach(event =>
         document.removeEventListener(event, unlockAudio)
@@ -49,29 +62,44 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     setUnreadCount(data?.filter((n: any) => !n.is_read).length || 0);
   };
 
-  // 🔊 دالة تشغيل الصوت الموحدة (سرعة استجابة عالية)
   const playNotificationSound = (type: string) => {
     if (!audioEnabledRef.current) return;
 
-    let soundFile = '/notification.mp3'; // الصوت الافتراضي
+    let soundFile = '/notification.mp3';
     if (type === 'accept') soundFile = '/accept.mp3';
     if (type === 'complete') soundFile = '/complete.mp3';
     if (type === 'new_load') soundFile = '/loud_ringtone.mp3';
 
     const audio = new Audio(soundFile);
-    // رفع مستوى الصوت لأقصى درجة ممكنة
     audio.volume = 1.0;
     audio.play().catch(e => console.log("Audio play blocked", e));
   };
 
+  const showNativeNotification = (title: string, body: string) => {
+    if (Notification.permission === 'granted') {
+      new Notification(title, {
+        body,
+        icon: '/favicon.ico',
+        badge: '/favicon.ico'
+      });
+    }
+  };
 
+  useEffect(() => {
+    if (Notification.permission !== 'granted' && Notification.permission !== 'denied') {
+      const requestPerm = () => {
+        Notification.requestPermission();
+        document.removeEventListener('click', requestPerm);
+      };
+      document.addEventListener('click', requestPerm);
+    }
+  }, []);
 
   useEffect(() => {
     if (!userProfile?.id) return;
 
     fetchInitialNotifications();
 
-    // 1️⃣ استماع لإشعارات المستخدم الخاصة (للتاجر والسائق)
     const personalChannel = supabase.channel(`user-notifs-${userProfile.id}`)
       .on('postgres_changes' as any, {
         event: 'INSERT',
@@ -85,6 +113,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           if (prev.find(n => n.id === newNotif.id)) return prev;
           playNotificationSound(newNotif.type);
           toast.success(newNotif.title, { description: newNotif.message });
+          showNativeNotification(newNotif.title, newNotif.message);
           setUnreadCount(c => c + 1);
           return [newNotif, ...prev];
         });
@@ -99,11 +128,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           setUnreadCount(c => c + 1);
           return [newNotif, ...prev];
         });
-      }).subscribe((status) => {
-        console.log("Personal Notifs Channel Status:", status);
-      });
+      }).subscribe();
 
-    // 2️⃣ رادار الشحنات الجديدة (خاص بالسائقين فقط)
     let loadsChannel: any;
     if (currentRole === 'driver') {
       loadsChannel = supabase.channel('public:loads')
@@ -113,36 +139,37 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           table: 'loads',
           filter: "status=eq.available"
         }, (payload) => {
-          // تشغيل صوت "شحنة جديدة" فوراً عند النشر
           playNotificationSound('new_load');
-
           toast.success("📦 شحنة جديدة متاحة الآن!", {
-            description: `من ${payload.new.origin} إلى ${payload.new.destination} - تفقد سجل الشحنات المتاحة.`,
-            duration: 8000,
-            style: { border: '2px solid #10b981', background: '#ecfdf5', color: '#065f46' }
+            description: `من ${payload.new.origin} إلى ${payload.new.destination}`,
+            duration: 8000
           });
+          showNativeNotification("📦 شحنة جديدة متاحة!", `من ${payload.new.origin} إلى ${payload.new.destination}`);
 
-          // إضافة إشعار وهمي للقائمة ليظهر في جرس الإشعارات
-          const newNotif = {
+          setNotifications(prev => [{
             id: `load-${payload.new.id}`,
             title: "شحنة جديدة متاحة",
             message: `شحنة من ${payload.new.origin} إلى ${payload.new.destination}`,
             type: 'new_load',
             is_read: false,
             created_at: new Date().toISOString()
-          };
-          setNotifications(prev => [newNotif, ...prev]);
+          }, ...prev]);
           setUnreadCount(prev => prev + 1);
-        }).subscribe((status) => {
-          console.log("Supabase Realtime Status for Loads:", status);
-        });
+        }).subscribe();
     }
+
+    const updateDir = () => {
+      const dir = i18n.language === 'ar' ? 'rtl' : 'ltr';
+      document.documentElement.dir = dir;
+      document.documentElement.lang = i18n.language;
+    };
+    updateDir();
 
     return () => {
       supabase.removeChannel(personalChannel);
       if (loadsChannel) supabase.removeChannel(loadsChannel);
     };
-  }, [userProfile?.id, currentRole]);
+  }, [userProfile?.id, currentRole, i18n.language]);
 
   const markAsRead = async () => {
     if (!userProfile?.id) return;
@@ -248,6 +275,29 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                 </ScrollArea>
               </PopoverContent>
             </Popover>
+
+            <div className="flex items-center gap-2 border-r pr-4 border-slate-100 mr-2">
+              {/* Language Switcher */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-11 w-11 rounded-xl bg-slate-50 text-slate-600 hover:bg-slate-100"
+                onClick={() => i18n.changeLanguage(i18n.language === 'ar' ? 'en' : 'ar')}
+              >
+                <Languages size={20} />
+              </Button>
+
+              {/* Theme Switcher */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-11 w-11 rounded-xl bg-slate-50 text-slate-600 hover:bg-slate-100"
+                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              >
+                {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+              </Button>
+            </div>
+
             <div className="w-11 h-11 rounded-xl bg-blue-600 flex items-center justify-center text-white font-black text-lg shadow-inner">{userProfile?.full_name?.charAt(0)}</div>
           </div>
         </header>
