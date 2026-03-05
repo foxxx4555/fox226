@@ -853,11 +853,7 @@ export const api = {
               status: 'completed'
             });
 
-          // 2. تصفية الديون ومسح سجلات الحركة (Clear & Settlement)
-          await (supabase as any).rpc('clear_settled_debts', {
-            p_wallet_id: walletId,
-            p_amount: Math.abs(payment.amount)
-          });
+          // تم إزالة الكود الذي يمسح ديون التاجر القديمة، تاکہ نحافظ على شفافية السجلات.
         }
       }
 

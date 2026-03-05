@@ -53,7 +53,7 @@ export default function ShipperStatement() {
         setLoading(true);
         try {
             const [walletData, txHistory, payments] = await Promise.all([
-                api.getWalletBalance(userProfile.id),
+                api.getWalletBalance(userProfile.id, 'shipper'),
                 api.getTransactionHistory(userProfile.id),
                 api.getShipperPayments(userProfile.id)
             ]);
