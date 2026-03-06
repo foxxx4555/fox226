@@ -87,7 +87,7 @@ export default function WelcomePage() {
             <img
               src="/logo.png"
               alt="SASGO Logo"
-              className="w-80 md:w-[600px] h-auto mx-auto drop-shadow-[0_15px_40px_rgba(37,99,235,0.15)]"
+              className="w-80 md:w-[800px] h-auto mx-auto drop-shadow-[0_15px_40px_rgba(37,99,235,0.15)]"
             />
           </div>
 
