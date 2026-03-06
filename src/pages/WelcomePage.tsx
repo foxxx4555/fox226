@@ -14,8 +14,8 @@ export default function WelcomePage() {
   const dismissBanner = () => setShowBanner(false);
 
   return (
-    <div className="min-h-screen relative overflow-hidden bg-[#0a0c10] flex flex-col items-center justify-center p-6 font-['Cairo']">
-      
+    <div className="min-h-screen relative overflow-hidden bg-white flex flex-col items-center justify-center p-6 font-['Cairo']">
+
       {/* 🚀 بانر تثبيت التطبيق - ثابت في الأعلى */}
       <AnimatePresence>
         {showBanner && (
@@ -23,37 +23,37 @@ export default function WelcomePage() {
             initial={{ y: -100, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: -100, opacity: 0 }}
-            className="fixed top-0 left-0 right-0 z-[100] bg-black/60 backdrop-blur-xl border-b border-white/10 px-4 py-3 flex items-center justify-between shadow-2xl"
+            className="fixed top-0 left-0 right-0 z-[100] bg-white/80 backdrop-blur-xl border-b border-slate-100 px-4 py-3 flex items-center justify-between shadow-sm"
           >
             <div className="flex items-center gap-3">
-              <Button 
-                variant="ghost" 
-                size="icon" 
+              <Button
+                variant="ghost"
+                size="icon"
                 className="h-8 w-8 text-slate-400 hover:text-white rounded-full"
                 onClick={dismissBanner}
               >
                 <X size={18} />
               </Button>
-              
+
               {/* أيقونة التطبيق الصغيرة */}
               <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-primary to-blue-700 p-0.5 shadow-lg shadow-primary/20">
-                <div className="w-full h-full bg-[#0a0c10] rounded-[0.9rem] flex items-center justify-center overflow-hidden">
+                <div className="w-full h-full bg-white rounded-[0.9rem] flex items-center justify-center overflow-hidden">
                   <img src="/favicon.png" alt="SAS Icon" className="w-8 h-8 object-contain" />
                 </div>
               </div>
 
               <div className="flex flex-col text-right">
-                <h3 className="text-[13px] font-black text-white leading-tight">تطبيق SAS TRANSPORT</h3>
+                <h3 className="text-[13px] font-black text-slate-900 leading-tight">تطبيق SAS TRANSPORT</h3>
                 <div className="flex items-center gap-1">
-                  <span className="text-[10px] text-slate-400 font-bold italic">أسرع • أسهل • آمن</span>
+                  <span className="text-[10px] text-slate-500 font-bold italic">أسرع • أسهل • آمن</span>
                   <div className="flex gap-0.5 ml-1">
-                    {[1,2,3,4,5].map(s => <Star key={s} size={8} className="fill-amber-400 text-amber-400" />)}
+                    {[1, 2, 3, 4, 5].map(s => <Star key={s} size={8} className="fill-amber-400 text-amber-400" />)}
                   </div>
                 </div>
               </div>
             </div>
 
-            <Button 
+            <Button
               size="sm"
               className="bg-primary hover:bg-primary/90 text-white text-[11px] font-black h-9 px-4 rounded-xl gap-2 shadow-lg shadow-primary/20 active:scale-95 transition-transform"
             >
@@ -65,9 +65,9 @@ export default function WelcomePage() {
       </AnimatePresence>
 
       {/* Background Effects */}
-      <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_50%_50%,rgba(37,99,235,0.15),transparent_50%)]" />
-      <div className="absolute -top-24 -start-24 w-96 h-96 bg-primary/20 blur-[120px] rounded-full animate-pulse" />
-      <div className="absolute -bottom-24 -end-24 w-96 h-96 bg-accent/20 blur-[120px] rounded-full animate-pulse" />
+      <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_50%_50%,rgba(37,99,235,0.08),transparent_50%)]" />
+      <div className="absolute -top-24 -start-24 w-96 h-96 bg-primary/10 blur-[120px] rounded-full animate-pulse" />
+      <div className="absolute -bottom-24 -end-24 w-96 h-96 bg-accent/10 blur-[120px] rounded-full animate-pulse" />
 
       {/* Main Content - ضفنا pt-20 عشان ننزله تحت البانر شوية */}
       <motion.div
@@ -84,22 +84,22 @@ export default function WelcomePage() {
         >
           {/* اللوجو الجديد - نزلناه تحت شوية وزودنا الظل المحيط به */}
           <div className="mb-10 rotate-2 hover:rotate-0 transition-all duration-700 cursor-pointer">
-            <img 
-              src="/logo.png" 
-              alt="SASGO Logo" 
-              className="w-56 md:w-80 h-auto mx-auto drop-shadow-[0_25px_60px_rgba(37,99,235,0.4)]" 
+            <img
+              src="/logo.png"
+              alt="SASGO Logo"
+              className="w-56 md:w-80 h-auto mx-auto drop-shadow-[0_25px_60px_rgba(37,99,235,0.4)]"
             />
           </div>
 
-          <h1 className="text-5xl md:text-7xl font-black text-white mb-6 tracking-tight">
+          <h1 className="text-5xl md:text-7xl font-black text-slate-900 mb-6 tracking-tight">
             SAS <span className="text-primary">Transport</span>
           </h1>
 
-          <p className="text-xl md:text-2xl font-bold text-slate-300 mb-4 px-4">
+          <p className="text-xl md:text-2xl font-bold text-slate-600 mb-4 px-4">
             {t('welcome_subtitle')}
           </p>
 
-          <p className="text-lg text-slate-400 max-w-2xl mx-auto leading-relaxed font-medium">
+          <p className="text-lg text-slate-500 max-w-2xl mx-auto leading-relaxed font-medium">
             {t('welcome_desc')}
           </p>
         </motion.div>
@@ -117,9 +117,9 @@ export default function WelcomePage() {
             { icon: <Globe className="text-emerald-400" />, text: "تغطية شاملة" },
             { icon: <Truck className="text-primary" />, text: "أسطول ضخم" },
           ].map((item, i) => (
-            <div key={i} className="bg-white/5 backdrop-blur-md border border-white/10 p-4 rounded-[2rem] flex flex-col items-center gap-2 hover:bg-white/10 transition-colors">
-              <div className="p-2 bg-white/5 rounded-2xl">{item.icon}</div>
-              <span className="text-[13px] font-black text-slate-200">{item.text}</span>
+            <div key={i} className="bg-slate-50 backdrop-blur-md border border-slate-200 p-4 rounded-[2rem] flex flex-col items-center gap-2 hover:bg-slate-100 transition-colors shadow-sm">
+              <div className="p-2 bg-white rounded-2xl border border-slate-100">{item.icon}</div>
+              <span className="text-[13px] font-black text-slate-700">{item.text}</span>
             </div>
           ))}
         </motion.div>
@@ -140,7 +140,7 @@ export default function WelcomePage() {
           <Button
             onClick={() => navigate('/register')}
             variant="outline"
-            className="w-full sm:flex-1 h-16 text-xl font-black border-2 border-white/10 text-white bg-white/5 hover:bg-white/10 rounded-[1.8rem] transition-all hover:scale-[1.03] active:scale-[0.97]"
+            className="w-full sm:flex-1 h-16 text-xl font-black border-2 border-slate-200 text-slate-900 bg-slate-50 hover:bg-slate-100 rounded-[1.8rem] transition-all hover:scale-[1.03] active:scale-[0.97]"
           >
             {t('register')}
           </Button>
@@ -150,9 +150,9 @@ export default function WelcomePage() {
       {/* العلامة التجارية في الأسفل */}
       <motion.div
         initial={{ opacity: 0 }}
-        animate={{ opacity: 0.4 }}
+        animate={{ opacity: 0.6 }}
         transition={{ delay: 1 }}
-        className="mt-12 mb-6 text-slate-500 font-black tracking-widest uppercase text-[10px]"
+        className="mt-12 mb-6 text-slate-400 font-black tracking-widest uppercase text-[10px]"
       >
         World Class Logistics Platform • Powered by SASGO
       </motion.div>
