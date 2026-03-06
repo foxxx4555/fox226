@@ -83,11 +83,11 @@ export default function WelcomePage() {
           className="mb-12"
         >
           {/* اللوجو الجديد - نزلناه تحت شوية وزودنا الظل المحيط به */}
-          <div className="mb-10 rotate-2 hover:rotate-0 transition-all duration-700 cursor-pointer">
+          <div className="mb-10 rotate-1 hover:rotate-0 transition-all duration-700 cursor-pointer">
             <img
               src="/logo.png"
               alt="SASGO Logo"
-              className="w-56 md:w-80 h-auto mx-auto drop-shadow-[0_25px_60px_rgba(37,99,235,0.4)]"
+              className="w-80 md:w-[600px] h-auto mx-auto drop-shadow-[0_15px_40px_rgba(37,99,235,0.15)]"
             />
           </div>
 
