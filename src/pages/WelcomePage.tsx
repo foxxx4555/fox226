@@ -117,9 +117,9 @@ export default function WelcomePage() {
             { icon: <Globe className="text-emerald-400" />, text: "تغطية شاملة" },
             { icon: <Truck className="text-primary" />, text: "أسطول ضخم" },
           ].map((item, i) => (
-            <div key={i} className="bg-slate-50 backdrop-blur-md border border-slate-200 p-4 rounded-[2rem] flex flex-col items-center gap-2 hover:bg-slate-100 transition-colors shadow-sm">
-              <div className="p-2 bg-white rounded-2xl border border-slate-100">{item.icon}</div>
-              <span className="text-[13px] font-black text-slate-700">{item.text}</span>
+            <div key={i} className="bg-white border border-slate-100 p-5 rounded-[2.5rem] flex flex-col items-center gap-3 hover:border-primary/30 hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 group">
+              <div className="p-3 bg-slate-50 rounded-2xl group-hover:bg-primary/5 transition-colors">{item.icon}</div>
+              <span className="text-[14px] font-black text-slate-800 group-hover:text-primary transition-colors">{item.text}</span>
             </div>
           ))}
         </motion.div>
@@ -140,7 +140,7 @@ export default function WelcomePage() {
           <Button
             onClick={() => navigate('/register')}
             variant="outline"
-            className="w-full sm:flex-1 h-16 text-xl font-black border-2 border-slate-200 text-slate-900 bg-slate-50 hover:bg-slate-100 rounded-[1.8rem] transition-all hover:scale-[1.03] active:scale-[0.97]"
+            className="w-full sm:flex-1 h-16 text-xl font-black border-2 border-primary/20 text-primary bg-primary/5 hover:bg-primary/10 rounded-[1.8rem] transition-all hover:scale-[1.03] active:scale-[0.97]"
           >
             {t('register')}
           </Button>
