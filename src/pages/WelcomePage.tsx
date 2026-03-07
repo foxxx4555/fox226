@@ -27,9 +27,9 @@ export default function WelcomePage() {
     address: "الرياض، المملكة العربية السعودية",
     whatsapp: "",
     contactFormEmail: "yalqlb019@gmail.com",
-    emailjsServiceId: "",
-    emailjsTemplateId: "",
-    emailjsPublicKey: ""
+    emailjsServiceId: "service_0p2k5ih",
+    emailjsTemplateId: "template_tboeo2t",
+    emailjsPublicKey: "uFVJ_0paYoHGm544e"
   });
 
   const [contactData, setContactData] = useState({
