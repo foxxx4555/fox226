@@ -88,6 +88,7 @@ import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import NotFound from "./pages/NotFound";
 import SuspendedPage from "./pages/shared/SuspendedPage";
+import PublicTrackingPage from "./pages/PublicTrackingPage";
 
 import AdminProtectedRoute from "./components/AdminProtectedRoute";
 
@@ -243,6 +244,7 @@ const App = () => {
               <Route path="/forgot-password" element={<ForgotPasswordPage />} />
               <Route path="/reset-password" element={<ResetPasswordPage />} />
               <Route path="/suspended-page" element={<SuspendedPage />} />
+              <Route path="/tracking" element={<PublicTrackingPage />} />
 
               {/* المسارات المحمية (تحتاج تسجيل دخول) */}
               <Route element={<ProtectedRoute />}>
