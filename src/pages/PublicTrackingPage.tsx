@@ -112,7 +112,7 @@ export default function PublicTrackingPage() {
     const currentStep = shipment ? getStatusStep(shipment.status) : 0;
 
     return (
-        <div className="min-h-screen bg-white font-['Cairo'] flex flex-col pt-20" dir="rtl">
+        <div className="min-h-screen bg-white font-['Cairo'] flex flex-col pt-24 md:pt-32" dir="rtl">
             {/* 🚀 بانر تثبيت التطبيق */}
             <AnimatePresence>
                 {showBanner && (
@@ -205,30 +205,30 @@ export default function PublicTrackingPage() {
                         transition={{ type: 'spring', damping: 25, stiffness: 200 }}
                         className="fixed inset-0 z-[90] bg-white pt-48 pb-10 px-8 flex flex-col xl:hidden"
                     >
-                        <div className="space-y-6">
+                        <div className="space-y-4">
                             <button
                                 onClick={() => { navigate('/'); setIsMobileMenuOpen(false); }}
-                                className="w-full text-right text-3xl font-black text-slate-800 py-6 border-b border-slate-50 flex items-center justify-end gap-4"
+                                className="w-full text-right text-xl font-black text-slate-800 py-4 border-b border-slate-50 flex items-center justify-end gap-3"
                             >
                                 الرئيسية
                             </button>
                             <button
                                 onClick={() => { navigate('/#about-us'); setIsMobileMenuOpen(false); }}
-                                className="w-full text-right text-3xl font-black text-slate-800 py-6 border-b border-slate-50 flex items-center justify-end gap-4"
+                                className="w-full text-right text-xl font-black text-slate-800 py-4 border-b border-slate-50 flex items-center justify-end gap-3"
                             >
                                 من نحن
                             </button>
                             <button
                                 onClick={() => { navigate('/#contact-us'); setIsMobileMenuOpen(false); }}
-                                className="w-full text-right text-3xl font-black text-slate-800 py-6 border-b border-slate-50 flex items-center justify-end gap-4"
+                                className="w-full text-right text-xl font-black text-slate-800 py-4 border-b border-slate-50 flex items-center justify-end gap-3"
                             >
                                 اتصل بنا
                             </button>
                             <button
                                 onClick={() => { window.scrollTo({ top: 0, behavior: 'smooth' }); setIsMobileMenuOpen(false); }}
-                                className="w-full text-right text-3xl font-black text-primary py-6 flex items-center justify-end gap-4"
+                                className="w-full text-right text-xl font-black text-primary py-4 flex items-center justify-end gap-3"
                             >
-                                تتبع الشحنة <Search size={32} />
+                                تتبع الشحنة <Search size={24} />
                             </button>
                         </div>
                     </motion.div>
@@ -242,8 +242,8 @@ export default function PublicTrackingPage() {
                     animate={{ opacity: 1, y: 0 }}
                     className="w-full max-w-3xl text-center"
                 >
-                    <h1 className="text-4xl md:text-5xl font-black text-slate-900 mb-6">تتبع شحنتك المباشر</h1>
-                    <p className="text-slate-500 font-bold text-lg mb-10">أدخل رقم الشحنة لمتابعة حالتها في الوقت الفعلي</p>
+                    <h1 className="text-3xl md:text-4xl font-black text-slate-900 mb-4">تتبع شحنتك المباشر</h1>
+                    <p className="text-slate-500 font-bold text-base mb-8">أدخل رقم الشحنة لمتابعة حالتها في الوقت الفعلي</p>
 
                     <form onSubmit={handleTrack} className="flex flex-col md:flex-row gap-4 mb-12">
                         <div className="relative flex-1 group">
@@ -251,13 +251,13 @@ export default function PublicTrackingPage() {
                                 value={trackingNumber}
                                 onChange={(e) => setTrackingNumber(e.target.value)}
                                 placeholder="أدخل رقم الشحنة (Waybill)..."
-                                className="h-16 px-8 rounded-2xl border-2 border-slate-100 bg-white text-lg font-bold focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all shadow-sm"
+                                className="h-12 md:h-14 px-8 rounded-xl border-2 border-slate-100 bg-white text-base font-bold transition-all shadow-sm"
                             />
-                            <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors" size={24} />
+                            <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
                         </div>
                         <Button
                             disabled={loading || !trackingNumber.trim()}
-                            className="h-16 px-10 rounded-2xl bg-primary hover:bg-primary/90 text-white text-lg font-black shadow-lg shadow-primary/20 transition-all hover:scale-105 active:scale-95"
+                            className="h-12 md:h-14 px-8 rounded-xl bg-primary text-white text-base font-black shadow-lg shadow-primary/20"
                         >
                             {loading ? <Loader2 className="animate-spin" /> : "بحث وتتبع"}
                         </Button>
@@ -285,12 +285,12 @@ export default function PublicTrackingPage() {
                             >
                                 {/* Results Card */}
                                 <Card className="border-none shadow-2xl shadow-slate-200/50 rounded-[2.5rem] overflow-hidden bg-white">
-                                    <CardContent className="p-8 md:p-12">
-                                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-12 pb-8 border-b border-slate-50">
+                                    <CardContent className="p-6 md:p-8">
+                                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8 pb-6 border-b border-slate-50">
                                             <div>
-                                                <h2 className="text-sm font-black text-slate-400 uppercase tracking-widest mb-1">بيانات الشحنة</h2>
-                                                <p className="text-3xl font-black text-slate-900 mb-1">#{shipment.id.substring(0, 8).toUpperCase()}</p>
-                                                <p className="text-[10px] font-bold text-slate-300 tracking-tighter uppercase">ID: {shipment.id}</p>
+                                                <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">بيانات الشحنة</h2>
+                                                <p className="text-2xl font-black text-slate-900 mb-1">#{shipment.id.substring(0, 8).toUpperCase()}</p>
+                                                <p className="text-[9px] font-bold text-slate-300 tracking-tighter uppercase">ID: {shipment.id}</p>
                                             </div>
                                             <div className="px-5 py-2 bg-primary/5 rounded-full border border-primary/10">
                                                 <span className="text-primary font-black flex items-center gap-2">
@@ -318,17 +318,17 @@ export default function PublicTrackingPage() {
                                                     const isCurrent = index + 1 === currentStep;
 
                                                     return (
-                                                        <div key={index} className="flex flex-col items-center gap-4">
-                                                            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-500 z-10 shadow-xl
+                                                        <div key={index} className="flex flex-col items-center gap-3">
+                                                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-500 z-10 shadow-lg
                                                                 ${isActive ? 'bg-primary text-white scale-110 shadow-primary/30' : 'bg-white text-slate-300 border-2 border-slate-100'}
                                                                 ${isCurrent ? 'ring-4 ring-primary/20 bg-blue-600' : ''}
                                                             `}>
-                                                                {index === 0 && <Package size={28} />}
-                                                                {index === 1 && <Clock size={28} />}
-                                                                {index === 2 && <Truck size={28} />}
-                                                                {index === 3 && <CheckCircle2 size={28} />}
+                                                                {index === 0 && <Package size={22} />}
+                                                                {index === 1 && <Clock size={22} />}
+                                                                {index === 2 && <Truck size={22} />}
+                                                                {index === 3 && <CheckCircle2 size={22} />}
                                                             </div>
-                                                            <span className={`text-sm font-black whitespace-nowrap ${isActive ? 'text-slate-900' : 'text-slate-400'}`}>
+                                                            <span className={`text-[11px] font-black whitespace-nowrap ${isActive ? 'text-slate-900' : 'text-slate-400'}`}>
                                                                 {step.label}
                                                             </span>
                                                         </div>

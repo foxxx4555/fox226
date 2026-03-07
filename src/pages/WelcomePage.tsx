@@ -259,30 +259,30 @@ export default function WelcomePage() {
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
             className="fixed inset-0 z-[90] bg-white pt-48 pb-10 px-8 flex flex-col xl:hidden"
           >
-            <div className="space-y-6">
+            <div className="space-y-4">
               <button
                 onClick={() => { scrollToSection('hero'); setIsMobileMenuOpen(false); }}
-                className="w-full text-right text-3xl font-black text-slate-800 py-6 border-b border-slate-50 flex items-center justify-end gap-4"
+                className="w-full text-right text-xl font-black text-slate-800 py-4 border-b border-slate-50 flex items-center justify-end gap-3"
               >
                 الرئيسية
               </button>
               <button
                 onClick={() => { scrollToSection('about-us'); setIsMobileMenuOpen(false); }}
-                className="w-full text-right text-3xl font-black text-slate-800 py-6 border-b border-slate-50 flex items-center justify-end gap-4"
+                className="w-full text-right text-xl font-black text-slate-800 py-4 border-b border-slate-50 flex items-center justify-end gap-3"
               >
                 من نحن
               </button>
               <button
                 onClick={() => { scrollToSection('contact-us'); setIsMobileMenuOpen(false); }}
-                className="w-full text-right text-3xl font-black text-slate-800 py-6 border-b border-slate-50 flex items-center justify-end gap-4"
+                className="w-full text-right text-xl font-black text-slate-800 py-4 border-b border-slate-50 flex items-center justify-end gap-3"
               >
                 اتصل بنا
               </button>
               <button
                 onClick={() => { navigate('/tracking'); setIsMobileMenuOpen(false); }}
-                className="w-full text-right text-3xl font-black text-primary py-6 flex items-center justify-end gap-4"
+                className="w-full text-right text-xl font-black text-primary py-4 flex items-center justify-end gap-3"
               >
-                تتبع الشحنة <Search size={32} />
+                تتبع الشحنة <Search size={24} />
               </button>
             </div>
           </motion.div>
@@ -290,7 +290,7 @@ export default function WelcomePage() {
       </AnimatePresence>
 
       {/* Hero Section */}
-      <section className="relative pt-48 pb-32 md:pt-64 md:pb-48 flex flex-col items-center justify-center overflow-hidden">
+      <section className="relative pt-32 pb-20 md:pt-48 md:pb-32 flex flex-col items-center justify-center overflow-hidden">
         <div className="absolute inset-0 z-0 bg-[radial-gradient(circle_at_50%_50%,rgba(37,99,235,0.05),transparent_70%)]" />
 
         <motion.div
@@ -308,12 +308,12 @@ export default function WelcomePage() {
             نظام النقل الذكي SAS TRANSPORT
           </motion.div>
 
-          <h1 className="text-6xl md:text-8xl font-black text-slate-900 mb-8 leading-[1.1] tracking-tighter">
+          <h1 className="text-4xl md:text-6xl font-black text-slate-900 mb-6 leading-[1.1] tracking-tighter">
             مستقبل النقل <br />
             <span className="text-primary italic">في متناول يدك</span>
           </h1>
 
-          <p className="text-xl md:text-2xl font-bold text-slate-500 mb-12 max-w-3xl mx-auto leading-relaxed px-4">
+          <p className="text-lg md:text-xl font-bold text-slate-500 mb-8 max-w-2xl mx-auto leading-relaxed px-4">
             {t('welcome_subtitle')}. {t('welcome_desc')}
           </p>
 
@@ -325,18 +325,18 @@ export default function WelcomePage() {
             transition={{ delay: 0.3 }}
             className="relative max-w-3xl mx-auto w-full mb-16 group px-4"
           >
-            <div className="relative flex items-center p-3 bg-white/70 backdrop-blur-xl rounded-[2.5rem] shadow-[0_30px_60px_-15px_rgba(0,0,0,0.1)] border-2 border-white transition-all group-focus-within:border-primary/30 group-focus-within:shadow-primary/10">
+            <div className="relative flex items-center p-2 bg-white/70 backdrop-blur-xl rounded-[2rem] shadow-xl border-2 border-white transition-all group-focus-within:border-primary/30">
               <Input
                 value={searchID}
                 onChange={(e) => setSearchID(e.target.value)}
                 placeholder="أدخل رقم الشحنة للتتبع المباشر..."
-                className="h-16 md:h-20 px-10 bg-transparent border-none text-xl font-black focus-visible:ring-0 placeholder:text-slate-300"
+                className="h-12 md:h-14 px-8 bg-transparent border-none text-lg font-black focus-visible:ring-0 placeholder:text-slate-300"
               />
               <Button
                 type="submit"
-                className="h-16 md:h-16 px-12 rounded-[2rem] bg-primary hover:bg-primary/90 text-white font-black flex items-center gap-3 transition-all mr-2 shadow-lg shadow-primary/20"
+                className="h-12 md:h-12 px-10 rounded-[1.5rem] bg-primary hover:bg-primary/90 text-white font-black flex items-center gap-2 transition-all mr-2 shadow-lg shadow-primary/20"
               >
-                <Search size={24} />
+                <Search size={20} />
                 تتبع
               </Button>
             </div>
@@ -354,10 +354,10 @@ export default function WelcomePage() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.5 + i * 0.1 }}
-                className="bg-white/40 backdrop-blur-md border border-white p-6 rounded-[2rem] flex flex-col items-center gap-3 hover:scale-105 transition-all shadow-sm"
+                className="bg-white/40 backdrop-blur-md border border-white p-4 rounded-3xl flex flex-col items-center gap-2 hover:scale-105 transition-all shadow-sm"
               >
-                <div className="p-3 bg-white rounded-2xl shadow-sm">{item.icon}</div>
-                <span className="text-sm font-black text-slate-800">{item.text}</span>
+                <div className="p-2 bg-white rounded-xl shadow-sm">{item.icon}</div>
+                <span className="text-[12px] font-black text-slate-800">{item.text}</span>
               </motion.div>
             ))}
           </div>
@@ -365,7 +365,7 @@ export default function WelcomePage() {
       </section>
 
       {/* About Us Section */}
-      <section id="about-us" className="py-32 bg-slate-50/50 relative overflow-hidden">
+      <section id="about-us" className="py-20 bg-slate-50/50 relative overflow-hidden">
         <div className="container mx-auto px-6 relative z-10">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
             <motion.div
@@ -378,7 +378,7 @@ export default function WelcomePage() {
                 <Info size={18} />
                 من نحن
               </div>
-              <h2 className="text-4xl md:text-5xl font-black text-slate-900 leading-tight">
+              <h2 className="text-3xl md:text-4xl font-black text-slate-900 leading-tight">
                 رواد الحلول اللوجستية <br />
                 <span className="text-primary">في المملكة العربية السعودية</span>
               </h2>
@@ -426,10 +426,10 @@ export default function WelcomePage() {
       </section>
 
       {/* Contact Us Section */}
-      <section id="contact-us" className="py-32 bg-white">
+      <section id="contact-us" className="py-20 bg-white">
         <div className="container mx-auto px-6">
-          <div className="text-center max-w-3xl mx-auto mb-20 space-y-6">
-            <h2 className="text-4xl md:text-5xl font-black text-slate-900">تواصل معنا</h2>
+          <div className="text-center max-w-2xl mx-auto mb-16 space-y-4">
+            <h2 className="text-3xl md:text-4xl font-black text-slate-900">تواصل معنا</h2>
             <p className="text-slate-500 font-bold text-lg leading-relaxed">فريقنا جاهز للرد على استفساراتكم على مدار الساعة</p>
           </div>
 
