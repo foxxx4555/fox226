@@ -16,17 +16,26 @@ export default function PublicTrackingPage() {
 
     const handleTrack = async (e?: React.FormEvent) => {
         if (e) e.preventDefault();
-        if (!trackingNumber.trim()) return;
+        const cleanID = trackingNumber.trim();
+        if (!cleanID) return;
 
         setLoading(true);
         setError(null);
         setShipment(null);
 
+        // التحقق من أن الرقم المدخل هو UUID صحيح (صيغة 8-4-4-4-12)
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        if (!uuidRegex.test(cleanID)) {
+            setError("عذراً، رقم الشحنة المدخل غير صحيح. يجب أن يكون بصيغة (UUID) كاملة (مثال: 123e4567-e89b-12d3-a456-426614174000).");
+            setLoading(false);
+            return;
+        }
+
         try {
             const { data, error: sbError } = await supabase
                 .from('loads')
                 .select('*')
-                .eq('id', trackingNumber.trim())
+                .eq('id', cleanID)
                 .maybeSingle();
 
             if (sbError) throw sbError;
