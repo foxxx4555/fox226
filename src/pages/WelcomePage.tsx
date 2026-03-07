@@ -91,7 +91,19 @@ export default function WelcomePage() {
             />
           </div>
 
-          {/* 🚀 الأزرار الرئيسية - تم نقلها لتكون بين الشعار والعنوان */}
+          {/* 🚀 النص الترحيبي العريض - UX عالمي */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="mb-8"
+          >
+            <h2 className="text-2xl md:text-3xl font-black text-primary bg-primary/5 px-8 py-4 rounded-[2rem] border border-primary/10 shadow-sm inline-block">
+              {t('start_journey_safe')}
+            </h2>
+          </motion.div>
+
+          {/* 🚀 الأزرار الرئيسية - مسميات رسمية وتصاميم فاخرة */}
           <motion.div
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
@@ -103,7 +115,7 @@ export default function WelcomePage() {
               className="w-full sm:flex-1 h-16 text-xl font-black bg-gradient-to-r from-primary to-blue-700 hover:from-primary/90 hover:to-blue-800 text-white rounded-[1.8rem] shadow-xl shadow-primary/20 transition-all hover:scale-[1.05] active:scale-[0.98] group"
             >
               <span className="flex items-center gap-2">
-                {t('login_now')}
+                {t('login')}
                 <Zap size={20} className="fill-white animate-pulse" />
               </span>
             </Button>
@@ -112,7 +124,7 @@ export default function WelcomePage() {
               variant="outline"
               className="w-full sm:flex-1 h-16 text-xl font-black border-2 border-primary/20 text-primary bg-white/50 backdrop-blur-sm hover:bg-primary/10 rounded-[1.8rem] transition-all hover:scale-[1.05] active:scale-[0.98]"
             >
-              {t('start_journey')}
+              {t('register')}
             </Button>
           </motion.div>
 

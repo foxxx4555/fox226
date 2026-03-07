@@ -69,4 +69,5 @@ export const en = {
     step_3_title: 'Track & Manage',
     step_3_desc: 'Monitor your shipments live and manage accounts accurately',
     global_vision: 'Global Vision for Smart, Secure & Reliable Transport',
+    start_journey_safe: 'Start your journey safely with SAS Transport',
 };
