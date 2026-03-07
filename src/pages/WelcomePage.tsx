@@ -106,7 +106,7 @@ export default function WelcomePage() {
                 </span>
               </h2>
               <div className="mt-2 text-[10px] font-black text-slate-400 tracking-[0.4em] uppercase opacity-60">
-                Global Logistics Standards
+                {t('global_vision')}
               </div>
             </div>
           </motion.div>
