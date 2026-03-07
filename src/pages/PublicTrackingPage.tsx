@@ -31,7 +31,7 @@ export default function PublicTrackingPage() {
             // إذا كان النص المدخل 8 أحرف، نبحث عن المعرف الذي يبدأ بهذا النص
             if (cleanID.length === 8) {
                 // ملاحظة: بما أن الحقل UUID، نستخدم فلتر نصي للبحث عن بداية المعرف
-                query = query.filter('id', 'text', 'ilike', `${cleanID}%`);
+                query = query.filter('id', 'ilike', `${cleanID}%`);
             } else {
                 // إذا كان أكثر نستخدم البحث التقليدي بالمعرف الكامل
                 query = query.eq('id', cleanID);
