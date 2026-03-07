@@ -186,37 +186,22 @@ export default function WelcomePage() {
       </AnimatePresence>
 
       {/* 🚀 الـ Navbar الاحترافي - الشعار على اليسار، الأزرار على اليمين */}
-      <nav className={`fixed ${showBanner ? 'top-[65px]' : 'top-0'} left-0 right-0 z-[100] py-1 px-4 md:px-8 flex items-center justify-between
-        bg-white/95 shadow-md backdrop-blur-md border-b border-slate-100 transition-all duration-300
+      <nav className={`fixed ${showBanner ? 'top-[65px]' : 'top-0'} left-0 right-0 z-[100] py-2 px-4 md:px-8 flex items-center justify-between
+        bg-white/95 shadow-sm backdrop-blur-md border-b border-slate-100 transition-all duration-300
       `}>
 
-        {/* الشعار الآن على اليمين (الأول في RTL) ومكبر */}
-        <div className="flex items-center py-1 order-first">
-          <div className="relative group">
-            <img
-              src="/logo.png"
-              alt="SAS Logo"
-              className="h-20 md:h-32 w-auto object-contain cursor-pointer transition-all duration-300 hover:scale-105 active:scale-95 relative drop-shadow-sm"
-              onClick={() => {
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-                setIsMobileMenuOpen(false);
-              }}
-            />
-          </div>
-        </div>
-
-        {/* أزرار الدخول الآن على اليسار (الأخيرة في RTL) مع خط أصغر */}
-        <div className="flex items-center gap-2 md:gap-3 order-last">
+        {/* أزرار الدخول على اليسار (الأخيرة في RTL) - خط صغير جداً بناءً على طلبك */}
+        <div className="flex items-center gap-2 md:gap-3">
           <div className="hidden sm:flex items-center gap-2">
             <Button
               onClick={() => navigate('/login')}
-              className="bg-slate-900 hover:bg-slate-800 text-white font-black px-4 md:px-5 h-8 md:h-10 rounded-lg md:rounded-xl shadow-lg transition-all hover:scale-105 active:scale-95 text-[10px] md:text-xs whitespace-nowrap"
+              className="bg-slate-900 hover:bg-slate-800 text-white font-black px-3 py-1 h-8 rounded-lg shadow-sm transition-all text-[9px] md:text-[11px] whitespace-nowrap"
             >
               دخول النظام
             </Button>
             <Button
               onClick={() => navigate('/register')}
-              className="bg-primary hover:bg-primary/90 text-white font-black px-4 md:px-5 h-8 md:h-10 rounded-lg md:rounded-xl shadow-lg shadow-primary/20 transition-all hover:scale-105 active:scale-95 text-[10px] md:text-xs whitespace-nowrap"
+              className="bg-primary hover:bg-primary/90 text-white font-black px-3 py-1 h-8 rounded-lg shadow-sm transition-all text-[9px] md:text-[11px] whitespace-nowrap"
             >
               ابدأ رحلتك
             </Button>
@@ -224,11 +209,31 @@ export default function WelcomePage() {
           <Button
             variant="ghost"
             size="icon"
-            className="xl:hidden rounded-xl w-10 h-10 md:w-12 md:h-12 bg-slate-50 border border-slate-200"
+            className="xl:hidden rounded-lg w-8 h-8 bg-slate-50 border border-slate-200"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           >
-            {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+            {isMobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
           </Button>
+        </div>
+
+        {/* روابط التنقل في المنتصف - أصغر وأهدأ */}
+        <div className="hidden xl:flex items-center gap-4">
+          <button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="font-black text-slate-600 hover:text-primary transition-all text-xs whitespace-nowrap">الرئيسية</button>
+          <button onClick={() => scrollToSection('about-us')} className="font-black text-slate-400 hover:text-primary transition-all text-xs whitespace-nowrap">من نحن</button>
+          <button onClick={() => scrollToSection('contact-us')} className="font-black text-slate-400 hover:text-primary transition-all text-xs whitespace-nowrap">اتصل بنا</button>
+          <Button
+            variant="ghost"
+            onClick={() => navigate('/tracking')}
+            className="font-black text-primary hover:bg-primary/5 transition-all text-xs flex items-center gap-1 h-auto py-1 px-3 whitespace-nowrap"
+          >
+            <Search size={14} />
+            تتبع شحنة
+          </Button>
+        </div>
+
+        {/* مساحة فارغة في اليمين لأن الشعار انتقل للهيرو */}
+        <div className="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center">
+          {/* تم نقل الشعار للاسفل */}
         </div>
       </nav>
 
@@ -285,10 +290,24 @@ export default function WelcomePage() {
           <motion.div
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            className="mb-8 inline-flex items-center gap-2 px-6 py-2 bg-primary/5 border border-primary/10 rounded-full text-primary font-black text-sm uppercase tracking-widest shadow-sm"
+            className="mb-6 inline-flex items-center gap-2 px-6 py-2 bg-primary/5 border border-primary/10 rounded-full text-primary font-black text-sm uppercase tracking-widest shadow-sm"
           >
             <Zap size={16} className="animate-pulse" />
             نظام النقل الذكي SAS TRANSPORT
+          </motion.div>
+
+          {/* 🚀 الشعار انتقل هنا ليكون واضحاً ومهيباً تحت الكلمة */}
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ delay: 0.2, type: 'spring' }}
+            className="mb-8"
+          >
+            <img
+              src="/logo.png"
+              alt="SAS Logo"
+              className="h-32 md:h-56 w-auto object-contain mx-auto drop-shadow-xl"
+            />
           </motion.div>
 
           <h1 className="text-4xl md:text-6xl font-black text-slate-900 mb-6 leading-[1.1] tracking-tighter">
