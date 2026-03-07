@@ -91,11 +91,7 @@ export default function WelcomePage() {
             />
           </div>
 
-          <h1 className="text-5xl md:text-7xl font-black text-slate-900 mb-6 tracking-tight">
-            SAS <span className="text-primary">Transport</span>
-          </h1>
-
-          {/* 🚀 الأزرار الرئيسية - تم نقلها للأعلى بجانب العنوان */}
+          {/* 🚀 الأزرار الرئيسية - تم نقلها لتكون بين الشعار والعنوان */}
           <motion.div
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
@@ -119,6 +115,10 @@ export default function WelcomePage() {
               {t('start_journey')}
             </Button>
           </motion.div>
+
+          <h1 className="text-5xl md:text-7xl font-black text-slate-900 mb-6 tracking-tight">
+            SAS <span className="text-primary">Transport</span>
+          </h1>
 
           <p className="text-xl md:text-2xl font-bold text-slate-600 mb-4 px-4">
             {t('welcome_subtitle')}
