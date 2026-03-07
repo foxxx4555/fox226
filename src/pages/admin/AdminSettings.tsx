@@ -45,6 +45,9 @@ export default function AdminSettings() {
 
   // --- إعدادات المحتوى (CMS) ---
   const [aboutUs, setAboutUs] = useState('');
+  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+  const [address, setAddress] = useState('');
   const [privacyPolicy, setPrivacyPolicy] = useState('');
 
   // --- إعدادات الإشعارات ---
@@ -88,6 +91,9 @@ export default function AdminSettings() {
           setVatRate(config.vat_rate?.toString() || '15');
         } else if (setting.id === 'content_config') {
           setAboutUs(config.aboutUs || '');
+          setPhone(config.phone || '');
+          setEmail(config.email || '');
+          setAddress(config.address || '');
           setPrivacyPolicy(config.privacyPolicy || '');
         } else if (setting.id === 'notification_config') {
           setEmailNotifications(config.emailNotifications ?? true);
@@ -151,7 +157,7 @@ export default function AdminSettings() {
         .from('system_settings')
         .upsert({
           id: 'content_config',
-          data: { aboutUs, privacyPolicy }
+          data: { aboutUs, phone, email, address, privacyPolicy }
         });
       if (error) throw error;
       toast.success('تم تحديث محتوى الصفحات بنجاح ✅');
@@ -637,25 +643,61 @@ export default function AdminSettings() {
           {/* محتوى التبويب: إدارة الصفحات */}
           <TabsContent value="pages">
             <Card className="rounded-[2rem] border-none shadow-xl bg-white p-8 space-y-8">
-              <div className="space-y-4">
-                <Label className="font-black text-slate-700 text-lg">من نحن (About Us)</Label>
-                <Textarea
-                  value={aboutUs}
-                  onChange={(e) => setAboutUs(e.target.value)}
-                  className="min-h-[150px] bg-slate-50 border-slate-200 rounded-2xl p-6 font-medium"
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="space-y-4">
+                  <Label className="font-black text-slate-700 text-lg">من نحن (About Us)</Label>
+                  <Textarea
+                    value={aboutUs}
+                    onChange={(e) => setAboutUs(e.target.value)}
+                    className="min-h-[200px] bg-slate-50 border-slate-200 rounded-2xl p-6 font-medium"
+                    placeholder="اكتب نبذة عن الشركة..."
+                  />
+                </div>
+
+                <div className="space-y-6">
+                  <div className="space-y-3">
+                    <Label className="font-black text-slate-700">رقم التواصل / واتساب</Label>
+                    <Input
+                      value={phone}
+                      onChange={e => setPhone(e.target.value)}
+                      placeholder="966XXXXXXXXX"
+                      className="h-12 bg-slate-50 border-slate-100 rounded-xl font-bold"
+                    />
+                  </div>
+                  <div className="space-y-3">
+                    <Label className="font-black text-slate-700">البريد الإلكتروني</Label>
+                    <Input
+                      value={email}
+                      onChange={e => setEmail(e.target.value)}
+                      placeholder="info@example.com"
+                      className="h-12 bg-slate-50 border-slate-100 rounded-xl font-bold"
+                    />
+                  </div>
+                  <div className="space-y-3">
+                    <Label className="font-black text-slate-700">العنوان الفيزيائي</Label>
+                    <Input
+                      value={address}
+                      onChange={e => setAddress(e.target.value)}
+                      placeholder="المدينة، الحي، الشارع"
+                      className="h-12 bg-slate-50 border-slate-100 rounded-xl font-bold"
+                    />
+                  </div>
+                </div>
               </div>
+
               <div className="space-y-4">
                 <Label className="font-black text-slate-700 text-lg">سياسة الخصوصية والشروط</Label>
                 <Textarea
                   value={privacyPolicy}
                   onChange={(e) => setPrivacyPolicy(e.target.value)}
-                  className="min-h-[200px] bg-slate-50 border-slate-200 rounded-2xl p-6 font-medium"
+                  className="min-h-[150px] bg-slate-50 border-slate-200 rounded-2xl p-6 font-medium"
                 />
               </div>
-              <Button onClick={handleSaveContent} disabled={loading} className="h-14 px-8 rounded-2xl bg-blue-600 text-white font-black shadow-lg shadow-blue-500/20">
+
+              <Button onClick={handleSaveContent} disabled={loading} className="h-14 px-10 rounded-2xl bg-blue-600 text-white font-black shadow-lg shadow-blue-500/20 active:scale-95 transition-all">
                 {loading && <Loader2 className="animate-spin me-2" />}
-                نشر المحتوى المحدث
+                <Save size={18} className="me-2" />
+                حفظ ونشر المحتوى
               </Button>
             </Card>
           </TabsContent>
