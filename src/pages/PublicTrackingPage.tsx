@@ -1,57 +1,77 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Search, Package, MapPin, Calendar, Clock, ArrowRight, Loader2, CheckCircle2, Truck, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { motion, AnimatePresence } from "framer-motion";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 export default function PublicTrackingPage() {
     const [trackingNumber, setTrackingNumber] = useState("");
     const [loading, setLoading] = useState(false);
     const [shipment, setShipment] = useState<any>(null);
     const [error, setError] = useState<string | null>(null);
+    const [searchParams] = useSearchParams();
     const navigate = useNavigate();
 
-    const handleTrack = async (e?: React.FormEvent) => {
+    const handleTrack = async (e?: React.FormEvent, manualID?: string) => {
         if (e) e.preventDefault();
-        const cleanID = trackingNumber.trim();
+        const cleanID = (manualID || trackingNumber).trim();
         if (!cleanID) return;
 
         setLoading(true);
         setError(null);
         setShipment(null);
 
-        // التحقق من أن الرقم المدخل هو UUID صحيح (صيغة 8-4-4-4-12)
-        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-        if (!uuidRegex.test(cleanID)) {
-            setError("عذراً، رقم الشحنة المدخل غير صحيح. يجب أن يكون بصيغة (UUID) كاملة (مثال: 123e4567-e89b-12d3-a456-426614174000).");
-            setLoading(false);
-            return;
-        }
-
         try {
-            const { data, error: sbError } = await supabase
-                .from('loads')
-                .select('*')
-                .eq('id', cleanID)
-                .maybeSingle();
+            // محاولة البحث عن الشحنة
+            let query = supabase.from('loads').select('*');
 
-            if (sbError) throw sbError;
-
-            if (data) {
-                setShipment(data);
+            // إذا كان النص المدخل 8 أحرف، نبحث عن المعرف الذي يبدأ بهذا النص
+            if (cleanID.length === 8) {
+                // ملاحظة: بما أن الحقل UUID، نستخدم فلتر نصي للبحث عن بداية المعرف
+                query = query.filter('id', 'text', 'ilike', `${cleanID}%`);
             } else {
-                setError("عذراً، لم يتم العثور على شحنة بهذا الرقم. يرجى التأكد من الرقم والمحاولة مرة أخرى.");
+                // إذا كان أكثر نستخدم البحث التقليدي بالمعرف الكامل
+                query = query.eq('id', cleanID);
+            }
+
+            const { data, error: sbError } = await (cleanID.length === 8 ? query.select('*') : query.maybeSingle());
+
+            if (sbError) {
+                // إذا كان الخطأ بسبب صيغة UUID غير صحيحة
+                if (sbError.code === '22P02') {
+                    setError("عذراً، رقم الشحنة الذي أدخلته غير متكامل. يرجى إدخال 8 أحرف على الأقل من بداية الرقم.");
+                    setLoading(false);
+                    return;
+                }
+                throw sbError;
+            }
+
+            // معالجة النتائج (سواء كانت مصفوفة من الفلتر أو كائن وحيد)
+            const result = Array.isArray(data) ? data[0] : data;
+
+            if (result) {
+                setShipment(result);
+            } else {
+                setError("لم نتمكن من العثور على شحنة بهذا الرقم. يرجى التأكد من صحة الرقم والمحاولة مرة أخرى.");
             }
         } catch (err) {
             console.error("Tracking error:", err);
-            setError("حدث خطأ أثناء البحث. يرجى المحاولة لاحقاً.");
+            setError("حدث خطأ تقني أثناء البحث. يرجى المحاولة لاحقاً أو التواصل مع الدعم الفني.");
         } finally {
             setLoading(false);
         }
     };
+
+    useEffect(() => {
+        const idFromUrl = searchParams.get('id');
+        if (idFromUrl) {
+            setTrackingNumber(idFromUrl);
+            handleTrack(undefined, idFromUrl);
+        }
+    }, [searchParams]);
 
     const getStatusStep = (status: string) => {
         switch (status) {
@@ -137,8 +157,9 @@ export default function PublicTrackingPage() {
                                     <CardContent className="p-8 md:p-12">
                                         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-12 pb-8 border-b border-slate-50">
                                             <div>
-                                                <h2 className="text-sm font-black text-slate-400 uppercase tracking-widest mb-1">رقم الشحنة المستعلم عنها</h2>
-                                                <p className="text-2xl font-black text-slate-900">{shipment.id}</p>
+                                                <h2 className="text-sm font-black text-slate-400 uppercase tracking-widest mb-1">بيانات الشحنة</h2>
+                                                <p className="text-3xl font-black text-slate-900 mb-1">#{shipment.id.substring(0, 8).toUpperCase()}</p>
+                                                <p className="text-[10px] font-bold text-slate-300 tracking-tighter uppercase">ID: {shipment.id}</p>
                                             </div>
                                             <div className="px-5 py-2 bg-primary/5 rounded-full border border-primary/10">
                                                 <span className="text-primary font-black flex items-center gap-2">

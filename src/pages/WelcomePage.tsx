@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   Shield, Zap, Globe, Truck, X, Download, Star,
   Search, Cpu, ShoppingBag, Factory, Box, Home, Droplets, Store,
@@ -33,6 +34,15 @@ export default function WelcomePage() {
     { name: "المنتجات المنزلية", icon: <Home size={20} />, x: "45%", y: "85%" },
     { name: "التجزئة", icon: <Store size={20} />, x: "55%", y: "20%" },
   ];
+
+  const [searchID, setSearchID] = useState("");
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchID.trim()) {
+      navigate(`/tracking?id=${searchID.trim()}`);
+    }
+  };
 
   return (
     <div className="min-h-screen relative overflow-x-hidden bg-white font-['Cairo'] flex flex-col" dir="rtl">
@@ -137,10 +147,35 @@ export default function WelcomePage() {
             {t('welcome_subtitle')}. {t('welcome_desc')}
           </p>
 
+          {/* 🔍 صندوق بحث تتبع مباشر في الهيرو */}
+          <motion.form
+            onSubmit={handleSearch}
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.3 }}
+            className="relative max-w-2xl mx-auto w-full mb-12 group"
+          >
+            <div className="relative flex items-center p-2 bg-white rounded-3xl shadow-2xl shadow-slate-200 border-2 border-slate-50 transition-all group-focus-within:border-primary group-focus-within:shadow-primary/10">
+              <Input
+                value={searchID}
+                onChange={(e) => setSearchID(e.target.value)}
+                placeholder="أدخل رقم الشحنة للتتبع المباشر..."
+                className="h-14 md:h-18 px-6 bg-transparent border-none text-lg font-black focus-visible:ring-0 placeholder:text-slate-300"
+              />
+              <Button
+                type="submit"
+                className="h-14 md:h-14 px-8 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-black flex items-center gap-2 transition-all mr-2"
+              >
+                <Search size={22} />
+                تتبع
+              </Button>
+            </div>
+          </motion.form>
+
           <div className="flex flex-col sm:flex-row items-center justify-center gap-5">
             <Button
               onClick={() => navigate('/register')}
-              className="h-16 px-12 text-xl font-black bg-slate-900 hover:bg-slate-800 text-white rounded-2xl shadow-2xl shadow-slate-900/10 transition-all hover:scale-105 active:scale-95 flex items-center gap-3"
+              className="h-16 px-12 text-xl font-black bg-slate-100 hover:bg-slate-200 text-slate-900 rounded-2xl transition-all hover:scale-105 active:scale-95 flex items-center gap-3"
             >
               سجل كشاحن الآن
               <ChevronRight className="rotate-180" />
