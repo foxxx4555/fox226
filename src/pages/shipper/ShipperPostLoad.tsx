@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Popover, PopoverContent, PopoverTrigger } from "../../components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandList, CommandItem } from "../../components/ui/command";
 import { toast } from 'sonner';
-import { Loader2, ChevronsUpDown, Package, Info, Search, MapPin, CheckCircle2, User, Users, ChevronRight, ChevronLeft, Calendar, Truck, Warehouse, Star, Navigation as NavIcon } from 'lucide-react';
+import { Loader2, ChevronsUpDown, Package, Info, Search, MapPin, CheckCircle2, User, Users, ChevronRight, ChevronLeft, Calendar, Truck, Warehouse, Star, Zap, Navigation as NavIcon } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../../integrations/supabase/client';
