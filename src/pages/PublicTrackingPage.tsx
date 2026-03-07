@@ -150,7 +150,7 @@ export default function PublicTrackingPage() {
                     <div className="hidden sm:flex items-center gap-2">
                         <Button
                             onClick={() => navigate('/login')}
-                            className="bg-slate-900 hover:bg-slate-800 text-white font-black px-3 py-1 h-8 rounded-lg shadow-sm transition-all text-[9px] md:text-[11px] whitespace-nowrap"
+                            className="bg-slate-900 hover:bg-slate-800 text-white font-black px-3 py-1 h-8 rounded-lg shadow-sm transition-all text-[8px] md:text-[10px] whitespace-nowrap"
                         >
                             دخول النظام
                         </Button>
@@ -167,13 +167,13 @@ export default function PublicTrackingPage() {
 
                 {/* روابط التنقل */}
                 <div className="hidden xl:flex items-center gap-4">
-                    <button onClick={() => navigate('/')} className="font-black text-slate-600 hover:text-primary transition-all text-xs whitespace-nowrap">الرئيسية</button>
-                    <button onClick={() => navigate('/#about-us')} className="font-black text-slate-400 hover:text-primary transition-all text-xs whitespace-nowrap">من نحن</button>
-                    <button onClick={() => navigate('/#contact-us')} className="font-black text-slate-400 hover:text-primary transition-all text-xs whitespace-nowrap">اتصل بنا</button>
+                    <button onClick={() => navigate('/')} className="font-black text-slate-600 hover:text-primary transition-all text-[10px] whitespace-nowrap">الرئيسية</button>
+                    <button onClick={() => navigate('/#about-us')} className="font-black text-slate-400 hover:text-primary transition-all text-[10px] whitespace-nowrap">من نحن</button>
+                    <button onClick={() => navigate('/#contact-us')} className="font-black text-slate-400 hover:text-primary transition-all text-[10px] whitespace-nowrap">اتصل بنا</button>
                     <Button
                         variant="ghost"
                         onClick={() => { window.scrollTo({ top: 0, behavior: 'smooth' }); setIsMobileMenuOpen(false); }}
-                        className="font-black text-primary hover:bg-primary/5 transition-all text-xs flex items-center gap-1 h-auto py-1 px-3 whitespace-nowrap"
+                        className="font-black text-primary hover:bg-primary/5 transition-all text-[10px] flex items-center gap-1 h-auto py-1 px-3 whitespace-nowrap"
                     >
                         <Search size={14} />
                         تتبع شحنة
@@ -232,8 +232,8 @@ export default function PublicTrackingPage() {
                     animate={{ opacity: 1, y: 0 }}
                     className="w-full max-w-3xl text-center"
                 >
-                    <h1 className="text-3xl md:text-4xl font-black text-slate-900 mb-4">تتبع شحنتك المباشر</h1>
-                    <p className="text-slate-500 font-bold text-base mb-8">أدخل رقم الشحنة لمتابعة حالتها في الوقت الفعلي</p>
+                    <h1 className="text-2xl md:text-3xl font-black text-slate-900 mb-4">تتبع شحنتك المباشر</h1>
+                    <p className="text-slate-500 font-bold text-sm mb-8">أدخل رقم الشحنة لمتابعة حالتها في الوقت الفعلي</p>
 
                     <form onSubmit={handleTrack} className="flex flex-col md:flex-row gap-4 mb-12">
                         <div className="relative flex-1 group">
@@ -241,13 +241,13 @@ export default function PublicTrackingPage() {
                                 value={trackingNumber}
                                 onChange={(e) => setTrackingNumber(e.target.value)}
                                 placeholder="أدخل رقم الشحنة (Waybill)..."
-                                className="h-12 md:h-14 px-8 rounded-xl border-2 border-slate-100 bg-white text-base font-bold transition-all shadow-sm"
+                                className="h-12 md:h-14 px-8 rounded-xl border-2 border-slate-100 bg-white text-sm font-bold transition-all shadow-sm"
                             />
                             <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
                         </div>
                         <Button
                             disabled={loading || !trackingNumber.trim()}
-                            className="h-12 md:h-14 px-8 rounded-xl bg-primary text-white text-base font-black shadow-lg shadow-primary/20"
+                            className="h-12 md:h-14 px-8 rounded-xl bg-primary text-white text-sm font-black shadow-lg shadow-primary/20"
                         >
                             {loading ? <Loader2 className="animate-spin" /> : "بحث وتتبع"}
                         </Button>
@@ -278,9 +278,9 @@ export default function PublicTrackingPage() {
                                     <CardContent className="p-6 md:p-8">
                                         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8 pb-6 border-b border-slate-50">
                                             <div>
-                                                <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">بيانات الشحنة</h2>
-                                                <p className="text-2xl font-black text-slate-900 mb-1">#{shipment.id.substring(0, 8).toUpperCase()}</p>
-                                                <p className="text-[9px] font-bold text-slate-300 tracking-tighter uppercase">ID: {shipment.id}</p>
+                                                <h2 className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">بيانات الشحنة</h2>
+                                                <p className="text-xl font-black text-slate-900 mb-1">#{shipment.id.substring(0, 8).toUpperCase()}</p>
+                                                <p className="text-[8px] font-bold text-slate-300 tracking-tighter uppercase">ID: {shipment.id}</p>
                                             </div>
                                             <div className="px-5 py-2 bg-primary/5 rounded-full border border-primary/10">
                                                 <span className="text-primary font-black flex items-center gap-2">
@@ -318,7 +318,7 @@ export default function PublicTrackingPage() {
                                                                 {index === 2 && <Truck size={22} />}
                                                                 {index === 3 && <CheckCircle2 size={22} />}
                                                             </div>
-                                                            <span className={`text-[11px] font-black whitespace-nowrap ${isActive ? 'text-slate-900' : 'text-slate-400'}`}>
+                                                            <span className={`text-[10px] font-black whitespace-nowrap ${isActive ? 'text-slate-900' : 'text-slate-400'}`}>
                                                                 {step.label}
                                                             </span>
                                                         </div>
@@ -340,16 +340,16 @@ export default function PublicTrackingPage() {
                                                     <div className="flex items-start gap-4">
                                                         <div className="w-3 h-3 rounded-full bg-orange-400 mt-1.5" />
                                                         <div>
-                                                            <p className="text-xs font-bold text-slate-400">من (المصدر)</p>
-                                                            <p className="font-black text-slate-800">{shipment.origin}</p>
+                                                            <p className="text-[10px] font-bold text-slate-400">من (المصدر)</p>
+                                                            <p className="font-black text-slate-800 text-sm">{shipment.origin}</p>
                                                         </div>
                                                     </div>
                                                     <div className="w-0.5 h-6 bg-slate-200 mr-1.5" />
                                                     <div className="flex items-start gap-4">
                                                         <div className="w-3 h-3 rounded-full bg-blue-600 mt-1.5" />
                                                         <div>
-                                                            <p className="text-xs font-bold text-slate-400">إلى (الوجهة)</p>
-                                                            <p className="font-black text-slate-800">{shipment.destination}</p>
+                                                            <p className="text-[10px] font-bold text-slate-400">إلى (الوجهة)</p>
+                                                            <p className="font-black text-slate-800 text-sm">{shipment.destination}</p>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -360,8 +360,8 @@ export default function PublicTrackingPage() {
                                                     <div className="flex items-center gap-4">
                                                         <Calendar className="text-blue-600" size={24} />
                                                         <div>
-                                                            <p className="text-xs font-bold text-slate-400">تاريخ الشحن</p>
-                                                            <p className="font-black text-slate-800">{new Date(shipment.created_at).toLocaleDateString('ar-SA')}</p>
+                                                            <p className="text-[10px] font-bold text-slate-400">تاريخ الشحن</p>
+                                                            <p className="font-black text-slate-800 text-sm">{new Date(shipment.created_at).toLocaleDateString('ar-SA')}</p>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -369,8 +369,8 @@ export default function PublicTrackingPage() {
                                                     <div className="flex items-center gap-4">
                                                         <Package className="text-emerald-600" size={24} />
                                                         <div>
-                                                            <p className="text-xs font-bold text-slate-400">نوع الشحنة</p>
-                                                            <p className="font-black text-slate-800">{shipment.package_type || "نقل عام"}</p>
+                                                            <p className="text-[10px] font-bold text-slate-400">نوع الشحنة</p>
+                                                            <p className="font-black text-slate-800 text-sm">{shipment.package_type || "نقل عام"}</p>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -381,8 +381,8 @@ export default function PublicTrackingPage() {
 
                                 <div className="p-8 bg-slate-900 rounded-[2.5rem] text-white flex flex-col md:flex-row items-center justify-between gap-6 overflow-hidden relative group">
                                     <div className="z-10 text-center md:text-right">
-                                        <h3 className="text-2xl font-black mb-2">هل تريد إدارة شحناتك باحترافية؟</h3>
-                                        <p className="text-slate-400 font-bold">انضم إلى مجتمع SAS Transport وأدر أسطولك ذكياً</p>
+                                        <h3 className="text-xl font-black mb-2">هل تريد إدارة شحناتك باحترافية؟</h3>
+                                        <p className="text-slate-400 font-bold text-sm">انضم إلى مجتمع SAS Transport وأدر أسطولك ذكياً</p>
                                     </div>
                                     <Button
                                         onClick={() => navigate('/register')}

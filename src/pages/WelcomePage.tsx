@@ -195,13 +195,13 @@ export default function WelcomePage() {
           <div className="hidden sm:flex items-center gap-2">
             <Button
               onClick={() => navigate('/login')}
-              className="bg-slate-900 hover:bg-slate-800 text-white font-black px-3 py-1 h-8 rounded-lg shadow-sm transition-all text-[9px] md:text-[11px] whitespace-nowrap"
+              className="bg-slate-900 hover:bg-slate-800 text-white font-black px-3 py-1 h-8 rounded-lg shadow-sm transition-all text-[8px] md:text-[10px] whitespace-nowrap"
             >
               دخول النظام
             </Button>
             <Button
               onClick={() => navigate('/register')}
-              className="bg-primary hover:bg-primary/90 text-white font-black px-3 py-1 h-8 rounded-lg shadow-sm transition-all text-[9px] md:text-[11px] whitespace-nowrap"
+              className="bg-primary hover:bg-primary/90 text-white font-black px-3 py-1 h-8 rounded-lg shadow-sm transition-all text-[8px] md:text-[10px] whitespace-nowrap"
             >
               ابدأ رحلتك
             </Button>
@@ -218,13 +218,13 @@ export default function WelcomePage() {
 
         {/* روابط التنقل في المنتصف - أصغر وأهدأ */}
         <div className="hidden xl:flex items-center gap-4">
-          <button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="font-black text-slate-600 hover:text-primary transition-all text-xs whitespace-nowrap">الرئيسية</button>
-          <button onClick={() => scrollToSection('about-us')} className="font-black text-slate-400 hover:text-primary transition-all text-xs whitespace-nowrap">من نحن</button>
-          <button onClick={() => scrollToSection('contact-us')} className="font-black text-slate-400 hover:text-primary transition-all text-xs whitespace-nowrap">اتصل بنا</button>
+          <button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="font-black text-slate-600 hover:text-primary transition-all text-[10px] whitespace-nowrap">الرئيسية</button>
+          <button onClick={() => scrollToSection('about-us')} className="font-black text-slate-400 hover:text-primary transition-all text-[10px] whitespace-nowrap">من نحن</button>
+          <button onClick={() => scrollToSection('contact-us')} className="font-black text-slate-400 hover:text-primary transition-all text-[10px] whitespace-nowrap">اتصل بنا</button>
           <Button
             variant="ghost"
             onClick={() => navigate('/tracking')}
-            className="font-black text-primary hover:bg-primary/5 transition-all text-xs flex items-center gap-1 h-auto py-1 px-3 whitespace-nowrap"
+            className="font-black text-primary hover:bg-primary/5 transition-all text-[10px] flex items-center gap-1 h-auto py-1 px-3 whitespace-nowrap"
           >
             <Search size={14} />
             تتبع شحنة
@@ -310,12 +310,12 @@ export default function WelcomePage() {
             />
           </motion.div>
 
-          <h1 className="text-4xl md:text-6xl font-black text-slate-900 mb-6 leading-[1.1] tracking-tighter">
+          <h1 className="text-3xl md:text-5xl font-black text-slate-900 mb-6 leading-[1.1] tracking-tighter">
             مستقبل النقل <br />
             <span className="text-primary italic">في متناول يدك</span>
           </h1>
 
-          <p className="text-lg md:text-xl font-bold text-slate-500 mb-8 max-w-2xl mx-auto leading-relaxed px-4">
+          <p className="text-base md:text-lg font-bold text-slate-500 mb-8 max-w-2xl mx-auto leading-relaxed px-4">
             {t('welcome_subtitle')}. {t('welcome_desc')}
           </p>
 
@@ -332,7 +332,7 @@ export default function WelcomePage() {
                 value={searchID}
                 onChange={(e) => setSearchID(e.target.value)}
                 placeholder="أدخل رقم الشحنة للتتبع المباشر..."
-                className="h-12 md:h-14 px-8 bg-transparent border-none text-lg font-black focus-visible:ring-0 placeholder:text-slate-300"
+                className="h-12 md:h-14 px-8 bg-transparent border-none text-base font-black focus-visible:ring-0 placeholder:text-slate-300"
               />
               <Button
                 type="submit"
@@ -359,7 +359,7 @@ export default function WelcomePage() {
                 className="bg-white/40 backdrop-blur-md border border-white p-4 rounded-3xl flex flex-col items-center gap-2 hover:scale-105 transition-all shadow-sm"
               >
                 <div className="p-2 bg-white rounded-xl shadow-sm">{item.icon}</div>
-                <span className="text-[12px] font-black text-slate-800">{item.text}</span>
+                <span className="text-[11px] font-black text-slate-800">{item.text}</span>
               </motion.div>
             ))}
           </div>
@@ -380,11 +380,11 @@ export default function WelcomePage() {
                 <Info size={18} />
                 من نحن
               </div>
-              <h2 className="text-3xl md:text-4xl font-black text-slate-900 leading-tight">
+              <h2 className="text-2xl md:text-3xl font-black text-slate-900 leading-tight">
                 رواد الحلول اللوجستية <br />
                 <span className="text-primary">في المملكة العربية السعودية</span>
               </h2>
-              <p className="text-lg md:text-xl text-slate-600 font-bold leading-relaxed">
+              <p className="text-base md:text-lg text-slate-600 font-bold leading-relaxed">
                 {content.aboutUs || "نحن شركة رائدة في مجال النقل والخدمات اللوجستية، نسعى دائماً لتقديم أفضل الحلول التقنية لتسهيل عمليات النقل وضمان وصول شحناتكم بأمان وفي أسرع وقت ممكن."}
               </p>
               <Button onClick={() => navigate('/register')} className="h-14 px-10 rounded-2xl bg-slate-900 text-white font-black text-lg gap-3 shadow-xl">
@@ -431,8 +431,8 @@ export default function WelcomePage() {
       <section id="contact-us" className="py-20 bg-white">
         <div className="container mx-auto px-6">
           <div className="text-center max-w-2xl mx-auto mb-16 space-y-4">
-            <h2 className="text-3xl md:text-4xl font-black text-slate-900">تواصل معنا</h2>
-            <p className="text-slate-500 font-bold text-lg leading-relaxed">فريقنا جاهز للرد على استفساراتكم على مدار الساعة</p>
+            <h2 className="text-2xl md:text-3xl font-black text-slate-900">تواصل معنا</h2>
+            <p className="text-slate-500 font-bold text-base leading-relaxed">فريقنا جاهز للرد على استفساراتكم على مدار الساعة</p>
           </div>
 
           <div className="container mx-auto px-6">
