@@ -17,6 +17,15 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../../integrations/supabase/client';
 
+// إضافة أداة معالجة الأرقام لتفادي مشاكل الفواصل
+const parseSafeNumber = (val: string | number | null | undefined): number => {
+  if (val === undefined || val === null || val === '') return 0;
+  if (typeof val === 'number') return val;
+  const cleaned = val.toString().replace(/,/g, '');
+  const parsed = parseFloat(cleaned);
+  return isNaN(parsed) ? 0 : parsed;
+};
+
 const SAUDI_CITIES = [
   { value: "riyadh", label: "الرياض", lat: 24.7136, lng: 46.6753 },
   { value: "jeddah", label: "جدة", lat: 21.5433, lng: 39.1728 },
@@ -78,10 +87,10 @@ function calculateHaversineDistance(lat1: number, lon1: number, lat2: number, lo
 
 // سيتم جلب هذه القيم من قاعدة البيانات الآن
 const DEFAULT_PRICING_CONFIG = {
-  MIN_FARE: 500,
-  DISTANCE_THRESHOLD: 100,
-  SHORT_RATE: 5.0,
-  LONG_RATE: 2.5,
+  short_distance_limit: 0,
+  short_distance_price: 0,
+  long_distance_limit: 0,
+  long_distance_price: 0,
 };
 
 const TRUCK_TYPES: Record<string, { value: string, label: string, info?: string, capacity?: string, length?: string }[]> = {
@@ -193,10 +202,10 @@ export default function ShipperPostLoad() {
         if (data?.data) {
           const config = data.data as any;
           setPricingConfig({
-            MIN_FARE: config.min_fare || DEFAULT_PRICING_CONFIG.MIN_FARE,
-            DISTANCE_THRESHOLD: config.threshold || DEFAULT_PRICING_CONFIG.DISTANCE_THRESHOLD,
-            SHORT_RATE: config.short_rate || DEFAULT_PRICING_CONFIG.SHORT_RATE,
-            LONG_RATE: config.long_rate || DEFAULT_PRICING_CONFIG.LONG_RATE,
+            short_distance_limit: config.short_distance_limit || DEFAULT_PRICING_CONFIG.short_distance_limit,
+            short_distance_price: config.short_distance_price || DEFAULT_PRICING_CONFIG.short_distance_price,
+            long_distance_limit: config.long_distance_limit || DEFAULT_PRICING_CONFIG.long_distance_limit,
+            long_distance_price: config.long_distance_price || DEFAULT_PRICING_CONFIG.long_distance_price,
           });
         }
       } catch (err) {
@@ -253,20 +262,63 @@ export default function ShipperPostLoad() {
         // --- منطق التسعير الجديد هنا ---
         let suggestedPrice = 0;
 
-        if (dist <= pricingConfig.DISTANCE_THRESHOLD) {
-          // للمسافات القصيرة: نستخدم السعر الأعلى أو الحد الأدنى
-          suggestedPrice = Math.max(dist * pricingConfig.SHORT_RATE, pricingConfig.MIN_FARE);
-        } else {
-          // للمسافات الطويلة: نستخدم السعر المخفض
-          suggestedPrice = dist * pricingConfig.LONG_RATE;
-        }
+        const applyPricing = async () => {
+          let suggestedPrice = 0;
 
-        suggestedPrice = Math.round(suggestedPrice); // تقريب الرقم
+          try {
+            // 1. البحث عن مسار مخصص في قاعدة البيانات
+            const { data: routeData } = await supabase
+              .from('route_pricing' as any)
+              .select('*')
+              .or(`and(origin_city.ilike.${originCity.label},destination_city.ilike.${destCity.label}),and(origin_city.ilike.${destCity.label},destination_city.ilike.${originCity.label})`)
+              .eq('is_active', true)
+              .maybeSingle();
 
-        setDistance(dist);
-        // تحديث السعر تلقائياً مع السماح للمستخدم بتعديله لاحقاً
-        setForm(p => ({ ...p, price: suggestedPrice.toString() }));
-        console.log(`📏 Calculated: ${dist.toFixed(2)}km, Price: ${suggestedPrice} SAR`);
+            const route = routeData as any;
+
+            // تقريب المسافة المقطوعة لأقرب عدد صحيح (لحل مشكلة الفواصل العشرية)
+            const rawDistance = route?.distance_km || dist;
+            const roundedDistance = Math.round(rawDistance);
+
+            if (route?.manual_price && route.manual_price > 0) {
+              // إذا وجدنا سعر يدوي للمسار نستخدمه
+              suggestedPrice = route.manual_price;
+              console.log(`📍 Found custom route price: ${suggestedPrice} SAR`);
+            } else {
+              // 2. الحساب بناءً على مسافة الشريحة (قصيرة أو طويلة) باستخدام المسافة المقربة
+              if (roundedDistance <= pricingConfig.short_distance_limit) {
+                suggestedPrice = roundedDistance * pricingConfig.short_distance_price;
+                console.log(`🤖 Short Distance Price: ${roundedDistance} * ${pricingConfig.short_distance_price} = ${suggestedPrice}`);
+              } else if (roundedDistance >= pricingConfig.long_distance_limit) {
+                suggestedPrice = roundedDistance * pricingConfig.long_distance_price;
+                console.log(`🤖 Long Distance Price: ${roundedDistance} * ${pricingConfig.long_distance_price} = ${suggestedPrice}`);
+              } else {
+                suggestedPrice = roundedDistance * pricingConfig.short_distance_price;
+                console.log(`🤖 Mid Gap Price: ${roundedDistance} * ${pricingConfig.short_distance_price} = ${suggestedPrice}`);
+              }
+            }
+
+            suggestedPrice = Math.round(suggestedPrice);
+            setDistance(roundedDistance);
+            setForm(p => ({ ...p, price: suggestedPrice.toString() }));
+          } catch (err) {
+            console.error("Error applying pricing:", err);
+            // Fallback to basic calculation in case of query error
+            const roundedDist = Math.round(dist);
+            let fallbackPrice = 0;
+            if (roundedDist <= pricingConfig.short_distance_limit) {
+              fallbackPrice = roundedDist * pricingConfig.short_distance_price;
+            } else if (roundedDist >= pricingConfig.long_distance_limit) {
+              fallbackPrice = roundedDist * pricingConfig.long_distance_price;
+            } else {
+              fallbackPrice = roundedDist * pricingConfig.short_distance_price;
+            }
+            setDistance(roundedDist);
+            setForm(p => ({ ...p, price: Math.round(fallbackPrice).toString() }));
+          }
+        };
+
+        applyPricing();
       } else {
         setDistance(null);
       }
@@ -317,8 +369,8 @@ export default function ShipperPostLoad() {
       const finalPayload = {
         origin: form.origin,
         destination: form.destination,
-        weight: parseFloat(form.weight) || 0,
-        price: parseFloat(form.price) || 0,
+        weight: parseSafeNumber(form.weight),
+        price: parseSafeNumber(form.price),
         package_type: form.package_type,
         pickup_date: form.pickup_date,
         body_type: form.body_type,
@@ -327,9 +379,9 @@ export default function ShipperPostLoad() {
         status: 'available',
         truck_type_required: dbTruckType,
         description: `شحنة من ${form.origin} إلى ${form.destination}`,
-        quantity: parseFloat(form.qty) || 0,
+        quantity: parseSafeNumber(form.qty),
         unit: form.unit,
-        goods_value: parseFloat(form.goods_value) || 0,
+        goods_value: parseSafeNumber(form.goods_value),
         payment_method: form.payment_method
       };
 
@@ -476,7 +528,7 @@ export default function ShipperPostLoad() {
                           </div>
                           <div className="text-left">
                             <p className="text-emerald-500 text-[10px] font-black uppercase tracking-wider">السعر التقديري</p>
-                            <p className="text-2xl font-black text-emerald-700">{Math.round(distance * 2.5)} <span className="text-xs">ر.س</span></p>
+                            <p className="text-2xl font-black text-emerald-700">{form.price || 0} <span className="text-xs">ر.س</span></p>
                           </div>
                         </motion.div>
                       )}
@@ -557,7 +609,7 @@ export default function ShipperPostLoad() {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-6 border-t">
                         <div className="space-y-4">
                           <Label className="text-lg font-black text-slate-700">الوزن التقريبي (بالطن)</Label>
-                          <Input type="number" value={form.weight} onChange={e => setForm(p => ({ ...p, weight: e.target.value }))} className="h-16 rounded-2xl" placeholder="0.0" />
+                          <Input type="number" min="0" value={form.weight} onChange={e => setForm(p => ({ ...p, weight: e.target.value }))} className="h-16 rounded-2xl" placeholder="0.0" />
                         </div>
                         <div className="space-y-4">
                           <Label className="text-lg font-black text-slate-700">نوع البضاعة / المنتج</Label>
@@ -694,16 +746,18 @@ export default function ShipperPostLoad() {
 
                         {/* إضافة توضيح لنوع التسعير */}
                         <p className="mt-3 text-xs font-bold text-blue-400">
-                          {distance! <= pricingConfig.DISTANCE_THRESHOLD
-                            ? `تطبق تسعيرة المسافات القصيرة (الحد الأدنى ${pricingConfig.MIN_FARE} ريال)`
-                            : `تطبق تسعيرة المسافات الطويلة (${pricingConfig.LONG_RATE} ريال/كم)`}
+                          {distance! <= pricingConfig.short_distance_limit
+                            ? `تطبق تسعيرة المسافات القصيرة (${pricingConfig.short_distance_price} ريال/كم)`
+                            : distance! >= pricingConfig.long_distance_limit
+                              ? `تطبق تسعيرة المسافات الطويلة (${pricingConfig.long_distance_price} ريال/كم)`
+                              : `تطبق تسعيرة المسافات المتوسطة (${pricingConfig.short_distance_price} ريال/كم)`}
                         </p>
                       </div>
 
                       <div className="bg-[#0f172a] text-white p-8 rounded-[2rem] shadow-2xl space-y-6">
                         <div className="space-y-2 text-center text-white">
                           <Label className="font-bold text-slate-300 text-sm block mb-2">عرض السعر المقترح (ر.س)</Label>
-                          <Input type="number" value={form.price} onChange={e => setForm(p => ({ ...p, price: e.target.value }))} className="h-16 rounded-2xl bg-white/10 border-white/20 font-black text-3xl text-center text-white" />
+                          <Input type="number" min="0" value={form.price} onChange={e => setForm(p => ({ ...p, price: e.target.value }))} className="h-16 rounded-2xl bg-white/10 border-white/20 font-black text-3xl text-center text-white" />
                           <p className="text-[10px] text-slate-400 mt-2">السعر المحتسب: بناءً على التكوين الذكي من الإدارة</p>
                         </div>
                         <div className="space-y-4 text-white">

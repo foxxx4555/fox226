@@ -87,9 +87,17 @@ export default function DriverLoads() {
       supabase.from('trucks').select('*').eq('owner_id', userProfile.id).then(({ data }) => setTrucks(data || []));
       api.getBids(userProfile.id, 'driver').then(data => setUserBids(data || []));
     }
-    const channel = (supabase as any).channel('available-loads')
-      .on('postgres_changes', { event: '*', table: 'loads', schema: 'public' }, () => fetchLoads())
-      .subscribe();
+
+    const channel = (supabase as any).channel('driver_available_loads_rt')
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'loads' }, (payload: any) => {
+        console.log('🔄 Available Load updated via realtime:', payload);
+        fetchLoads();
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'loads' }, () => fetchLoads())
+      .subscribe((status: string) => {
+        console.log("DriverLoads Realtime Status:", status);
+      });
+
     return () => { supabase.removeChannel(channel); };
   }, [userProfile?.id]);
 

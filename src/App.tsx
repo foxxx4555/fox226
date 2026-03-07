@@ -135,6 +135,7 @@ import AdminFinance from "./pages/admin/AdminFinance";
 import AdminReports from "./pages/admin/AdminReports";
 import AdminAnalytics from "./pages/admin/AdminAnalytics";
 import AdminDriverRatings from "./pages/admin/AdminDriverRatings";
+import AdminShippersDrivers from "./pages/admin/AdminShippersDrivers";
 import AddAdminById from "./pages/admin/AddAdminById";
 import DriverMaintenance from "@/pages/driver/DriverMaintenance";
 
@@ -298,6 +299,12 @@ const App = () => {
                 <Route path="/admin/users" element={
                   <AdminProtectedRoute allowedRoles={['Super Admin', 'Buyer Support', 'Vendor Manager', 'Admin']}>
                     <AdminUsers />
+                  </AdminProtectedRoute>
+                } />
+
+                <Route path="/admin/shippers-drivers" element={
+                  <AdminProtectedRoute allowedRoles={['Super Admin', 'Buyer Support', 'Vendor Manager', 'Admin']}>
+                    <AdminShippersDrivers />
                   </AdminProtectedRoute>
                 } />
 

@@ -104,8 +104,15 @@ export default function DriverStatement() {
     // حساب الإحصائيات
     const stats = useMemo(() => {
         const earned = transactions.filter(t => t.amount > 0).reduce((acc, t) => acc + t.amount, 0);
-        const withdrawn = transactions.filter(t => t.amount < 0).reduce((acc, t) => acc + Math.abs(t.amount), 0);
-        const pending = withdrawals.filter(w => w.status === 'pending').reduce((acc, w) => acc + Number(w.amount), 0);
+
+        // المسحوبات هي مجموع الطلبات التي تمت الموافقة عليها (approved)
+        const withdrawn = withdrawals
+            .filter(w => w.status === 'approved')
+            .reduce((acc, w) => acc + Number(w.amount), 0);
+
+        const pending = withdrawals
+            .filter(w => w.status === 'pending')
+            .reduce((acc, w) => acc + Number(w.amount), 0);
 
         return { earned, withdrawn, pending, completedLoads: transactions.filter(t => !!t.shipment_id).length };
     }, [transactions, withdrawals]);
@@ -208,7 +215,7 @@ export default function DriverStatement() {
                                         <div key={w.id} className="p-5 rounded-3xl bg-slate-50 border border-slate-100 flex flex-col md:flex-row justify-between items-center gap-4 hover:border-blue-200 transition-all">
                                             <div className="flex items-center gap-4">
                                                 <div className={`p-3 rounded-2xl text-white ${w.status === 'approved' ? 'bg-emerald-500' :
-                                                        w.status === 'rejected' ? 'bg-rose-500' : 'bg-amber-500'
+                                                    w.status === 'rejected' ? 'bg-rose-500' : 'bg-amber-500'
                                                     } shadow-lg shadow-current/20`}>
                                                     {w.status === 'approved' ? <CheckCircle2 size={24} /> : w.status === 'rejected' ? <XCircle size={24} /> : <Clock size={24} />}
                                                 </div>

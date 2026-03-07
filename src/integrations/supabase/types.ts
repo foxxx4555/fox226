@@ -212,6 +212,7 @@ export type Database = {
           id: string
           phone: string | null
           status: string | null
+          serial_number: number | null
           updated_at: string
         }
         Insert: {
@@ -223,6 +224,7 @@ export type Database = {
           id: string
           phone?: string | null
           status?: string | null
+          serial_number?: number | null
           updated_at?: string
         }
         Update: {
@@ -234,6 +236,7 @@ export type Database = {
           id?: string
           phone?: string | null
           status?: string | null
+          serial_number?: number | null
           updated_at?: string
         }
         Relationships: []
@@ -428,6 +431,72 @@ export type Database = {
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
+        }
+        Relationships: []
+      }
+      route_pricing: {
+        Row: {
+          created_at: string
+          dest_lat: number | null
+          dest_lng: number | null
+          destination_city: string
+          distance_km: number
+          id: string
+          is_active: boolean
+          manual_price: number | null
+          origin_city: string
+          origin_lat: number | null
+          origin_lng: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          dest_lat?: number | null
+          dest_lng?: number | null
+          destination_city: string
+          distance_km: number
+          id?: string
+          is_active?: boolean | null
+          manual_price?: number | null
+          origin_city: string
+          origin_lat?: number | null
+          origin_lng?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          dest_lat?: number | null
+          dest_lng?: number | null
+          destination_city?: string
+          distance_km?: number
+          id?: string
+          is_active?: boolean | null
+          manual_price?: number | null
+          origin_city?: string
+          origin_lat?: number | null
+          origin_lng?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      system_settings: {
+        Row: {
+          created_at: string
+          data: Json
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          data: Json
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          data?: Json
+          id?: string
+          updated_at?: string
         }
         Relationships: []
       }

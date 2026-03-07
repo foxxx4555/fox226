@@ -93,6 +93,9 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     // إدارة المستخدمين: Super Admin, Buyer Support, Vendor Manager, Admin
     { label: "إدارة المستخدمين", path: "/admin/users", icon: <Users size={20} />, roles: ["Super Admin", "Buyer Support", "Vendor Manager", "Admin"] as AdminRole[] },
 
+    // إدارة الشاحنين والتجار والسائقين الناقلون: Super Admin, Buyer Support, Vendor Manager, Admin
+    { label: "إدارة الشاحنين والتجار والسائقين الناقلون", path: "/admin/shippers-drivers", icon: <Users size={20} />, roles: ["Super Admin", "Buyer Support", "Vendor Manager", "Admin"] as AdminRole[] },
+
     // المدفوعات والفوترة: Super Admin, Finance, Admin
     { label: "العمليات المالية", path: "/admin/finance", icon: <Settings size={20} />, roles: ["Super Admin", "Finance", "Admin"] as AdminRole[] },
 

@@ -38,10 +38,18 @@ export default function DriverTasks() {
 
   useEffect(() => {
     fetchTasks();
-    const channel = supabase.channel('driver-tasks-sync')
-      .on('postgres_changes' as any, { event: '*', table: 'loads', schema: 'public' }, () => fetchTasks())
-      .on('postgres_changes' as any, { event: '*', table: 'load_bids', schema: 'public' }, () => fetchTasks())
-      .subscribe();
+
+    // إعداد المزامنة اللحظية مع تتبع الأخطاء والتأكد من جلب البيانات بأحدث حالة
+    const channel = supabase.channel('driver_tasks_realtime')
+      .on('postgres_changes' as any, { event: 'UPDATE', schema: 'public', table: 'loads' }, (payload: any) => {
+        console.log('🔄 Load updated via realtime:', payload);
+        fetchTasks();
+      })
+      .on('postgres_changes' as any, { event: 'INSERT', schema: 'public', table: 'loads' }, () => fetchTasks())
+      .on('postgres_changes' as any, { event: '*', schema: 'public', table: 'load_bids' }, () => fetchTasks())
+      .subscribe((status: string) => {
+        console.log("DriverTasks Realtime Status:", status);
+      });
 
     return () => { supabase.removeChannel(channel); };
   }, [userProfile?.id]);
