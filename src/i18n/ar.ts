@@ -135,6 +135,6 @@ export const ar = {
   step_2_desc: 'انشر شحناتك أو قدم عروض أسعار تنافسية',
   step_3_title: 'التتبع والإدارة',
   step_3_desc: 'تابع موقع شحنتك مباشرة وأدر حساباتك بدقة',
-  global_vision: 'رؤية عالمية لنقل ذكي آمن وموثوق',
-  start_journey_safe: 'Start your journey safely with SAS Transport',
+  global_vision: 'معايير الخدمات اللوجستية العالمية',
+  start_journey_safe: 'ابدأ رحلتك بأمان مع SAS Transport',
 };
