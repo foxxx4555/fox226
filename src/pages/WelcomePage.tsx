@@ -249,8 +249,8 @@ export default function WelcomePage() {
         )}
       </AnimatePresence>
 
-      {/* Hero Section */}
-      <section className="relative pt-32 pb-20 md:pt-48 md:pb-32 flex flex-col items-center justify-center overflow-hidden">
+      {/* Hero Section - أقصى ضغط لتقليل الفراغات */}
+      <section className="relative pt-8 pb-6 md:pt-14 md:pb-10 flex flex-col items-center justify-center overflow-hidden">
         <div className="absolute inset-0 z-0 bg-[radial-gradient(circle_at_50%_50%,rgba(37,99,235,0.05),transparent_70%)]" />
 
         <motion.div
@@ -260,26 +260,26 @@ export default function WelcomePage() {
           className="container mx-auto px-6 text-center z-20"
         >
 
-          {/* 🚀 الشعار انتقل هنا ليكون واضحاً ومهيباً تحت الكلمة */}
+          {/* 🚀 الشعار مضغوط لأقصى درجة */}
           <motion.div
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ delay: 0.2, type: 'spring' }}
-            className="mb-8"
+            className="mb-2"
           >
             <img
               src="/logo.png"
               alt="SAS Logo"
-              className="h-32 md:h-56 w-auto object-contain mx-auto drop-shadow-xl"
+              className="h-20 md:h-36 w-auto object-contain mx-auto drop-shadow-xl"
             />
           </motion.div>
 
-          <h1 className="text-3xl md:text-5xl font-black text-slate-900 mb-6 leading-[1.1] tracking-tighter">
+          <h1 className="text-xl md:text-3xl font-black text-slate-900 mb-1 leading-[1.1] tracking-tighter">
             مستقبل النقل <br />
             <span className="text-primary italic">في متناول يدك</span>
           </h1>
 
-          <p className="text-base md:text-lg font-bold text-slate-500 mb-8 max-w-2xl mx-auto leading-relaxed px-4">
+          <p className="text-[12px] md:text-sm font-bold text-slate-500 mb-4 max-w-2xl mx-auto leading-relaxed px-4">
             {t('welcome_subtitle')}. {t('welcome_desc')}
           </p>
 
@@ -289,41 +289,41 @@ export default function WelcomePage() {
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.3 }}
-            className="relative max-w-3xl mx-auto w-full mb-16 group px-4"
+            className="relative max-w-2xl mx-auto w-full mb-6 group px-4"
           >
-            <div className="relative flex items-center p-2 bg-white/70 backdrop-blur-xl rounded-[2rem] shadow-xl border-2 border-white transition-all group-focus-within:border-primary/30">
+            <div className="relative flex items-center p-1.5 bg-white/70 backdrop-blur-xl rounded-[1.5rem] shadow-lg border-2 border-white transition-all group-focus-within:border-primary/30">
               <Input
                 value={searchID}
                 onChange={(e) => setSearchID(e.target.value)}
                 placeholder="أدخل رقم الشحنة للتتبع المباشر..."
-                className="h-12 md:h-14 px-8 bg-transparent border-none text-base font-black focus-visible:ring-0 placeholder:text-slate-300"
+                className="h-10 md:h-12 px-6 bg-transparent border-none text-sm font-black focus-visible:ring-0 placeholder:text-slate-300"
               />
               <Button
                 type="submit"
-                className="h-12 md:h-12 px-10 rounded-[1.5rem] bg-primary hover:bg-primary/90 text-white font-black flex items-center gap-2 transition-all mr-2 shadow-lg shadow-primary/20"
+                className="h-10 md:h-10 px-8 rounded-[1rem] bg-primary hover:bg-primary/90 text-white font-black flex items-center gap-2 transition-all mr-2 shadow-md shadow-primary/20 text-xs"
               >
-                <Search size={20} />
+                <Search size={16} />
                 تتبع
               </Button>
             </div>
           </motion.form>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-4xl mx-auto">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 max-w-3xl mx-auto mt-4">
             {[
-              { icon: <Shield className="text-primary" />, text: "آمن وموثوق" },
-              { icon: <Zap className="text-amber-500" />, text: "سرعة فائقة" },
-              { icon: <Globe className="text-emerald-500" />, text: "تغطية شاملة" },
-              { icon: <Truck className="text-primary" />, text: "أسطول ضخم" },
+              { icon: <Shield className="text-primary" size={14} />, text: "آمن وموثوق" },
+              { icon: <Zap className="text-amber-500" size={14} />, text: "سرعة فائقة" },
+              { icon: <Globe className="text-emerald-500" size={14} />, text: "تغطية شاملة" },
+              { icon: <Truck className="text-primary" size={14} />, text: "أسطول ضخم" },
             ].map((item, i) => (
               <motion.div
                 key={i}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.5 + i * 0.1 }}
-                className="bg-white/40 backdrop-blur-md border border-white p-4 rounded-3xl flex flex-col items-center gap-2 hover:scale-105 transition-all shadow-sm"
+                className="bg-white/40 backdrop-blur-md border border-white p-2 rounded-xl flex flex-col items-center gap-1 hover:scale-105 transition-all shadow-sm"
               >
-                <div className="p-2 bg-white rounded-xl shadow-sm">{item.icon}</div>
-                <span className="text-[11px] font-black text-slate-800">{item.text}</span>
+                <div className="p-1 bg-white rounded-lg shadow-sm">{item.icon}</div>
+                <span className="text-[9px] font-black text-slate-800">{item.text}</span>
               </motion.div>
             ))}
           </div>
