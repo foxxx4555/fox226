@@ -15,7 +15,6 @@ export default function PublicTrackingPage() {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
 
-    const [showBanner, setShowBanner] = useState(true);
     const [scrolled, setScrolled] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -112,37 +111,10 @@ export default function PublicTrackingPage() {
     const currentStep = shipment ? getStatusStep(shipment.status) : 0;
 
     return (
-        <div className="min-h-screen bg-white font-['Cairo'] flex flex-col pt-24 md:pt-32" dir="rtl">
-            {/* 🚀 بانر تثبيت التطبيق */}
-            <AnimatePresence>
-                {showBanner && (
-                    <motion.div
-                        initial={{ y: -100, opacity: 0 }}
-                        animate={{ y: 0, opacity: 1 }}
-                        exit={{ y: -100, opacity: 0 }}
-                        className="fixed top-0 left-0 right-0 z-[110] bg-white/90 backdrop-blur-xl border-b border-slate-100 px-4 py-3 flex items-center justify-between shadow-sm"
-                    >
-                        <div className="flex items-center gap-3">
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400" onClick={() => setShowBanner(false)}>
-                                <X size={18} />
-                            </Button>
-                            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                                <img src="/favicon.png" alt="SAS Icon" className="w-6 h-6 object-contain" />
-                            </div>
-                            <div className="flex flex-col text-right">
-                                <h3 className="text-[12px] font-black text-slate-900 leading-tight">تطبيق SAS TRANSPORT</h3>
-                                <p className="text-[10px] text-slate-500 font-bold italic">أسرع • أسهل • آمن</p>
-                            </div>
-                        </div>
-                        <Button size="sm" className="bg-primary hover:bg-primary/90 text-white text-[11px] font-black h-8 px-4 rounded-lg shadow-lg shadow-primary/20">
-                            تثبيت الآن
-                        </Button>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+        <div className="min-h-screen bg-white font-['Cairo'] flex flex-col pt-16 md:pt-20" dir="rtl">
 
             {/* 🚀 الـ Navbar الاحترافي */}
-            <nav className={`fixed ${showBanner ? 'top-[65px]' : 'top-0'} left-0 right-0 z-[100] transition-all duration-500 py-2 px-4 md:px-8 flex items-center justify-between
+            <nav className={`fixed top-0 left-0 right-0 z-[100] transition-all duration-500 py-2 px-4 md:px-8 flex items-center justify-between
                 ${scrolled || isMobileMenuOpen ? 'bg-white/95 shadow-sm backdrop-blur-xl border-b border-slate-100' : 'bg-transparent'}
             `}>
                 {/* أزرار الدخول */}
