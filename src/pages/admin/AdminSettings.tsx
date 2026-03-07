@@ -41,6 +41,7 @@ export default function AdminSettings() {
   const [longDistanceLimit, setLongDistanceLimit] = useState('1000');
   const [longDistancePrice, setLongDistancePrice] = useState('3');
   const [systemCommission, setSystemCommission] = useState('10');
+  const [vatRate, setVatRate] = useState('15');
 
   // --- إعدادات المحتوى (CMS) ---
   const [aboutUs, setAboutUs] = useState('');
@@ -84,6 +85,7 @@ export default function AdminSettings() {
           setLongDistanceLimit(config.long_distance_limit?.toString() || '1000');
           setLongDistancePrice(config.long_distance_price?.toString() || '3');
           setSystemCommission(config.commission?.toString() || '10');
+          setVatRate(config.vat_rate?.toString() || '15');
         } else if (setting.id === 'content_config') {
           setAboutUs(config.aboutUs || '');
           setPrivacyPolicy(config.privacyPolicy || '');
@@ -123,7 +125,8 @@ export default function AdminSettings() {
             short_distance_price: parseSafeNumber(shortDistancePrice),
             long_distance_limit: parseSafeNumber(longDistanceLimit),
             long_distance_price: parseSafeNumber(longDistancePrice),
-            commission: parseSafeNumber(systemCommission)
+            commission: parseSafeNumber(systemCommission),
+            vat_rate: parseSafeNumber(vatRate)
           }
         });
       if (error) throw error;
@@ -183,15 +186,19 @@ export default function AdminSettings() {
     const lLimit = parseSafeNumber(longDistanceLimit);
     const sPrice = parseSafeNumber(shortDistancePrice);
     const lPrice = parseSafeNumber(longDistancePrice);
+    const vRate = parseSafeNumber(vatRate);
 
+    let price = 0;
     if (distance <= sLimit) {
-      return distance * sPrice;
+      price = distance * sPrice;
     } else if (distance >= lLimit) {
-      return distance * lPrice;
+      price = distance * lPrice;
     } else {
-      // For distances between short and long limits, default to short price to avoid gaps
-      return distance * sPrice;
+      price = distance * sPrice;
     }
+
+    const total = price * (1 + vRate / 100);
+    return Math.round(total);
   };
 
   // دالة مزامنة كافة الشحنات المعلقة مع الأسعار الجديدة
@@ -214,6 +221,7 @@ export default function AdminSettings() {
       const sPrice = parseSafeNumber(shortDistancePrice);
       const lLimit = parseSafeNumber(longDistanceLimit);
       const lPrice = parseSafeNumber(longDistancePrice);
+      const vRate = parseSafeNumber(vatRate);
 
       const normalize = (s: string) => s ? s.replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').trim().toLowerCase() : '';
 
@@ -247,6 +255,11 @@ export default function AdminSettings() {
               newPrice = distanceToUse * sPrice;
             }
           }
+        }
+
+        // إضافة الضريبة للسعر في المزامنة أيضاً
+        if (newPrice > 0) {
+          newPrice = newPrice * (1 + vRate / 100);
         }
 
         newPrice = Math.round(newPrice);
@@ -458,6 +471,18 @@ export default function AdminSettings() {
                       <div className="relative w-32 mr-4">
                         <Input type="number" min="0" value={systemCommission} onChange={(e) => setSystemCommission(e.target.value)} className="h-12 bg-amber-50/50 border-amber-100 rounded-xl font-black text-center" />
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-amber-600 font-black">%</span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-rose-50 text-rose-600 rounded-lg"><Plus size={20} /></div>
+                      <div>
+                        <span className="block font-black text-slate-700">ضريبة القيمة المضافة (VAT)</span>
+                        <span className="text-sm text-slate-400 font-bold">تضاف إلى إجمالي سعر الشحنة</span>
+                      </div>
+                      <div className="relative w-32 mr-4">
+                        <Input type="number" min="0" value={vatRate} onChange={(e) => setVatRate(e.target.value)} className="h-12 bg-rose-50/50 border-rose-100 rounded-xl font-black text-center" />
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-rose-600 font-black">%</span>
                       </div>
                     </div>
 

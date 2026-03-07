@@ -91,6 +91,7 @@ const DEFAULT_PRICING_CONFIG = {
   short_distance_price: 0,
   long_distance_limit: 0,
   long_distance_price: 0,
+  vat_rate: 15,
 };
 
 const TRUCK_TYPES: Record<string, { value: string, label: string, info?: string, capacity?: string, length?: string }[]> = {
@@ -206,6 +207,7 @@ export default function ShipperPostLoad() {
             short_distance_price: config.short_distance_price || DEFAULT_PRICING_CONFIG.short_distance_price,
             long_distance_limit: config.long_distance_limit || DEFAULT_PRICING_CONFIG.long_distance_limit,
             long_distance_price: config.long_distance_price || DEFAULT_PRICING_CONFIG.long_distance_price,
+            vat_rate: config.vat_rate ?? DEFAULT_PRICING_CONFIG.vat_rate,
           });
         }
       } catch (err) {
@@ -366,11 +368,16 @@ export default function ShipperPostLoad() {
 
       const dbTruckType = categoryMap[form.truck_category] || form.truck_category;
 
+      // حساب السعر النهائي المحمل بالضريبة للتخزين في القاعدة
+      const basePrice = parseSafeNumber(form.price);
+      const vatAmount = basePrice * (pricingConfig.vat_rate / 100);
+      const totalGrossPrice = Math.round(basePrice + vatAmount);
+
       const finalPayload = {
         origin: form.origin,
         destination: form.destination,
         weight: parseSafeNumber(form.weight),
-        price: parseSafeNumber(form.price),
+        price: totalGrossPrice,
         package_type: form.package_type,
         pickup_date: form.pickup_date,
         body_type: form.body_type,
@@ -737,43 +744,58 @@ export default function ShipperPostLoad() {
 
                   {step === 4 && (
                     <div className="space-y-8 max-w-lg mx-auto">
-                      <div className="bg-blue-50 p-6 rounded-3xl border-2 border-dashed border-blue-200 text-center animate-in fade-in slide-in-from-bottom-2">
-                        <p className="text-blue-600 font-bold text-sm mb-1">المسافة التقريبية للرحلة</p>
+                      {/* ملخص المسافة والتحليلات */}
+                      <div className="bg-blue-50/50 p-6 rounded-[2rem] border border-blue-100/50 text-center animate-in fade-in slide-in-from-bottom-2">
+                        <p className="text-blue-600 font-bold text-sm mb-1">المسافة المقدرة للرحلة</p>
                         <div className="flex items-center justify-center gap-2">
                           <span className="text-3xl font-black text-blue-700">{Math.round(distance || 0)}</span>
-                          <span className="text-lg font-bold text-blue-500">كيلو متر</span>
-                        </div>
-
-                        {/* إضافة توضيح لنوع التسعير */}
-                        <p className="mt-3 text-xs font-bold text-blue-400">
-                          {distance! <= pricingConfig.short_distance_limit
-                            ? `تطبق تسعيرة المسافات القصيرة (${pricingConfig.short_distance_price} ريال/كم)`
-                            : distance! >= pricingConfig.long_distance_limit
-                              ? `تطبق تسعيرة المسافات الطويلة (${pricingConfig.long_distance_price} ريال/كم)`
-                              : `تطبق تسعيرة المسافات المتوسطة (${pricingConfig.short_distance_price} ريال/كم)`}
-                        </p>
-                      </div>
-
-                      <div className="bg-[#0f172a] text-white p-8 rounded-[2rem] shadow-2xl space-y-6">
-                        <div className="space-y-2 text-center text-white">
-                          <Label className="font-bold text-slate-300 text-sm block mb-2">عرض السعر المقترح (ر.س)</Label>
-                          <Input type="number" min="0" value={form.price} onChange={e => setForm(p => ({ ...p, price: e.target.value }))} className="h-16 rounded-2xl bg-white/10 border-white/20 font-black text-3xl text-center text-white" />
-                          <p className="text-[10px] text-slate-400 mt-2">السعر المحتسب: بناءً على التكوين الذكي من الإدارة</p>
-                        </div>
-                        <div className="space-y-4 text-white">
-                          <Label className="font-bold text-slate-300 text-sm block mb-1">طريقة الدفع</Label>
-                          <Select value={form.payment_method} onValueChange={val => setForm(p => ({ ...p, payment_method: val }))}>
-                            <SelectTrigger className="h-14 rounded-xl bg-white/10 border-white/20 font-bold text-white border-none">
-                              <SelectValue placeholder="اختر طريقة الدفع" />
-                            </SelectTrigger>
-                            <SelectContent className="rounded-xl font-bold">
-                              <SelectItem value="CASH">نقدي عند الاستلام</SelectItem>
-                              <SelectItem value="TRANSFER">تحويل بنكي</SelectItem>
-                              <SelectItem value="WALLET">محفظة SAS</SelectItem>
-                            </SelectContent>
-                          </Select>
+                          <span className="text-lg font-bold text-blue-500">كم</span>
                         </div>
                       </div>
+
+                      {/* تفصيل السعر والضريبة - تصميم فاخر مستوحى من اللوجستيات الذكية */}
+                      <Card className="rounded-[2.5rem] border-none shadow-2xl bg-[#0f172a] text-white overflow-hidden animate-in zoom-in-95 duration-500">
+                        <CardHeader className="bg-white/5 border-b border-white/10 p-8">
+                          <CardTitle className="text-xl font-black text-center flex items-center justify-center gap-3">
+                            <Zap className="text-amber-400 fill-amber-400" size={20} />
+                            تفاصيل السعر والضريبة
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-8 space-y-6">
+                          <div className="space-y-4">
+                            <div className="flex justify-between items-center pb-4 border-b border-white/10">
+                              <span className="text-slate-400 font-bold">السعر الأساسي</span>
+                              <span className="text-xl font-black text-white">{Number(form.price).toLocaleString()} <span className="text-xs">ر.س</span></span>
+                            </div>
+                            <div className="flex justify-between items-center pb-4 border-b border-white/10">
+                              <span className="text-slate-400 font-bold text-sm">ضريبة القيمة المضافة ({pricingConfig.vat_rate}%)</span>
+                              <span className="text-lg font-black text-rose-400">{(Number(form.price) * pricingConfig.vat_rate / 100).toLocaleString()} <span className="text-xs">ر.س</span></span>
+                            </div>
+                            <div className="flex justify-between items-center pt-2">
+                              <span className="text-amber-400 font-black text-lg">الإجمالي النهائي</span>
+                              <span className="text-3xl font-black text-white">{(Number(form.price) * (1 + pricingConfig.vat_rate / 100)).toLocaleString()} <span className="text-xs">ر.س</span></span>
+                            </div>
+                          </div>
+
+                          <div className="pt-6 border-t border-white/10 space-y-4">
+                            <Label className="font-bold text-slate-300 text-xs block mb-1">طريقة الدفع للمندوب</Label>
+                            <Select value={form.payment_method} onValueChange={val => setForm(p => ({ ...p, payment_method: val }))}>
+                              <SelectTrigger className="h-14 rounded-2xl bg-white/10 border-white/10 font-bold text-white transition-all hover:bg-white/20">
+                                <SelectValue placeholder="اختر طريقة الدفع" />
+                              </SelectTrigger>
+                              <SelectContent className="rounded-xl font-bold">
+                                <SelectItem value="CASH">نقدي عند الاستلام</SelectItem>
+                                <SelectItem value="TRANSFER">تحويل بنكي</SelectItem>
+                                <SelectItem value="WALLET">محفظة SAS</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      <p className="text-center text-[10px] text-slate-400 font-bold px-10">
+                        * السعر أعلاه هو السعر الإجمالي الذي سيدفعه الشاحن، شاملاً كافة الرسوم والضرائب الحكومية المطبقة.
+                      </p>
                     </div>
                   )}
 
