@@ -190,18 +190,33 @@ export default function WelcomePage() {
         bg-white/95 shadow-md backdrop-blur-md border-b border-slate-100 transition-all duration-300
       `}>
 
-        {/* أزرار الدخول على اليمين (الأولى في RTL) */}
-        <div className="flex items-center gap-2 md:gap-3">
+        {/* الشعار الآن على اليمين (الأول في RTL) ومكبر */}
+        <div className="flex items-center py-1 order-first">
+          <div className="relative group">
+            <img
+              src="/logo.png"
+              alt="SAS Logo"
+              className="h-20 md:h-32 w-auto object-contain cursor-pointer transition-all duration-300 hover:scale-105 active:scale-95 relative drop-shadow-sm"
+              onClick={() => {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                setIsMobileMenuOpen(false);
+              }}
+            />
+          </div>
+        </div>
+
+        {/* أزرار الدخول الآن على اليسار (الأخيرة في RTL) مع خط أصغر */}
+        <div className="flex items-center gap-2 md:gap-3 order-last">
           <div className="hidden sm:flex items-center gap-2">
             <Button
               onClick={() => navigate('/login')}
-              className="bg-slate-900 hover:bg-slate-800 text-white font-black px-4 md:px-6 h-9 md:h-11 rounded-lg md:rounded-xl shadow-lg transition-all hover:scale-105 active:scale-95 text-xs md:text-sm whitespace-nowrap"
+              className="bg-slate-900 hover:bg-slate-800 text-white font-black px-4 md:px-5 h-8 md:h-10 rounded-lg md:rounded-xl shadow-lg transition-all hover:scale-105 active:scale-95 text-[10px] md:text-xs whitespace-nowrap"
             >
               دخول النظام
             </Button>
             <Button
               onClick={() => navigate('/register')}
-              className="bg-primary hover:bg-primary/90 text-white font-black px-4 md:px-6 h-9 md:h-11 rounded-lg md:rounded-xl shadow-lg shadow-primary/20 transition-all hover:scale-105 active:scale-95 text-xs md:text-sm whitespace-nowrap"
+              className="bg-primary hover:bg-primary/90 text-white font-black px-4 md:px-5 h-8 md:h-10 rounded-lg md:rounded-xl shadow-lg shadow-primary/20 transition-all hover:scale-105 active:scale-95 text-[10px] md:text-xs whitespace-nowrap"
             >
               ابدأ رحلتك
             </Button>
@@ -209,43 +224,11 @@ export default function WelcomePage() {
           <Button
             variant="ghost"
             size="icon"
-            className="xl:hidden rounded-xl w-12 h-12 bg-slate-50 border border-slate-200"
+            className="xl:hidden rounded-xl w-10 h-10 md:w-12 md:h-12 bg-slate-50 border border-slate-200"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           >
-            {isMobileMenuOpen ? <X size={28} /> : <Menu size={28} />}
+            {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
           </Button>
-        </div>
-
-        {/* روابط التنقل في المنتصف - مع ضبط المسافات لمنع التداخل */}
-        <div className="hidden xl:flex items-center gap-6 bg-white/50 backdrop-blur-md px-8 py-3 rounded-2xl border border-white/20 shadow-sm">
-          <button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="font-black text-slate-800 hover:text-primary transition-all text-base whitespace-nowrap">الرئيسية</button>
-          <div className="w-1 h-1 bg-slate-300 rounded-full"></div>
-          <button onClick={() => scrollToSection('about-us')} className="font-black text-slate-500 hover:text-primary transition-all text-base whitespace-nowrap">من نحن</button>
-          <div className="w-1 h-1 bg-slate-300 rounded-full"></div>
-          <button onClick={() => scrollToSection('contact-us')} className="font-black text-slate-500 hover:text-primary transition-all text-base whitespace-nowrap">اتصل بنا</button>
-          <div className="w-1 h-1 bg-slate-300 rounded-full"></div>
-          <Button
-            variant="ghost"
-            onClick={() => navigate('/tracking')}
-            className="font-black text-primary hover:bg-primary/5 transition-all text-base flex items-center gap-2 h-auto py-0 whitespace-nowrap"
-          >
-            <Search size={18} />
-            تتبع شحنة
-          </Button>
-        </div>
-
-        <div className="flex items-center py-1">
-          <div className="relative group">
-            <img
-              src="/logo.png"
-              alt="SAS Logo"
-              className="h-14 md:h-20 w-auto object-contain cursor-pointer transition-all duration-300 hover:scale-105 active:scale-95 relative drop-shadow-sm"
-              onClick={() => {
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-                setIsMobileMenuOpen(false);
-              }}
-            />
-          </div>
         </div>
       </nav>
 
