@@ -275,12 +275,12 @@ export default function WelcomePage() {
           </motion.div>
 
           <h1 className="text-xl md:text-3xl font-black text-slate-900 mb-1 leading-[1.1] tracking-tighter">
-            مستقبل النقل <br />
-            <span className="text-primary italic">في متناول يدك</span>
+            شريكك الموثوق.. <br />
+            <span className="text-primary italic">في كل طريق</span>
           </h1>
 
-          <p className="text-[12px] md:text-sm font-bold text-slate-500 mb-4 max-w-2xl mx-auto leading-relaxed px-4">
-            {t('welcome_subtitle')}. {t('welcome_desc')}
+          <p className="text-sm md:text-base font-black text-slate-500 mb-6 max-w-2xl mx-auto leading-relaxed px-4">
+            منصة النقل الذكية.. أسرع وأسهل طريقة لإدارة شحناتك ونقل بضائعك
           </p>
 
           {/* 🔍 صندوق بحث تتبع مباشر */}
