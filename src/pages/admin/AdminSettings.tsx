@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 import {
   Settings, Map, Bell, Globe, Save, HelpCircle,
   TrendingUp, Zap, Plus, Trash2, Search, AlertTriangle,
-  ArrowRightLeft, Edit2, Check, X, Loader2
+  ArrowRightLeft, Edit2, Check, X, Loader2, Mail, Info
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -46,9 +46,17 @@ export default function AdminSettings() {
   // --- إعدادات المحتوى (CMS) ---
   const [aboutUs, setAboutUs] = useState('');
   const [phone, setPhone] = useState('');
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState('pr@sas3pl.com');
   const [address, setAddress] = useState('');
+  const [whatsapp, setWhatsapp] = useState('');
+  const [contactFormEmail, setContactFormEmail] = useState('yalqlb019@gmail.com');
   const [privacyPolicy, setPrivacyPolicy] = useState('');
+  const [termsAndConditions, setTermsAndConditions] = useState('');
+
+  // --- إعدادات EmailJS ---
+  const [emailjsServiceId, setEmailjsServiceId] = useState('');
+  const [emailjsTemplateId, setEmailjsTemplateId] = useState('');
+  const [emailjsPublicKey, setEmailjsPublicKey] = useState('');
 
   // --- إعدادات الإشعارات ---
   const [emailNotifications, setEmailNotifications] = useState(true);
@@ -94,7 +102,13 @@ export default function AdminSettings() {
           setPhone(config.phone || '');
           setEmail(config.email || '');
           setAddress(config.address || '');
+          setWhatsapp(config.whatsapp || '');
+          setContactFormEmail(config.contactFormEmail || '');
           setPrivacyPolicy(config.privacyPolicy || '');
+          setTermsAndConditions(config.termsAndConditions || '');
+          setEmailjsServiceId(config.emailjsServiceId || '');
+          setEmailjsTemplateId(config.emailjsTemplateId || '');
+          setEmailjsPublicKey(config.emailjsPublicKey || '');
         } else if (setting.id === 'notification_config') {
           setEmailNotifications(config.emailNotifications ?? true);
           setSmsNotifications(config.smsNotifications ?? true);
@@ -157,7 +171,11 @@ export default function AdminSettings() {
         .from('system_settings')
         .upsert({
           id: 'content_config',
-          data: { aboutUs, phone, email, address, privacyPolicy }
+          data: {
+            aboutUs, phone, email, address, whatsapp, contactFormEmail,
+            privacyPolicy, termsAndConditions,
+            emailjsServiceId, emailjsTemplateId, emailjsPublicKey
+          }
         });
       if (error) throw error;
       toast.success('تم تحديث محتوى الصفحات بنجاح ✅');
@@ -656,7 +674,7 @@ export default function AdminSettings() {
 
                 <div className="space-y-6">
                   <div className="space-y-3">
-                    <Label className="font-black text-slate-700">رقم التواصل / واتساب</Label>
+                    <Label className="font-black text-slate-700">رقم الهاتف (للعرض)</Label>
                     <Input
                       value={phone}
                       onChange={e => setPhone(e.target.value)}
@@ -665,12 +683,30 @@ export default function AdminSettings() {
                     />
                   </div>
                   <div className="space-y-3">
-                    <Label className="font-black text-slate-700">البريد الإلكتروني</Label>
+                    <Label className="font-black text-slate-700">رقم واتساب (للتواصل)</Label>
+                    <Input
+                      value={whatsapp}
+                      onChange={e => setWhatsapp(e.target.value)}
+                      placeholder="966XXXXXXXXX"
+                      className="h-12 bg-green-50/30 border-green-100 rounded-xl font-bold"
+                    />
+                  </div>
+                  <div className="space-y-3">
+                    <Label className="font-black text-slate-700">البريد الإلكتروني (للعرض)</Label>
                     <Input
                       value={email}
                       onChange={e => setEmail(e.target.value)}
-                      placeholder="info@example.com"
+                      placeholder="info@sas4pl.com"
                       className="h-12 bg-slate-50 border-slate-100 rounded-xl font-bold"
+                    />
+                  </div>
+                  <div className="space-y-3">
+                    <Label className="font-black text-slate-700">بريد استقبال الرسائل (داخلي)</Label>
+                    <Input
+                      value={contactFormEmail}
+                      onChange={e => setContactFormEmail(e.target.value)}
+                      placeholder="support@sas4pl.com"
+                      className="h-12 bg-blue-50/30 border-blue-100 rounded-xl font-bold"
                     />
                   </div>
                   <div className="space-y-3">
@@ -678,20 +714,82 @@ export default function AdminSettings() {
                     <Input
                       value={address}
                       onChange={e => setAddress(e.target.value)}
-                      placeholder="المدينة، الحي، الشارع"
+                      placeholder="الرياض، المملكة العربية السعودية"
                       className="h-12 bg-slate-50 border-slate-100 rounded-xl font-bold"
                     />
                   </div>
                 </div>
               </div>
 
-              <div className="space-y-4">
-                <Label className="font-black text-slate-700 text-lg">سياسة الخصوصية والشروط</Label>
-                <Textarea
-                  value={privacyPolicy}
-                  onChange={(e) => setPrivacyPolicy(e.target.value)}
-                  className="min-h-[150px] bg-slate-50 border-slate-200 rounded-2xl p-6 font-medium"
-                />
+              {/* EmailJS Configuration Section */}
+              <div className="bg-blue-50/40 p-10 rounded-[3rem] border border-blue-100/50 space-y-8">
+                <div className="flex items-center gap-5">
+                  <div className="w-16 h-16 bg-blue-600 rounded-[1.5rem] flex items-center justify-center text-white shadow-2xl shadow-blue-200">
+                    <Mail size={32} />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-black text-slate-800">إعدادات EmailJS الفنية</h3>
+                    <p className="text-slate-400 font-bold text-lg mt-1">اربط حسابك لتلقي التنبيهات الفورية على Gmail</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                  <div className="space-y-3">
+                    <Label className="font-black text-slate-700 text-base">Service ID</Label>
+                    <Input
+                      value={emailjsServiceId}
+                      onChange={e => setEmailjsServiceId(e.target.value)}
+                      placeholder="service_xxxxxxxx"
+                      className="h-14 bg-white border-slate-200 rounded-2xl font-bold px-6 focus:ring-4 focus:ring-blue-100"
+                    />
+                  </div>
+                  <div className="space-y-3">
+                    <Label className="font-black text-slate-700 text-base">Template ID</Label>
+                    <Input
+                      value={emailjsTemplateId}
+                      onChange={e => setEmailjsTemplateId(e.target.value)}
+                      placeholder="template_xxxxxxxx"
+                      className="h-14 bg-white border-slate-200 rounded-2xl font-bold px-6 focus:ring-4 focus:ring-blue-100"
+                    />
+                  </div>
+                  <div className="space-y-3">
+                    <Label className="font-black text-slate-700 text-base">Public Key</Label>
+                    <Input
+                      value={emailjsPublicKey}
+                      onChange={e => setEmailjsPublicKey(e.target.value)}
+                      placeholder="user_xxxxxxxx"
+                      className="h-14 bg-white border-slate-200 rounded-2xl font-bold px-6 focus:ring-4 focus:ring-blue-100"
+                    />
+                  </div>
+                </div>
+
+                <div className="p-6 bg-amber-50 rounded-2xl border border-amber-100 flex items-start gap-4">
+                  <Info className="text-amber-500 mt-1" size={20} />
+                  <p className="text-amber-700 text-sm font-bold leading-relaxed">
+                    ملاحظة: تأكد من تفعيل القالب في حسابك على EmailJS ووضع المتغيرات المطلوبة (from_name, message, etc) لضمان وصول البيانات بشكل صحيح.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div className="space-y-4">
+                  <Label className="font-black text-slate-700 text-lg">سياسة الخصوصية</Label>
+                  <Textarea
+                    value={privacyPolicy}
+                    onChange={(e) => setPrivacyPolicy(e.target.value)}
+                    placeholder="اكتب سياسة الخصوصية هنا..."
+                    className="min-h-[200px] bg-slate-50 border-slate-200 rounded-2xl p-6 font-medium focus:bg-white transition-all"
+                  />
+                </div>
+                <div className="space-y-4">
+                  <Label className="font-black text-slate-700 text-lg">الشروط والأحكام</Label>
+                  <Textarea
+                    value={termsAndConditions}
+                    onChange={(e) => setTermsAndConditions(e.target.value)}
+                    placeholder="اكتب الشروط والأحكام هنا..."
+                    className="min-h-[200px] bg-slate-50 border-slate-200 rounded-2xl p-6 font-medium focus:bg-white transition-all"
+                  />
+                </div>
               </div>
 
               <Button onClick={handleSaveContent} disabled={loading} className="h-14 px-10 rounded-2xl bg-blue-600 text-white font-black shadow-lg shadow-blue-500/20 active:scale-95 transition-all">

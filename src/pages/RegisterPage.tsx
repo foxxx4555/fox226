@@ -15,13 +15,14 @@ import {
 } from "@/components/ui/select";
 import { toast } from 'sonner';
 import {
-  Loader2, Truck, Package, MailCheck, RefreshCcw, User, Phone, Lock, 
+  Loader2, Truck, Package, MailCheck, RefreshCcw, User, Phone, Lock,
   ChevronRight, UserCircle2, Eye, EyeOff, ShieldCheck
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { UserRole } from '@/types';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import { Checkbox } from '@/components/ui/checkbox';
 
 export default function RegisterPage() {
   const { t } = useTranslation();
@@ -31,17 +32,19 @@ export default function RegisterPage() {
   const [showOtp, setShowOtp] = useState(false);
   const [otpCode, setOtpCode] = useState("");
   const [timer, setTimer] = useState(0);
-  
-  const [form, setForm] = useState({ 
-    full_name: '', 
-    email: '', 
-    phone: '', 
-    password: '', 
-    confirmPassword: '' 
+
+  const [form, setForm] = useState({
+    full_name: '',
+    email: '',
+    phone: '',
+    password: '',
+    confirmPassword: ''
   });
-  
+
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [agreePrivacy, setAgreePrivacy] = useState(false);
+  const [agreeTerms, setAgreeTerms] = useState(false);
 
   // إدارة العداد الزمني لإعادة الإرسال
   useEffect(() => {
@@ -68,6 +71,8 @@ export default function RegisterPage() {
     if (form.phone.length < 8) { toast.error('رقم الجوال غير صحيح'); return false; }
     if (form.password.length < 6) { toast.error('كلمة المرور يجب أن تكون 6 أحرف على الأقل'); return false; }
     if (form.password !== form.confirmPassword) { toast.error('كلمات المرور غير متطابقة'); return false; }
+    if (!agreePrivacy) { toast.error('يرجى الموافقة على سياسة الخصوصية'); return false; }
+    if (!agreeTerms) { toast.error('يرجى الموافقة على الشروط والأحكام'); return false; }
     return true;
   };
 
@@ -98,7 +103,7 @@ export default function RegisterPage() {
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
     if (otpCode.length < 6) return toast.error('يرجى إدخال الرمز المكون من 6 أرقام');
-    
+
     setLoading(true);
     try {
       await api.verifyEmailOtp(form.email, otpCode);
@@ -132,14 +137,14 @@ export default function RegisterPage() {
       <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/5 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/2" />
       <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-blue-500/5 rounded-full blur-[80px] translate-y-1/4 -translate-x-1/4" />
 
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }} 
-        animate={{ opacity: 1, y: 0 }} 
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
         className="w-full max-w-xl relative z-10"
       >
         <div className="text-center mb-8">
-          <motion.div 
-            initial={{ scale: 0.5 }} 
+          <motion.div
+            initial={{ scale: 0.5 }}
             animate={{ scale: 1 }}
             className="w-20 h-20 bg-white rounded-3xl flex items-center justify-center mx-auto shadow-2xl shadow-primary/10 mb-6 border border-slate-50"
           >
@@ -157,12 +162,12 @@ export default function RegisterPage() {
           <CardContent className="p-8 md:p-10">
             <AnimatePresence mode="wait">
               {!showOtp ? (
-                <motion.form 
+                <motion.form
                   key="register-form"
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -20 }}
-                  onSubmit={handleRegister} 
+                  onSubmit={handleRegister}
                   className="space-y-6"
                 >
                   {/* Role Selection */}
@@ -195,12 +200,12 @@ export default function RegisterPage() {
                       <Label className="text-xs font-bold text-slate-500 ms-1">الاسم الكامل</Label>
                       <div className="relative">
                         <User className="absolute start-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                        <Input 
+                        <Input
                           placeholder="الاسم الثلاثي"
-                          value={form.full_name} 
-                          onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))} 
-                          required 
-                          className="ps-11 h-14 rounded-2xl border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary transition-all font-bold" 
+                          value={form.full_name}
+                          onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))}
+                          required
+                          className="ps-11 h-14 rounded-2xl border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary transition-all font-bold"
                         />
                       </div>
                     </div>
@@ -208,13 +213,13 @@ export default function RegisterPage() {
                       <Label className="text-xs font-bold text-slate-500 ms-1">رقم الجوال</Label>
                       <div className="relative group">
                         <Phone className="absolute start-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                        <Input 
-                          type="tel" 
+                        <Input
+                          type="tel"
                           placeholder="05xxxxxxxx"
-                          value={form.phone} 
-                          onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} 
-                          dir="ltr" 
-                          className="ps-11 h-14 rounded-2xl border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary transition-all font-bold" 
+                          value={form.phone}
+                          onChange={e => setForm(p => ({ ...p, phone: e.target.value }))}
+                          dir="ltr"
+                          className="ps-11 h-14 rounded-2xl border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary transition-all font-bold"
                         />
                       </div>
                     </div>
@@ -222,14 +227,14 @@ export default function RegisterPage() {
 
                   <div className="space-y-2">
                     <Label className="text-xs font-bold text-slate-500 ms-1">البريد الإلكتروني</Label>
-                    <Input 
-                      type="email" 
+                    <Input
+                      type="email"
                       placeholder="example@mail.com"
-                      value={form.email} 
-                      onChange={e => setForm(p => ({ ...p, email: e.target.value }))} 
-                      required 
-                      dir="ltr" 
-                      className="h-14 rounded-2xl border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary transition-all font-bold shadow-sm" 
+                      value={form.email}
+                      onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
+                      required
+                      dir="ltr"
+                      className="h-14 rounded-2xl border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary transition-all font-bold shadow-sm"
                     />
                   </div>
 
@@ -245,8 +250,8 @@ export default function RegisterPage() {
                           required
                           className="h-14 rounded-2xl border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary transition-all font-bold pe-12"
                         />
-                        <button 
-                          type="button" 
+                        <button
+                          type="button"
                           onClick={() => setShowPassword(!showPassword)}
                           className="absolute end-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-primary transition-colors"
                         >
@@ -264,14 +269,39 @@ export default function RegisterPage() {
                           required
                           className="h-14 rounded-2xl border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary transition-all font-bold pe-12"
                         />
-                        <button 
-                          type="button" 
+                        <button
+                          type="button"
                           onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                           className="absolute end-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-primary transition-colors"
                         >
                           {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                         </button>
                       </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4 py-2">
+                    <div className="flex items-center space-x-2 space-x-reverse">
+                      <Checkbox
+                        id="privacy"
+                        checked={agreePrivacy}
+                        onCheckedChange={(checked) => setAgreePrivacy(checked as boolean)}
+                        className="border-slate-300 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                      />
+                      <Label htmlFor="privacy" className="text-sm font-bold text-slate-600 cursor-pointer">
+                        أوافق على <Link to="/privacy" className="text-primary hover:underline">سياسة الخصوصية</Link> الخاصة بـ SAS Transport
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2 space-x-reverse">
+                      <Checkbox
+                        id="terms"
+                        checked={agreeTerms}
+                        onCheckedChange={(checked) => setAgreeTerms(checked as boolean)}
+                        className="border-slate-300 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                      />
+                      <Label htmlFor="terms" className="text-sm font-bold text-slate-600 cursor-pointer">
+                        أوافق على <Link to="/terms" className="text-primary hover:underline">الشروط والأحكام</Link> المنظمة للخدمة
+                      </Label>
                     </div>
                   </div>
 
@@ -290,12 +320,12 @@ export default function RegisterPage() {
                   </div>
                 </motion.form>
               ) : (
-                <motion.form 
+                <motion.form
                   key="otp-form"
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: 20 }}
-                  onSubmit={handleVerify} 
+                  onSubmit={handleVerify}
                   className="space-y-8 text-center"
                 >
                   <div className="w-24 h-24 bg-primary/5 text-primary rounded-[2rem] flex items-center justify-center mx-auto shadow-inner border border-primary/10">
@@ -305,7 +335,7 @@ export default function RegisterPage() {
                   <div className="space-y-2">
                     <h2 className="text-2xl font-black text-slate-800">تحقق من بريدك</h2>
                     <p className="text-slate-500 font-bold px-4">
-                      أدخل الرمز المكون من 6 أرقام المرسل إلى: <br /> 
+                      أدخل الرمز المكون من 6 أرقام المرسل إلى: <br />
                       <span className="text-primary font-black break-all">{form.email}</span>
                     </p>
                   </div>
@@ -347,7 +377,7 @@ export default function RegisterPage() {
                           </span>
                         )}
                       </Button>
-                      
+
                       <button
                         type="button"
                         onClick={() => {

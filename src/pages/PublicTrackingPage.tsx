@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Search, Package, MapPin, Calendar, Clock, ArrowRight, Loader2, CheckCircle2, Truck, AlertCircle } from "lucide-react";
+import { Search, Package, MapPin, Calendar, Clock, ArrowRight, Loader2, CheckCircle2, Truck, AlertCircle, Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { motion, AnimatePresence } from "framer-motion";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, Link } from "react-router-dom";
 
 export default function PublicTrackingPage() {
     const [trackingNumber, setTrackingNumber] = useState("");
@@ -14,6 +14,18 @@ export default function PublicTrackingPage() {
     const [error, setError] = useState<string | null>(null);
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
+
+    const [showBanner, setShowBanner] = useState(true);
+    const [scrolled, setScrolled] = useState(false);
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+    const scrollToSection = (id: string) => {
+        if (id === 'hero') {
+            navigate('/');
+            return;
+        }
+        navigate('/#' + id);
+    };
 
     const handleTrack = async (e?: React.FormEvent, manualID?: string) => {
         if (e) e.preventDefault();
@@ -32,23 +44,25 @@ export default function PublicTrackingPage() {
         }
 
         try {
-            // استخدام البحث باستخدام بداية المعرف (Prefix Search)
-            // ملاحظة: الحقل UUID يتطلب أحياناً تحويله لنص، ولكن ilike غالباً ما يفي بالغرض
-            const { data, error: sbError } = await supabase
-                .from('loads')
-                .select('*')
-                .filter('id', 'ilike', `${cleanID}%`)
-                .maybeSingle();
+            const hex = cleanID.replace(/-/g, '').toLowerCase();
+            const isFullUUID = /^[0-9a-f]{32}$/.test(hex);
 
-            if (sbError) {
-                // معالجة الخطأ التقني إذا فشل البحث
-                if (sbError.code === '22P02') {
-                    setError("تنسيق المعرف غير صحيح، يرجى التأكد من كتابة الرموز الـ 8 الأولى بشكل صحيح.");
-                    setLoading(false);
-                    return;
-                }
-                throw sbError;
+            let query = supabase.from('loads').select('*');
+
+            if (isFullUUID) {
+                // بحث دقيق إذا كان المعرف كاملاً
+                const uuid = hex.replace(/^(.{8})(.{4})(.{4})(.{4})(.{12})$/, '$1-$2-$3-$4-$5');
+                query = query.eq('id', uuid);
+            } else {
+                // بحث بنظام النطاق (Range) للمعاملات الجزئية لتجنب خطأ الـ Casting
+                const min = hex.padEnd(32, '0').replace(/^(.{8})(.{4})(.{4})(.{4})(.{12})$/, '$1-$2-$3-$4-$5');
+                const max = hex.padEnd(32, 'f').replace(/^(.{8})(.{4})(.{4})(.{4})(.{12})$/, '$1-$2-$3-$4-$5');
+                query = query.gte('id', min).lte('id', max);
             }
+
+            const { data, error: sbError } = await query.maybeSingle();
+
+            if (sbError) throw sbError;
 
             if (data) {
                 setShipment(data);
@@ -64,12 +78,19 @@ export default function PublicTrackingPage() {
     };
 
     useEffect(() => {
+        const handleScroll = () => {
+            setScrolled(window.scrollY > 20);
+        };
+        window.addEventListener('scroll', handleScroll);
+
         const idFromUrl = searchParams.get('id');
         if (idFromUrl) {
             setTrackingNumber(idFromUrl);
             handleTrack(undefined, idFromUrl);
         }
-    }, [searchParams]);
+
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, [searchParams, handleTrack]); // Added handleTrack to dependencies
 
     const getStatusStep = (status: string) => {
         switch (status) {
@@ -91,19 +112,132 @@ export default function PublicTrackingPage() {
     const currentStep = shipment ? getStatusStep(shipment.status) : 0;
 
     return (
-        <div className="min-h-screen bg-[#f8fafc] flex flex-col font-['Cairo']" dir="rtl">
-            {/* Header / Navbar */}
-            <header className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-100 flex items-center justify-between px-6 py-4">
-                <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/')}>
-                    <img src="/logo.png" alt="SAS Logo" className="h-10 w-auto" />
+        <div className="min-h-screen bg-white font-['Cairo'] flex flex-col pt-32" dir="rtl">
+            {/* 🚀 بانر تثبيت التطبيق */}
+            <AnimatePresence>
+                {showBanner && (
+                    <motion.div
+                        initial={{ y: -100, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        exit={{ y: -100, opacity: 0 }}
+                        className="fixed top-0 left-0 right-0 z-[110] bg-white/90 backdrop-blur-xl border-b border-slate-100 px-4 py-3 flex items-center justify-between shadow-sm"
+                    >
+                        <div className="flex items-center gap-3">
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400" onClick={() => setShowBanner(false)}>
+                                <X size={18} />
+                            </Button>
+                            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                                <img src="/favicon.png" alt="SAS Icon" className="w-6 h-6 object-contain" />
+                            </div>
+                            <div className="flex flex-col text-right">
+                                <h3 className="text-[12px] font-black text-slate-900 leading-tight">تطبيق SAS TRANSPORT</h3>
+                                <p className="text-[10px] text-slate-500 font-bold italic">أسرع • أسهل • آمن</p>
+                            </div>
+                        </div>
+                        <Button size="sm" className="bg-primary hover:bg-primary/90 text-white text-[11px] font-black h-8 px-4 rounded-lg shadow-lg shadow-primary/20">
+                            تثبيت الآن
+                        </Button>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* 🚀 الـ Navbar الاحترافي */}
+            <nav className={`fixed ${showBanner ? 'top-[65px]' : 'top-0'} left-0 right-0 z-[100] transition-all duration-500 py-4 px-6 md:px-12 flex items-center justify-between
+                ${scrolled || isMobileMenuOpen ? 'bg-white/95 shadow-2xl shadow-slate-200/50 backdrop-blur-xl border-b border-slate-100' : 'bg-transparent'}
+            `}>
+                {/* أزرار الدخول */}
+                <div className="flex items-center gap-2 md:gap-3">
+                    <div className="hidden sm:flex items-center gap-2 md:gap-3">
+                        <Button
+                            onClick={() => navigate('/login')}
+                            className="bg-slate-900 hover:bg-slate-800 text-white font-black px-4 md:px-8 h-10 md:h-14 rounded-xl md:rounded-2xl shadow-xl transition-all hover:scale-105 active:scale-95 text-xs md:text-base whitespace-nowrap"
+                        >
+                            دخول النظام
+                        </Button>
+                    </div>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="xl:hidden rounded-xl w-12 h-12 bg-slate-50 border border-slate-200"
+                        onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                    >
+                        {isMobileMenuOpen ? <X size={28} /> : <Menu size={28} />}
+                    </Button>
                 </div>
-                <Button variant="ghost" className="font-bold text-slate-600" onClick={() => navigate('/login')}>
-                    تسجيل الدخول
-                </Button>
-            </header>
+
+                {/* روابط التنقل */}
+                <div className="hidden xl:flex items-center gap-6 bg-white/50 backdrop-blur-md px-8 py-3 rounded-2xl border border-white/20 shadow-sm">
+                    <button onClick={() => navigate('/')} className="font-black text-slate-800 hover:text-primary transition-all text-base whitespace-nowrap">الرئيسية</button>
+                    <div className="w-1 h-1 bg-slate-300 rounded-full"></div>
+                    <button onClick={() => navigate('/#about-us')} className="font-black text-slate-500 hover:text-primary transition-all text-base whitespace-nowrap">من نحن</button>
+                    <div className="w-1 h-1 bg-slate-300 rounded-full"></div>
+                    <button onClick={() => navigate('/#contact-us')} className="font-black text-slate-500 hover:text-primary transition-all text-base whitespace-nowrap">اتصل بنا</button>
+                    <div className="w-1 h-1 bg-slate-300 rounded-full"></div>
+                    <Button
+                        variant="ghost"
+                        onClick={() => { window.scrollTo({ top: 0, behavior: 'smooth' }); setIsMobileMenuOpen(false); }}
+                        className="font-black text-primary hover:bg-primary/5 transition-all text-base flex items-center gap-2 h-auto py-0 whitespace-nowrap"
+                    >
+                        <Search size={18} />
+                        تتبع شحنة
+                    </Button>
+                </div>
+
+                {/* الشعار */}
+                <div className="flex items-center">
+                    <div className="relative group">
+                        <img
+                            src="/logo.png"
+                            alt="SAS Logo"
+                            className="h-20 md:h-32 w-auto object-contain cursor-pointer transition-all duration-700 hover:scale-110 active:scale-95 relative drop-shadow-xl"
+                            onClick={() => navigate('/')}
+                        />
+                    </div>
+                </div>
+            </nav>
+
+            {/* 📱 القائمة الجانبية للجوال */}
+            <AnimatePresence>
+                {isMobileMenuOpen && (
+                    <motion.div
+                        initial={{ x: '100%' }}
+                        animate={{ x: 0 }}
+                        exit={{ x: '100%' }}
+                        transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                        className="fixed inset-0 z-[90] bg-white pt-48 pb-10 px-8 flex flex-col xl:hidden"
+                    >
+                        <div className="space-y-6">
+                            <button
+                                onClick={() => { navigate('/'); setIsMobileMenuOpen(false); }}
+                                className="w-full text-right text-3xl font-black text-slate-800 py-6 border-b border-slate-50 flex items-center justify-end gap-4"
+                            >
+                                الرئيسية
+                            </button>
+                            <button
+                                onClick={() => { navigate('/#about-us'); setIsMobileMenuOpen(false); }}
+                                className="w-full text-right text-3xl font-black text-slate-800 py-6 border-b border-slate-50 flex items-center justify-end gap-4"
+                            >
+                                من نحن
+                            </button>
+                            <button
+                                onClick={() => { navigate('/#contact-us'); setIsMobileMenuOpen(false); }}
+                                className="w-full text-right text-3xl font-black text-slate-800 py-6 border-b border-slate-50 flex items-center justify-end gap-4"
+                            >
+                                اتصل بنا
+                            </button>
+                            <button
+                                onClick={() => { window.scrollTo({ top: 0, behavior: 'smooth' }); setIsMobileMenuOpen(false); }}
+                                className="w-full text-right text-3xl font-black text-primary py-6 flex items-center justify-end gap-4"
+                            >
+                                تتبع الشحنة <Search size={32} />
+                            </button>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             {/* Main Area */}
-            <main className="flex-1 flex flex-col items-center pt-32 pb-20 px-4">
+            <main className="flex-1 flex flex-col items-center pt-12 pb-20 px-4">
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -277,8 +411,18 @@ export default function PublicTrackingPage() {
             </main>
 
             {/* Footer */}
-            <footer className="py-10 text-center text-slate-400 text-xs font-black tracking-widest uppercase border-t border-slate-100 bg-white">
-                SAS TRANSPORT WORLDWIDE LOGISTICS • {new Date().getFullYear()}
+            <footer className="py-12 px-6 border-t border-slate-100 bg-white">
+                <div className="container mx-auto flex flex-col md:flex-row justify-between items-center gap-8 text-center md:text-right">
+                    <div className="flex items-center gap-6">
+                        <img src="/favicon.png" alt="SAS" className="h-8 opacity-40 grayscale" />
+                        <span className="text-slate-400 font-bold text-sm">© {new Date().getFullYear()} SAS TRANSPORT LOGISTICS</span>
+                    </div>
+
+                    <div className="flex items-center gap-8">
+                        <Link to="/privacy" className="text-slate-400 hover:text-primary font-black text-sm transition-colors">سياسة الخصوصية</Link>
+                        <Link to="/terms" className="text-slate-400 hover:text-primary font-black text-sm transition-colors">الشروط والأحكام</Link>
+                    </div>
+                </div>
             </footer>
         </div>
     );

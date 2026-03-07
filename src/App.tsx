@@ -89,6 +89,8 @@ import ResetPasswordPage from "./pages/ResetPasswordPage";
 import NotFound from "./pages/NotFound";
 import SuspendedPage from "./pages/shared/SuspendedPage";
 import PublicTrackingPage from "./pages/PublicTrackingPage";
+import PrivacyPage from "./pages/PrivacyPage";
+import TermsPage from "./pages/TermsPage";
 
 import AdminProtectedRoute from "./components/AdminProtectedRoute";
 
@@ -245,6 +247,8 @@ const App = () => {
               <Route path="/reset-password" element={<ResetPasswordPage />} />
               <Route path="/suspended-page" element={<SuspendedPage />} />
               <Route path="/tracking" element={<PublicTrackingPage />} />
+              <Route path="/privacy" element={<PrivacyPage />} />
+              <Route path="/terms" element={<TermsPage />} />
 
               {/* المسارات المحمية (تحتاج تسجيل دخول) */}
               <Route element={<ProtectedRoute />}>

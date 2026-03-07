@@ -42,6 +42,7 @@ export default function AdminSupport() {
     const [searchQuery, setSearchQuery] = useState('');
     const [assigningTicket, setAssigningTicket] = useState<string | null>(null);
     const [expandedTicketId, setExpandedTicketId] = useState<string | null>(null);
+    const [contactMessages, setContactMessages] = useState<any[]>([]);
 
     const fetchTickets = async () => {
         try {
@@ -63,8 +64,22 @@ export default function AdminSupport() {
         }
     };
 
+    const fetchContactMessages = async () => {
+        try {
+            const { data, error } = await supabase
+                .from('contact_messages' as any)
+                .select('*')
+                .order('created_at', { ascending: false });
+            if (error) throw error;
+            setContactMessages(data || []);
+        } catch (e) {
+            console.error('Error fetching contact messages:', e);
+        }
+    };
+
     useEffect(() => {
         fetchTickets();
+        fetchContactMessages();
 
         // تفعيل الاستماع اللحظي لأي تذكرة جديدة أو تحديث حالة
         const channel = supabase
@@ -210,6 +225,7 @@ export default function AdminSupport() {
                             <TabsList className="bg-transparent border-none gap-2">
                                 <TabsTrigger value="all" className="rounded-2xl px-8 h-12 font-black data-[state=active]:bg-blue-600 data-[state=active]:text-white transition-all">الكل ({tickets.length})</TabsTrigger>
                                 <TabsTrigger value="open" className="rounded-2xl px-8 h-12 font-black data-[state=active]:bg-amber-500 data-[state=active]:text-white transition-all text-amber-500">جديدة ({tickets.filter(t => t.status === 'open').length})</TabsTrigger>
+                                <TabsTrigger value="contact" className="rounded-2xl px-8 h-12 font-black data-[state=active]:bg-purple-600 data-[state=active]:text-white transition-all text-purple-600">رسائل الموقع ({contactMessages.length})</TabsTrigger>
                                 <TabsTrigger value="in_progress" className="rounded-2xl px-8 h-12 font-black data-[state=active]:bg-blue-500 data-[state=active]:text-white transition-all text-blue-500">قيد العمل ({tickets.filter(t => t.status === 'in_progress').length})</TabsTrigger>
                                 <TabsTrigger value="resolved" className="rounded-2xl px-8 h-12 font-black data-[state=active]:bg-emerald-500 data-[state=active]:text-white transition-all text-emerald-500">منتهية ({tickets.filter(t => ['resolved', 'closed'].includes(t.status)).length})</TabsTrigger>
                             </TabsList>
@@ -356,6 +372,50 @@ export default function AdminSupport() {
                                 )}
                             </AnimatePresence>
                         </div>
+                        <TabsContent value="contact" className="space-y-6">
+                            {contactMessages.length === 0 ? (
+                                <div className="text-center py-32 bg-white rounded-[4rem] border-2 border-dashed border-slate-100">
+                                    <Mail size={48} className="text-slate-200 mx-auto mb-6" />
+                                    <p className="font-black text-slate-400 text-2xl">لا توجد رسائل تواصل حالياً</p>
+                                </div>
+                            ) : (
+                                contactMessages.map((msg, idx) => (
+                                    <motion.div
+                                        key={msg.id}
+                                        initial={{ opacity: 0, y: 20 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ delay: idx * 0.05 }}
+                                    >
+                                        <Card className="rounded-[2.5rem] border-none shadow-xl bg-white overflow-hidden p-8">
+                                            <div className="flex justify-between items-start mb-6">
+                                                <div>
+                                                    <h3 className="text-xl font-black text-slate-800">{msg.subject}</h3>
+                                                    <p className="text-slate-400 font-bold">{new Date(msg.created_at).toLocaleString('ar-SA')}</p>
+                                                </div>
+                                                <Badge className="bg-purple-50 text-purple-600 border-none font-black px-4 py-2 rounded-xl">رسالة تواصل</Badge>
+                                            </div>
+                                            <div className="bg-slate-50 p-6 rounded-2xl mb-6">
+                                                <p className="text-slate-700 font-bold leading-relaxed">{msg.message}</p>
+                                            </div>
+                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                                <div className="flex items-center gap-3 text-slate-500">
+                                                    <User size={18} className="text-purple-500" />
+                                                    <span className="font-black">{msg.name}</span>
+                                                </div>
+                                                <div className="flex items-center gap-3 text-slate-500">
+                                                    <Mail size={18} className="text-purple-500" />
+                                                    <span className="font-black">{msg.email}</span>
+                                                </div>
+                                                <div className="flex items-center gap-3 text-slate-500">
+                                                    <Phone size={18} className="text-purple-500" />
+                                                    <span className="font-black" dir="ltr">{msg.phone || '---'}</span>
+                                                </div>
+                                            </div>
+                                        </Card>
+                                    </motion.div>
+                                ))
+                            )}
+                        </TabsContent>
                     </Tabs>
                 )}
             </div>
