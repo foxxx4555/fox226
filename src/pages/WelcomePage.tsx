@@ -91,22 +91,7 @@ export default function WelcomePage() {
             />
           </div>
 
-          {/* 🚀 نصوص ترحيبية تشجيعية - مستقلة عن الأزرار */}
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="mb-8 flex flex-col gap-2 items-center"
-          >
-            <span className="text-primary font-black text-2xl px-6 py-2 bg-primary/5 rounded-full border border-primary/10 shadow-sm animate-bounce hover:animate-none cursor-default">
-              {t('login_now')} ✨
-            </span>
-            <span className="text-slate-400 font-black text-sm tracking-[0.2em] uppercase italic opacity-80">
-              {t('start_journey')}
-            </span>
-          </motion.div>
-
-          {/* 🚀 الأزرار الرئيسية - مسميات رسمية وتصاميم فاخرة */}
+          {/* 🚀 الأزرار الرئيسية - تم نقلها لتكون بين الشعار والعنوان */}
           <motion.div
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
@@ -118,7 +103,7 @@ export default function WelcomePage() {
               className="w-full sm:flex-1 h-16 text-xl font-black bg-gradient-to-r from-primary to-blue-700 hover:from-primary/90 hover:to-blue-800 text-white rounded-[1.8rem] shadow-xl shadow-primary/20 transition-all hover:scale-[1.05] active:scale-[0.98] group"
             >
               <span className="flex items-center gap-2">
-                {t('login')}
+                {t('login_now')}
                 <Zap size={20} className="fill-white animate-pulse" />
               </span>
             </Button>
@@ -127,7 +112,7 @@ export default function WelcomePage() {
               variant="outline"
               className="w-full sm:flex-1 h-16 text-xl font-black border-2 border-primary/20 text-primary bg-white/50 backdrop-blur-sm hover:bg-primary/10 rounded-[1.8rem] transition-all hover:scale-[1.05] active:scale-[0.98]"
             >
-              {t('register')}
+              {t('start_journey')}
             </Button>
           </motion.div>
 
@@ -165,39 +150,6 @@ export default function WelcomePage() {
         </motion.div>
 
         {/* تم حذف الأزرار من هنا ونقلها للأعلى */}
-
-        {/* 📚 قسم إرشادات المنصة - UX عالمي */}
-        <motion.div
-          initial={{ y: 20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.8 }}
-          className="mt-24 mb-12 w-full max-w-5xl px-4"
-        >
-          <div className="flex flex-col items-center gap-4 mb-12">
-            <h2 className="text-3xl md:text-4xl font-black text-slate-900">{t('how_it_works')}</h2>
-            <div className="h-1.5 w-24 bg-primary rounded-full" />
-            <p className="text-slate-400 font-bold tracking-widest uppercase text-xs">{t('global_vision')}</p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {[
-              { title: t('step_1_title'), desc: t('step_1_desc'), icon: <Star className="text-primary fill-primary/20" />, step: "01" },
-              { title: t('step_2_title'), desc: t('step_2_desc'), icon: <Zap className="text-amber-400 fill-amber-400/20" />, step: "02" },
-              { title: t('step_3_title'), desc: t('step_3_desc'), icon: <Globe className="text-emerald-400 fill-emerald-400/20" />, step: "03" },
-            ].map((step, i) => (
-              <div key={i} className="relative flex flex-col items-center text-center gap-6 bg-white p-10 rounded-[3rem] border border-slate-100 hover:border-primary/20 hover:shadow-2xl hover:shadow-primary/5 transition-all duration-500 group">
-                <span className="absolute top-6 right-8 text-4xl font-black text-slate-100 group-hover:text-primary/10 transition-colors italic">{step.step}</span>
-                <div className="w-20 h-20 bg-slate-50 rounded-3xl flex items-center justify-center shadow-inner group-hover:bg-primary/5 group-hover:rotate-6 transition-all duration-500">
-                  {step.icon}
-                </div>
-                <div>
-                  <h3 className="text-2xl font-black text-slate-900 mb-3">{step.title}</h3>
-                  <p className="text-slate-500 font-medium leading-relaxed px-2">{step.desc}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </motion.div>
       </motion.div>
 
       {/* العلامة التجارية في الأسفل */}
