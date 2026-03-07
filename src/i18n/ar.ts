@@ -124,4 +124,8 @@ export const ar = {
   settings: 'الإعدادات',
   support: 'الدعم الفني',
   vs_last_month: 'عن الشهر الماضي',
+  login_now: 'ادخل الآن',
+  start_journey: 'ابدأ رحلتك',
+  click_to_login: 'سجل دخولك',
+  no_account_create: 'ليس لديك حساب؟ أنشئ حساباً الآن',
 };

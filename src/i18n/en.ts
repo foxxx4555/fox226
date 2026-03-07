@@ -57,4 +57,8 @@ export const en = {
     confirm_delivery: 'Confirm Delivery',
     upload_pod: 'Upload Proof of Delivery',
     digital_verification: 'Digital Verification...',
+    login_now: 'Login Now',
+    start_journey: 'Start Your Journey',
+    click_to_login: 'Click to Login',
+    no_account_create: 'Don\'t have an account? Create one now',
 };

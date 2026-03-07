@@ -95,6 +95,31 @@ export default function WelcomePage() {
             SAS <span className="text-primary">Transport</span>
           </h1>
 
+          {/* 🚀 الأزرار الرئيسية - تم نقلها للأعلى بجانب العنوان */}
+          <motion.div
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.4 }}
+            className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full max-w-md mx-auto mb-10"
+          >
+            <Button
+              onClick={() => navigate('/login')}
+              className="w-full sm:flex-1 h-16 text-xl font-black bg-gradient-to-r from-primary to-blue-700 hover:from-primary/90 hover:to-blue-800 text-white rounded-[1.8rem] shadow-xl shadow-primary/20 transition-all hover:scale-[1.05] active:scale-[0.98] group"
+            >
+              <span className="flex items-center gap-2">
+                {t('login_now')}
+                <Zap size={20} className="fill-white animate-pulse" />
+              </span>
+            </Button>
+            <Button
+              onClick={() => navigate('/register')}
+              variant="outline"
+              className="w-full sm:flex-1 h-16 text-xl font-black border-2 border-primary/20 text-primary bg-white/50 backdrop-blur-sm hover:bg-primary/10 rounded-[1.8rem] transition-all hover:scale-[1.05] active:scale-[0.98]"
+            >
+              {t('start_journey')}
+            </Button>
+          </motion.div>
+
           <p className="text-xl md:text-2xl font-bold text-slate-600 mb-4 px-4">
             {t('welcome_subtitle')}
           </p>
@@ -124,27 +149,7 @@ export default function WelcomePage() {
           ))}
         </motion.div>
 
-        {/* الأزرار الرئيسية */}
-        <motion.div
-          initial={{ y: 20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.6 }}
-          className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full max-w-md mx-auto"
-        >
-          <Button
-            onClick={() => navigate('/login')}
-            className="w-full sm:flex-1 h-16 text-xl font-black bg-primary hover:bg-primary/90 text-white rounded-[1.8rem] shadow-xl shadow-primary/20 transition-all hover:scale-[1.03] active:scale-[0.97]"
-          >
-            {t('login')}
-          </Button>
-          <Button
-            onClick={() => navigate('/register')}
-            variant="outline"
-            className="w-full sm:flex-1 h-16 text-xl font-black border-2 border-primary/20 text-primary bg-primary/5 hover:bg-primary/10 rounded-[1.8rem] transition-all hover:scale-[1.03] active:scale-[0.97]"
-          >
-            {t('register')}
-          </Button>
-        </motion.div>
+        {/* تم حذف الأزرار من هنا ونقلها للأعلى */}
       </motion.div>
 
       {/* العلامة التجارية في الأسفل */}
