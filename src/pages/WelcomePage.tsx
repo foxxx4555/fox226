@@ -91,16 +91,24 @@ export default function WelcomePage() {
             />
           </div>
 
-          {/* 🚀 النص الترحيبي العريض - UX عالمي */}
+          {/* 🚀 الجملة الترحيبية بالإنجليزية مع لمسة جرافيك ديزاين جرافيك */}
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className="mb-8"
+            className="mb-10 group"
           >
-            <h2 className="text-2xl md:text-3xl font-black text-primary bg-primary/5 px-8 py-4 rounded-[2rem] border border-primary/10 shadow-sm inline-block">
-              {t('start_journey_safe')}
-            </h2>
+            <div className="relative inline-block px-10 py-5 rounded-[2.5rem] bg-white/40 backdrop-blur-xl border border-primary/10 shadow-[0_20px_50px_-15px_rgba(37,99,235,0.15)] group-hover:shadow-primary/20 transition-all duration-700 hover:scale-[1.02]">
+              <div className="absolute -inset-1 bg-gradient-to-r from-primary/20 via-blue-400/20 to-primary/20 rounded-[2.6rem] blur opacity-30 group-hover:opacity-60 transition duration-1000 group-hover:duration-200"></div>
+              <h2 className="relative text-2xl md:text-4xl font-black tracking-tightest">
+                <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary via-blue-600 to-primary-foreground animate-gradient-x">
+                  {t('start_journey_safe')}
+                </span>
+              </h2>
+              <div className="mt-2 text-[10px] font-black text-slate-400 tracking-[0.4em] uppercase opacity-60">
+                Global Logistics Standards
+              </div>
+            </div>
           </motion.div>
 
           {/* 🚀 الأزرار الرئيسية - مسميات رسمية وتصاميم فاخرة */}
