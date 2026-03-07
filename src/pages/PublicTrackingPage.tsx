@@ -24,42 +24,40 @@ export default function PublicTrackingPage() {
         setError(null);
         setShipment(null);
 
+        // تعديل: السماح بالبحث إذا كان النص طوله 8 حروف على الأقل (المعرف المختصر)
+        if (cleanID.length < 8) {
+            setError("عذراً، يجب إدخال 8 رموز على الأقل من رقم الشحنة.");
+            setLoading(false);
+            return;
+        }
+
         try {
-            // محاولة البحث عن الشحنة
-            let query = supabase.from('loads').select('*');
-
-            // إذا كان النص المدخل 8 أحرف، نبحث عن المعرف الذي يبدأ بهذا النص
-            if (cleanID.length === 8) {
-                // ملاحظة: بما أن الحقل UUID، نستخدم فلتر نصي للبحث عن بداية المعرف
-                query = query.filter('id', 'ilike', `${cleanID}%`);
-            } else {
-                // إذا كان أكثر نستخدم البحث التقليدي بالمعرف الكامل
-                query = query.eq('id', cleanID);
-            }
-
-            const { data, error: sbError } = await (cleanID.length === 8 ? query.select('*') : query.maybeSingle());
+            // استخدام البحث باستخدام بداية المعرف (Prefix Search)
+            // ملاحظة: الحقل UUID يتطلب أحياناً تحويله لنص، ولكن ilike غالباً ما يفي بالغرض
+            const { data, error: sbError } = await supabase
+                .from('loads')
+                .select('*')
+                .filter('id', 'ilike', `${cleanID}%`)
+                .maybeSingle();
 
             if (sbError) {
-                // إذا كان الخطأ بسبب صيغة UUID غير صحيحة
+                // معالجة الخطأ التقني إذا فشل البحث
                 if (sbError.code === '22P02') {
-                    setError("عذراً، رقم الشحنة الذي أدخلته غير متكامل. يرجى إدخال 8 أحرف على الأقل من بداية الرقم.");
+                    setError("تنسيق المعرف غير صحيح، يرجى التأكد من كتابة الرموز الـ 8 الأولى بشكل صحيح.");
                     setLoading(false);
                     return;
                 }
                 throw sbError;
             }
 
-            // معالجة النتائج (سواء كانت مصفوفة من الفلتر أو كائن وحيد)
-            const result = Array.isArray(data) ? data[0] : data;
-
-            if (result) {
-                setShipment(result);
+            if (data) {
+                setShipment(data);
             } else {
-                setError("لم نتمكن من العثور على شحنة بهذا الرقم. يرجى التأكد من صحة الرقم والمحاولة مرة أخرى.");
+                setError("عذراً، لم يتم العثور على شحنة بهذا الرقم. يرجى التأكد من الرقم والمحاولة مرة أخرى.");
             }
         } catch (err) {
             console.error("Tracking error:", err);
-            setError("حدث خطأ تقني أثناء البحث. يرجى المحاولة لاحقاً أو التواصل مع الدعم الفني.");
+            setError("حدث خطأ أثناء البحث. يرجى المحاولة لاحقاً.");
         } finally {
             setLoading(false);
         }
