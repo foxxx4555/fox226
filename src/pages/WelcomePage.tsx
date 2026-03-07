@@ -3,184 +3,231 @@ import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Shield, Zap, Globe, Truck, X, Download, Star } from 'lucide-react';
+import {
+  Shield, Zap, Globe, Truck, X, Download, Star,
+  Search, Cpu, ShoppingBag, Factory, Box, Home, Droplets, Store,
+  ChevronRight, Menu
+} from 'lucide-react';
 
 export default function WelcomePage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [showBanner, setShowBanner] = useState(true);
+  const [scrolled, setScrolled] = useState(false);
 
-  // كود لإخفاء البانر عند الضغط على X
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 20);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
   const dismissBanner = () => setShowBanner(false);
 
+  const sectors = [
+    { name: "السلع الاستهلاكية", icon: <ShoppingBag size={20} />, x: "15%", y: "25%" },
+    { name: "الإلكترونيات", icon: <Cpu size={20} />, x: "75%", y: "30%" },
+    { name: "النفط والغاز", icon: <Droplets size={20} />, x: "20%", y: "65%" },
+    { name: "التصنيع", icon: <Factory size={20} />, x: "80%", y: "70%" },
+    { name: "المنتجات المنزلية", icon: <Home size={20} />, x: "45%", y: "85%" },
+    { name: "التجزئة", icon: <Store size={20} />, x: "55%", y: "20%" },
+  ];
+
   return (
-    <div className="min-h-screen relative overflow-hidden bg-white flex flex-col items-center justify-center p-6 font-['Cairo']">
+    <div className="min-h-screen relative overflow-x-hidden bg-white font-['Cairo'] flex flex-col" dir="rtl">
 
-      {/* 🚀 بانر تثبيت التطبيق - ثابت في الأعلى */}
-      <AnimatePresence>
-        {showBanner && (
-          <motion.div
-            initial={{ y: -100, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: -100, opacity: 0 }}
-            className="fixed top-0 left-0 right-0 z-[100] bg-white/80 backdrop-blur-xl border-b border-slate-100 px-4 py-3 flex items-center justify-between shadow-sm"
-          >
-            <div className="flex items-center gap-3">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-slate-400 hover:text-white rounded-full"
-                onClick={dismissBanner}
-              >
-                <X size={18} />
-              </Button>
+      {/* 🚀 الـ Navbar الاحترافي */}
+      <nav className={`fixed top-0 left-0 right-0 z-[100] transition-all duration-500 py-4 px-6 md:px-12 flex items-center justify-between
+        ${scrolled ? 'bg-white shadow-xl shadow-slate-200/20 backdrop-blur-md' : 'bg-transparent'}
+      `}>
+        <div className="flex items-center gap-8">
+          <img src="/logo.png" alt="SAS Logo" className="h-10 md:h-12 w-auto" />
 
-              {/* أيقونة التطبيق الصغيرة */}
-              <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-primary to-blue-700 p-0.5 shadow-lg shadow-primary/20">
-                <div className="w-full h-full bg-white rounded-[0.9rem] flex items-center justify-center overflow-hidden">
-                  <img src="/favicon.png" alt="SAS Icon" className="w-8 h-8 object-contain" />
-                </div>
-              </div>
-
-              <div className="flex flex-col text-right">
-                <h3 className="text-[13px] font-black text-slate-900 leading-tight">تطبيق SAS TRANSPORT</h3>
-                <div className="flex items-center gap-1">
-                  <span className="text-[10px] text-slate-500 font-bold italic">أسرع • أسهل • آمن</span>
-                  <div className="flex gap-0.5 ml-1">
-                    {[1, 2, 3, 4, 5].map(s => <Star key={s} size={8} className="fill-amber-400 text-amber-400" />)}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <Button
-              size="sm"
-              className="bg-primary hover:bg-primary/90 text-white text-[11px] font-black h-9 px-4 rounded-xl gap-2 shadow-lg shadow-primary/20 active:scale-95 transition-transform"
-            >
-              <Download size={14} />
-              تثبيت
-            </Button>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Background Effects */}
-      <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_50%_50%,rgba(37,99,235,0.08),transparent_50%)]" />
-      <div className="absolute -top-24 -start-24 w-96 h-96 bg-primary/10 blur-[120px] rounded-full animate-pulse" />
-      <div className="absolute -bottom-24 -end-24 w-96 h-96 bg-accent/10 blur-[120px] rounded-full animate-pulse" />
-
-      {/* Main Content - ضفنا pt-20 عشان ننزله تحت البانر شوية */}
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.7, ease: "easeOut" }}
-        className="text-center z-10 max-w-4xl relative pt-20"
-      >
-        <motion.div
-          initial={{ y: 20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.2 }}
-          className="mb-12"
-        >
-          {/* اللوجو الجديد - نزلناه تحت شوية وزودنا الظل المحيط به */}
-          <div className="mb-10 rotate-1 hover:rotate-0 transition-all duration-700 cursor-pointer">
-            <img
-              src="/logo.png"
-              alt="SASGO Logo"
-              className="w-80 md:w-[800px] h-auto mx-auto drop-shadow-[0_15px_40px_rgba(37,99,235,0.15)]"
-            />
+          <div className="hidden lg:flex items-center gap-6">
+            <a href="#" className="font-black text-slate-800 hover:text-primary transition-colors">الرئيسية</a>
+            <a href="#" className="font-black text-slate-500 hover:text-primary transition-colors">عن ساس</a>
+            <a href="#" className="font-black text-slate-500 hover:text-primary transition-colors">المنصات</a>
+            <a href="#" className="font-black text-slate-500 hover:text-primary transition-colors">تواصل معنا</a>
           </div>
+        </div>
 
-          {/* 🚀 الجملة الترحيبية بالإنجليزية مع لمسة جرافيك ديزاين جرافيك */}
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="mb-10 group"
+        <div className="flex items-center gap-3">
+          <Button
+            onClick={() => navigate('/tracking')}
+            className="bg-primary hover:bg-primary/90 text-white font-black px-6 h-12 rounded-2xl flex items-center gap-2 shadow-lg shadow-primary/20 active:scale-95 transition-all"
           >
-            <div className="relative inline-block px-10 py-5 rounded-[2.5rem] bg-white/40 backdrop-blur-xl border border-primary/10 shadow-[0_20px_50px_-15px_rgba(37,99,235,0.15)] group-hover:shadow-primary/20 transition-all duration-700 hover:scale-[1.02]">
-              <div className="absolute -inset-1 bg-gradient-to-r from-primary/20 via-blue-400/20 to-primary/20 rounded-[2.6rem] blur opacity-30 group-hover:opacity-60 transition duration-1000 group-hover:duration-200"></div>
-              <h2 className="relative text-2xl md:text-4xl font-black tracking-tightest">
-                <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary via-blue-600 to-primary-foreground animate-gradient-x">
-                  {t('start_journey_safe')}
-                </span>
-              </h2>
-              <div className="mt-2 text-[10px] font-black text-slate-400 tracking-[0.4em] uppercase opacity-60">
-                {t('global_vision')}
-              </div>
-            </div>
-          </motion.div>
+            <Truck size={18} />
+            تتبع شحنتك
+          </Button>
 
-          {/* 🚀 الأزرار الرئيسية - مسميات رسمية وتصاميم فاخرة */}
+          <Button
+            variant="outline"
+            onClick={() => navigate('/login')}
+            className="hidden md:flex font-black border-2 border-slate-100 text-slate-700 h-12 rounded-2xl hover:bg-slate-50"
+          >
+            دخول المسؤولين
+          </Button>
+
+          <Button variant="ghost" size="icon" className="lg:hidden rounded-xl">
+            <Menu />
+          </Button>
+        </div>
+      </nav>
+
+      {/* Hero Section */}
+      <section className="relative pt-32 pb-20 md:pt-48 md:pb-40 flex flex-col items-center justify-center overflow-hidden">
+
+        {/* Abstract Map Background Placeholder */}
+        <div className="absolute inset-0 z-0 flex items-center justify-center opacity-[0.03] pointer-events-none select-none">
+          <img src="/logo.png" className="w-[120%] h-auto grayscale brightness-0" alt="" />
+        </div>
+
+        {/* Sector Nodes - موزعة بشكل يحاكي الصورة */}
+        <div className="absolute inset-0 z-10 pointer-events-none hidden md:block">
+          {sectors.map((sector, idx) => (
+            <motion.div
+              key={idx}
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ delay: 0.5 + (idx * 0.1), duration: 0.8 }}
+              style={{ left: sector.x, top: sector.y }}
+              className="absolute group pointer-events-auto"
+            >
+              <div className="bg-white p-4 rounded-full shadow-2xl shadow-slate-200 border border-slate-50 flex flex-col items-center gap-2 hover:scale-110 hover:border-primary/30 transition-all cursor-crosshair">
+                <div className="p-3 bg-slate-50 text-slate-400 group-hover:bg-primary/5 group-hover:text-primary rounded-2xl transition-all">
+                  {sector.icon}
+                </div>
+                <span className="text-[12px] font-black text-slate-400 group-hover:text-slate-900 transition-colors whitespace-nowrap px-2">
+                  {sector.name}
+                </span>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 1 }}
+          className="container mx-auto px-6 text-center z-20"
+        >
+          {/* Main Badge */}
           <motion.div
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.4 }}
-            className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full max-w-md mx-auto mb-10"
+            className="mb-8 inline-flex items-center gap-2 px-5 py-2 bg-primary/5 border border-primary/10 rounded-full text-primary font-black text-sm uppercase tracking-widest animate-fade-in"
           >
-            <Button
-              onClick={() => navigate('/login')}
-              className="w-full sm:flex-1 h-16 text-xl font-black bg-gradient-to-r from-primary to-blue-700 hover:from-primary/90 hover:to-blue-800 text-white rounded-[1.8rem] shadow-xl shadow-primary/20 transition-all hover:scale-[1.05] active:scale-[0.98] group"
-            >
-              <span className="flex items-center gap-2">
-                {t('login')}
-                <Zap size={20} className="fill-white animate-pulse" />
-              </span>
-            </Button>
-            <Button
-              onClick={() => navigate('/register')}
-              variant="outline"
-              className="w-full sm:flex-1 h-16 text-xl font-black border-2 border-primary/20 text-primary bg-white/50 backdrop-blur-sm hover:bg-primary/10 rounded-[1.8rem] transition-all hover:scale-[1.05] active:scale-[0.98]"
-            >
-              {t('register')}
-            </Button>
+            <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+            نظام النقل الذكي الأول في المملكة
           </motion.div>
 
-          <h1 className="text-5xl md:text-7xl font-black text-slate-900 mb-6 tracking-tight">
-            SAS <span className="text-primary">Transport</span>
+          <h1 className="text-5xl md:text-8xl font-black text-slate-900 mb-8 leading-[1.1] tracking-tighter">
+            تغطية شاملة <br />
+            <span className="text-primary relative inline-block">
+              لكل القطاعات
+              <svg className="absolute -bottom-2 left-0 w-full" viewBox="0 0 400 20" fill="none">
+                <path d="M5 15Q100 5 200 15T395 5" stroke="#2563EB" strokeWidth="6" strokeLinecap="round" opacity="0.2" />
+              </svg>
+            </span>
+            <span> في جميع المدن</span>
           </h1>
 
-          <p className="text-xl md:text-2xl font-bold text-slate-600 mb-4 px-4">
-            {t('welcome_subtitle')}
+          <p className="text-xl md:text-2xl font-bold text-slate-500 mb-12 max-w-3xl mx-auto leading-relaxed">
+            {t('welcome_subtitle')}. {t('welcome_desc')}
           </p>
 
-          <p className="text-lg text-slate-500 max-w-2xl mx-auto leading-relaxed font-medium">
-            {t('welcome_desc')}
-          </p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-5">
+            <Button
+              onClick={() => navigate('/register')}
+              className="h-16 px-12 text-xl font-black bg-slate-900 hover:bg-slate-800 text-white rounded-2xl shadow-2xl shadow-slate-900/10 transition-all hover:scale-105 active:scale-95 flex items-center gap-3"
+            >
+              سجل كشاحن الآن
+              <ChevronRight className="rotate-180" />
+            </Button>
+
+            <Button
+              onClick={() => navigate('/login')}
+              variant="outline"
+              className="h-16 px-12 text-xl font-black border-2 border-slate-100 text-slate-600 rounded-2xl hover:bg-slate-50 hover:border-slate-200 transition-all hover:scale-105 active:scale-95"
+            >
+              تسجيل الدخول
+            </Button>
+          </div>
         </motion.div>
 
-        {/* المميزات الأربعة */}
-        <motion.div
-          initial={{ y: 20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.4 }}
-          className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12 px-2"
-        >
-          {[
-            { icon: <Shield className="text-primary" />, text: "آمن وموثوق" },
-            { icon: <Zap className="text-amber-400" />, text: "سرعة فائقة" },
-            { icon: <Globe className="text-emerald-400" />, text: "تغطية شاملة" },
-            { icon: <Truck className="text-primary" />, text: "أسطول ضخم" },
-          ].map((item, i) => (
-            <div key={i} className="bg-white border border-slate-100 p-5 rounded-[2.5rem] flex flex-col items-center gap-3 hover:border-primary/30 hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 group">
-              <div className="p-3 bg-slate-50 rounded-2xl group-hover:bg-primary/5 transition-colors">{item.icon}</div>
-              <span className="text-[14px] font-black text-slate-800 group-hover:text-primary transition-colors">{item.text}</span>
+        {/* Decorative elements */}
+        <div className="absolute top-1/2 left-0 -translate-y-1/2 w-96 h-96 bg-blue-100/50 blur-[150px] rounded-full pointer-events-none" />
+        <div className="absolute top-1/2 right-0 -translate-y-1/2 w-96 h-96 bg-primary/10 blur-[150px] rounded-full pointer-events-none" />
+      </section>
+
+      {/* Stats / Features Grid */}
+      <section className="py-24 bg-slate-50/50">
+        <div className="container mx-auto px-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {[
+              {
+                icon: <Shield size={32} />,
+                title: "أمان الميناء للأمان",
+                desc: "نضمن لك أعلى مستويات الأمان والموثوقية في تداول الشحنات",
+                color: "text-blue-600",
+                bg: "bg-blue-50"
+              },
+              {
+                icon: <Zap size={32} />,
+                title: "سرعة التنفيذ",
+                desc: "أسرع استجابة لتوصيل الشحنات بفضل الأتمتة والذكاء الاصطناعي",
+                color: "text-amber-500",
+                bg: "bg-amber-50"
+              },
+              {
+                icon: <Globe size={32} />,
+                title: "تغطية عالمية",
+                desc: "نصل لكل شبر في المملكة مع رؤية للتوسع الإقليمي والعالمي",
+                color: "text-emerald-500",
+                bg: "bg-emerald-50"
+              }
+            ].map((feature, i) => (
+              <motion.div
+                key={i}
+                initial={{ y: 20, opacity: 0 }}
+                whileInView={{ y: 0, opacity: 1 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1 }}
+                className="bg-white p-10 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/20 hover:shadow-2xl hover:border-primary/20 transition-all group"
+              >
+                <div className={`w-16 h-16 rounded-3xl ${feature.bg} ${feature.color} flex items-center justify-center mb-8 group-hover:scale-110 transition-transform`}>
+                  {feature.icon}
+                </div>
+                <h3 className="text-2xl font-black text-slate-900 mb-4">{feature.title}</h3>
+                <p className="text-slate-500 font-bold leading-relaxed">{feature.desc}</p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="mt-auto py-12 px-6 border-t border-slate-100 bg-white">
+        <div className="container mx-auto flex flex-col md:flex-row justify-between items-center gap-8">
+          <div className="flex items-center gap-4">
+            <img src="/logo.png" alt="SAS Logo" className="h-8 opacity-50 grayscale" />
+            <span className="text-slate-400 font-bold text-sm">© {new Date().getFullYear()} SAS TRANSPORT. جميع الحقوق محفوظة</span>
+          </div>
+
+          <div className="flex items-center gap-8">
+            <a href="#" className="text-slate-400 hover:text-primary font-black text-sm transition-colors">سياسة الخصوصية</a>
+            <a href="#" className="text-slate-400 hover:text-primary font-black text-sm transition-colors">الشروط والأحكام</a>
+            <a href="#" className="text-slate-400 hover:text-primary font-black text-sm transition-colors">الدعم الفني</a>
+          </div>
+
+          <div className="flex gap-4">
+            <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 hover:bg-primary/5 hover:text-primary cursor-pointer transition-all">
+              <Globe size={20} />
             </div>
-          ))}
-        </motion.div>
-
-        {/* تم حذف الأزرار من هنا ونقلها للأعلى */}
-      </motion.div>
-
-      {/* العلامة التجارية في الأسفل */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 0.6 }}
-        transition={{ delay: 1 }}
-        className="mt-12 mb-6 text-slate-400 font-black tracking-widest uppercase text-[10px]"
-      >
-        World Class Logistics Platform • Powered by SASGO
-      </motion.div>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
