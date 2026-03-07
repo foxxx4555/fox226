@@ -216,17 +216,17 @@ export default function WelcomePage() {
           </Button>
         </div>
 
-        {/* روابط التنقل في المنتصف - أصغر وأهدأ */}
-        <div className="hidden xl:flex items-center gap-4">
-          <button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="font-black text-slate-600 hover:text-primary transition-all text-[10px] whitespace-nowrap">الرئيسية</button>
-          <button onClick={() => scrollToSection('about-us')} className="font-black text-slate-400 hover:text-primary transition-all text-[10px] whitespace-nowrap">من نحن</button>
-          <button onClick={() => scrollToSection('contact-us')} className="font-black text-slate-400 hover:text-primary transition-all text-[10px] whitespace-nowrap">اتصل بنا</button>
+        {/* روابط التنقل في المنتصف - أصغر وأكثر تناسقاً */}
+        <div className="hidden xl:flex items-center gap-6">
+          <button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="font-black text-slate-600 hover:text-primary transition-all text-[9px] whitespace-nowrap uppercase tracking-tighter">الرئيسية</button>
+          <button onClick={() => scrollToSection('about-us')} className="font-black text-slate-400 hover:text-primary transition-all text-[9px] whitespace-nowrap uppercase tracking-tighter">من نحن</button>
+          <button onClick={() => scrollToSection('contact-us')} className="font-black text-slate-400 hover:text-primary transition-all text-[9px] whitespace-nowrap uppercase tracking-tighter">اتصل بنا</button>
           <Button
             variant="ghost"
             onClick={() => navigate('/tracking')}
-            className="font-black text-primary hover:bg-primary/5 transition-all text-[10px] flex items-center gap-1 h-auto py-1 px-3 whitespace-nowrap"
+            className="font-black text-primary hover:bg-primary/5 transition-all text-[9px] flex items-center gap-1 h-auto py-1 px-3 whitespace-nowrap uppercase tracking-tighter"
           >
-            <Search size={14} />
+            <Search size={12} />
             تتبع شحنة
           </Button>
         </div>
@@ -287,14 +287,6 @@ export default function WelcomePage() {
           transition={{ duration: 0.8 }}
           className="container mx-auto px-6 text-center z-20"
         >
-          <motion.div
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            className="mb-6 inline-flex items-center gap-2 px-6 py-2 bg-primary/5 border border-primary/10 rounded-full text-primary font-black text-sm uppercase tracking-widest shadow-sm"
-          >
-            <Zap size={16} className="animate-pulse" />
-            نظام النقل الذكي SAS TRANSPORT
-          </motion.div>
 
           {/* 🚀 الشعار انتقل هنا ليكون واضحاً ومهيباً تحت الكلمة */}
           <motion.div

@@ -165,17 +165,17 @@ export default function PublicTrackingPage() {
                     </Button>
                 </div>
 
-                {/* روابط التنقل */}
-                <div className="hidden xl:flex items-center gap-4">
-                    <button onClick={() => navigate('/')} className="font-black text-slate-600 hover:text-primary transition-all text-[10px] whitespace-nowrap">الرئيسية</button>
-                    <button onClick={() => navigate('/#about-us')} className="font-black text-slate-400 hover:text-primary transition-all text-[10px] whitespace-nowrap">من نحن</button>
-                    <button onClick={() => navigate('/#contact-us')} className="font-black text-slate-400 hover:text-primary transition-all text-[10px] whitespace-nowrap">اتصل بنا</button>
+                {/* روابط التنقل - متناسقة مع الرئيسية */}
+                <div className="hidden xl:flex items-center gap-6">
+                    <button onClick={() => navigate('/')} className="font-black text-slate-600 hover:text-primary transition-all text-[9px] whitespace-nowrap uppercase tracking-tighter">الرئيسية</button>
+                    <button onClick={() => navigate('/#about-us')} className="font-black text-slate-400 hover:text-primary transition-all text-[9px] whitespace-nowrap uppercase tracking-tighter">من نحن</button>
+                    <button onClick={() => navigate('/#contact-us')} className="font-black text-slate-400 hover:text-primary transition-all text-[9px] whitespace-nowrap uppercase tracking-tighter">اتصل بنا</button>
                     <Button
                         variant="ghost"
                         onClick={() => { window.scrollTo({ top: 0, behavior: 'smooth' }); setIsMobileMenuOpen(false); }}
-                        className="font-black text-primary hover:bg-primary/5 transition-all text-[10px] flex items-center gap-1 h-auto py-1 px-3 whitespace-nowrap"
+                        className="font-black text-primary hover:bg-primary/5 transition-all text-[9px] flex items-center gap-1 h-auto py-1 px-3 whitespace-nowrap uppercase tracking-tighter"
                     >
-                        <Search size={14} />
+                        <Search size={12} />
                         تتبع شحنة
                     </Button>
                 </div>
