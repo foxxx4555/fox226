@@ -112,7 +112,7 @@ export default function PublicTrackingPage() {
     const currentStep = shipment ? getStatusStep(shipment.status) : 0;
 
     return (
-        <div className="min-h-screen bg-white font-['Cairo'] flex flex-col pt-32" dir="rtl">
+        <div className="min-h-screen bg-white font-['Cairo'] flex flex-col pt-20" dir="rtl">
             {/* 🚀 بانر تثبيت التطبيق */}
             <AnimatePresence>
                 {showBanner && (
@@ -142,15 +142,15 @@ export default function PublicTrackingPage() {
             </AnimatePresence>
 
             {/* 🚀 الـ Navbar الاحترافي */}
-            <nav className={`fixed ${showBanner ? 'top-[65px]' : 'top-0'} left-0 right-0 z-[100] transition-all duration-500 py-4 px-6 md:px-12 flex items-center justify-between
-                ${scrolled || isMobileMenuOpen ? 'bg-white/95 shadow-2xl shadow-slate-200/50 backdrop-blur-xl border-b border-slate-100' : 'bg-transparent'}
+            <nav className={`fixed ${showBanner ? 'top-[65px]' : 'top-0'} left-0 right-0 z-[100] transition-all duration-500 py-1 px-4 md:px-8 flex items-center justify-between
+                ${scrolled || isMobileMenuOpen ? 'bg-white/95 shadow-md backdrop-blur-xl border-b border-slate-100' : 'bg-transparent'}
             `}>
                 {/* أزرار الدخول */}
                 <div className="flex items-center gap-2 md:gap-3">
                     <div className="hidden sm:flex items-center gap-2 md:gap-3">
                         <Button
                             onClick={() => navigate('/login')}
-                            className="bg-slate-900 hover:bg-slate-800 text-white font-black px-4 md:px-8 h-10 md:h-14 rounded-xl md:rounded-2xl shadow-xl transition-all hover:scale-105 active:scale-95 text-xs md:text-base whitespace-nowrap"
+                            className="bg-slate-900 hover:bg-slate-800 text-white font-black px-4 md:px-6 h-9 md:h-11 rounded-lg md:rounded-xl shadow-lg transition-all hover:scale-105 active:scale-95 text-xs md:text-sm whitespace-nowrap"
                         >
                             دخول النظام
                         </Button>
@@ -183,13 +183,12 @@ export default function PublicTrackingPage() {
                     </Button>
                 </div>
 
-                {/* الشعار */}
-                <div className="flex items-center">
+                <div className="flex items-center py-1">
                     <div className="relative group">
                         <img
                             src="/logo.png"
                             alt="SAS Logo"
-                            className="h-20 md:h-32 w-auto object-contain cursor-pointer transition-all duration-700 hover:scale-110 active:scale-95 relative drop-shadow-xl"
+                            className="h-14 md:h-20 w-auto object-contain cursor-pointer transition-all duration-300 hover:scale-105 active:scale-95 relative drop-shadow-sm"
                             onClick={() => navigate('/')}
                         />
                     </div>

@@ -186,8 +186,8 @@ export default function WelcomePage() {
       </AnimatePresence>
 
       {/* 🚀 الـ Navbar الاحترافي - الشعار على اليسار، الأزرار على اليمين */}
-      <nav className={`absolute ${showBanner ? 'top-[65px]' : 'top-0'} left-0 right-0 z-[100] py-2 px-6 md:px-12 flex items-center justify-between
-        bg-white/90 shadow-lg backdrop-blur-md border-b border-slate-100
+      <nav className={`fixed ${showBanner ? 'top-[65px]' : 'top-0'} left-0 right-0 z-[100] py-1 px-4 md:px-8 flex items-center justify-between
+        bg-white/95 shadow-md backdrop-blur-md border-b border-slate-100 transition-all duration-300
       `}>
 
         {/* أزرار الدخول على اليمين (الأولى في RTL) */}
@@ -234,14 +234,12 @@ export default function WelcomePage() {
           </Button>
         </div>
 
-        {/* الشعار على اليسار وحجمه كبير جداً وفخم (الأخير في RTL) */}
-        <div className="flex items-center">
+        <div className="flex items-center py-1">
           <div className="relative group">
-            <div className="absolute -inset-4 bg-gradient-to-r from-primary/10 to-blue-600/20 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition duration-1000"></div>
             <img
               src="/logo.png"
               alt="SAS Logo"
-              className="h-24 md:h-44 w-auto object-contain cursor-pointer transition-all duration-700 hover:scale-110 active:scale-95 relative drop-shadow-[0_15px_40px_rgba(0,0,0,0.12)]"
+              className="h-14 md:h-20 w-auto object-contain cursor-pointer transition-all duration-300 hover:scale-105 active:scale-95 relative drop-shadow-sm"
               onClick={() => {
                 window.scrollTo({ top: 0, behavior: 'smooth' });
                 setIsMobileMenuOpen(false);
