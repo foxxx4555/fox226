@@ -22,7 +22,7 @@ export default function WelcomePage() {
   const [searchID, setSearchID] = useState("");
   const [content, setContent] = useState({
     aboutUs: "",
-    phone: "966XXXXXXXXX",
+    phone: "+966550258358",
     email: "pr@sas3pl.com",
     address: "الرياض، المملكة العربية السعودية",
     whatsapp: "",
@@ -101,7 +101,8 @@ export default function WelcomePage() {
 
     setIsSending(true);
     try {
-      const { error } = await (supabase as any)
+      // 1. أولاً: حفظ في قاعدة البيانات
+      await (supabase as any)
         .from('contact_messages')
         .insert([{
           name: contactData.name,
@@ -110,46 +111,44 @@ export default function WelcomePage() {
           company: contactData.company,
           subject: contactData.subject,
           message: contactData.message,
-          to_email: content.contactFormEmail || content.email
+          to_email: "yalqlb019@gmail.com"
         }]);
 
-      if (error) {
-        console.warn("Table contact_messages might not exist. Simulating success for UX.");
-        // If it's a 404/Missing table error, we just simulate success for now
-        // to not break the user experience while they test the UI.
+      // 2. ثانياً: إرسال الإيميل (بالقيم المباشرة للتجربة)
+      console.log("جاري محاولة الإرسال لـ EmailJS...");
+
+      const response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          service_id: "service_0p2k5ih",
+          template_id: "template_tboeo2t",
+          user_id: "uFVJ_0paYoHGm544e",
+          template_params: {
+            from_name: contactData.name,
+            from_email: contactData.email,
+            phone: contactData.phone,
+            company: contactData.company,
+            subject: contactData.subject || "طلب جديد من الموقع",
+            message: contactData.message,
+            to_email: "yalqlb019@gmail.com"
+          }
+        })
+      });
+
+      if (response.ok) {
+        console.log("✅ تم الإرسال بنجاح والرسالة وصلت!");
+        toast.success("تم إرسال رسالتك بنجاح!");
+        setContactData({ name: '', email: '', phone: '', company: '', subject: '', message: '' });
+      } else {
+        const errorMsg = await response.text();
+        console.error("❌ فشل الإرسال من سيرفر EmailJS:", errorMsg);
+        toast.error("فشل إرسال الإيميل: " + errorMsg);
       }
 
-      toast.success("تم إرسال رسالتك بنجاح! سنتواصل معك قريباً.");
-
-      // --- إضافة: رسالة عبر EmailJS إذا كانت الإعدادات موجودة ---
-      if (content.emailjsServiceId && content.emailjsTemplateId && content.emailjsPublicKey) {
-        console.log("Sending email via EmailJS...");
-        fetch('https://api.emailjs.com/api/v1.0/email/send', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            service_id: content.emailjsServiceId,
-            template_id: content.emailjsTemplateId,
-            user_id: content.emailjsPublicKey,
-            template_params: {
-              from_name: contactData.name,
-              from_email: contactData.email,
-              phone: contactData.phone,
-              company: contactData.company,
-              subject: contactData.subject || "رسالة من الموقع",
-              message: contactData.message,
-              to_email: content.contactFormEmail || content.email
-            }
-          })
-        }).then(res => {
-          if (!res.ok) console.error("EmailJS Error:", res.statusText);
-        }).catch(err => console.error("EmailJS Fetch Error:", err));
-      }
-
-      setContactData({ name: '', email: '', phone: '', company: '', subject: '', message: '' });
     } catch (err: any) {
-      console.error("Error sending message:", err);
-      toast.error("حدث خطأ أثناء الإرسال. يرجى المحاولة لاحقاً.");
+      console.error("❌ خطأ غير متوقع:", err);
+      toast.error("حدث خطأ ما أثناء الإرسال");
     } finally {
       setIsSending(false);
     }
