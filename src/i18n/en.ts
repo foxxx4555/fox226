@@ -61,4 +61,12 @@ export const en = {
     start_journey: 'Start Your Journey',
     click_to_login: 'Click to Login',
     no_account_create: 'Don\'t have an account? Create one now',
+    how_it_works: 'How it Works',
+    step_1_title: 'Fast Registration',
+    step_1_desc: 'Create your account as a shipper or driver in minutes',
+    step_2_title: 'Post & Contract',
+    step_2_desc: 'Post your shipments or submit competitive bids',
+    step_3_title: 'Track & Manage',
+    step_3_desc: 'Monitor your shipments live and manage accounts accurately',
+    global_vision: 'Global Vision for Smart, Secure & Reliable Transport',
 };
