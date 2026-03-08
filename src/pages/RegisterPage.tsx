@@ -142,24 +142,26 @@ export default function RegisterPage() {
         animate={{ opacity: 1, y: 0 }}
         className="w-full max-w-xl relative z-10"
       >
-        <div className="text-center mb-8">
+        {/* رأس الصفحة - مضغوط */}
+        <div className="text-center mb-4">
           <motion.div
-            initial={{ scale: 0.5 }}
-            animate={{ scale: 1 }}
-            className="w-20 h-20 bg-white rounded-3xl flex items-center justify-center mx-auto shadow-2xl shadow-primary/10 mb-6 border border-slate-50"
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto shadow-xl shadow-primary/5 mb-3 border border-slate-50 relative overflow-hidden"
           >
-            {showOtp ? <ShieldCheck className="text-primary w-10 h-10" /> : <UserCircle2 className="text-primary w-10 h-10" />}
+            <img src="/logo.png" className="w-12 h-12 object-contain relative z-10 p-1" alt="Logo" />
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent" />
           </motion.div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight">
+          <h1 className="text-xl font-black text-slate-900 tracking-tight mb-1">
             {showOtp ? 'تأكيد الحساب' : 'إنشاء حساب جديد'}
           </h1>
-          <p className="text-slate-500 font-medium mt-2">
-            {showOtp ? 'أدخل الرمز المرسل لإتمام عملية التسجيل' : 'انضم إلى منصة SAS Transport للخدمات اللوجستية'}
+          <p className="text-[10px] font-bold text-slate-400">
+            {showOtp ? 'أدخل الرمز المرسل لإتمام عملية التسجيل' : 'منصة SAS Transport للخدمات اللوجستية'}
           </p>
         </div>
 
-        <Card className="shadow-[0_20px_50px_rgba(0,0,0,0.05)] border-white/60 bg-white/80 backdrop-blur-xl rounded-[2.5rem] overflow-hidden border-2">
-          <CardContent className="p-8 md:p-10">
+        <Card className="shadow-2xl shadow-slate-200/50 border-white/60 bg-white/90 backdrop-blur-xl rounded-[2rem] overflow-hidden border-2">
+          <CardContent className="p-6 md:p-8">
             <AnimatePresence mode="wait">
               {!showOtp ? (
                 <motion.form
@@ -171,23 +173,23 @@ export default function RegisterPage() {
                   className="space-y-6"
                 >
                   {/* Role Selection */}
-                  <div className="space-y-3">
-                    <Label className="text-sm font-bold text-slate-700 ms-1">نوع الحساب *</Label>
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] font-black text-slate-400 ms-1 uppercase">نوع الحساب *</Label>
                     <Select onValueChange={(val) => setRole(val as UserRole)} value={role}>
-                      <SelectTrigger className="w-full h-14 rounded-2xl border-2 border-slate-100 bg-white/50 shadow-sm font-bold text-md px-6 focus:ring-primary transition-all">
-                        <SelectValue placeholder="هل أنت سائق أم صاحب شحنة؟" />
+                      <SelectTrigger className="w-full h-11 rounded-xl border-slate-100 bg-slate-50/50 shadow-sm font-bold text-xs px-4 focus:ring-primary/20 transition-all">
+                        <SelectValue placeholder="سائق أم صاحب شحنة؟" />
                       </SelectTrigger>
-                      <SelectContent className="rounded-2xl shadow-2xl border-slate-100">
-                        <SelectItem value="driver" className="h-12 font-bold cursor-pointer transition-colors focus:bg-primary/5">
-                          <div className="flex items-center gap-3">
-                            <Truck size={18} className="text-primary" />
-                            <span>ناقل / سائق شاحنة</span>
+                      <SelectContent className="rounded-xl shadow-2xl border-slate-100">
+                        <SelectItem value="driver" className="h-10 font-bold cursor-pointer">
+                          <div className="flex items-center gap-2">
+                            <Truck size={14} className="text-primary" />
+                            <span>سائق / ناقل</span>
                           </div>
                         </SelectItem>
-                        <SelectItem value="shipper" className="h-12 font-bold cursor-pointer transition-colors focus:bg-primary/5">
-                          <div className="flex items-center gap-3">
-                            <Package size={18} className="text-blue-500" />
-                            <span>تاجر / صاحب شحنة</span>
+                        <SelectItem value="shipper" className="h-10 font-bold cursor-pointer">
+                          <div className="flex items-center gap-2">
+                            <Package size={14} className="text-blue-500" />
+                            <span>صاحب شحنة / تاجر</span>
                           </div>
                         </SelectItem>
                       </SelectContent>
@@ -195,38 +197,38 @@ export default function RegisterPage() {
                   </div>
 
                   {/* Personal Info Grid */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label className="text-xs font-bold text-slate-500 ms-1">الاسم الكامل</Label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-[10px] font-black text-slate-400 ms-1 uppercase">الاسم الكامل</Label>
                       <div className="relative">
-                        <User className="absolute start-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                        <User className="absolute start-4 top-1/2 -translate-y-1/2 text-slate-300" size={16} />
                         <Input
                           placeholder="الاسم الثلاثي"
                           value={form.full_name}
                           onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))}
                           required
-                          className="ps-11 h-14 rounded-2xl border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary transition-all font-bold"
+                          className="ps-11 h-11 rounded-xl border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary transition-all font-bold text-xs"
                         />
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <Label className="text-xs font-bold text-slate-500 ms-1">رقم الجوال</Label>
+                    <div className="space-y-1.5">
+                      <Label className="text-[10px] font-black text-slate-400 ms-1 uppercase">رقم الجوال</Label>
                       <div className="relative group">
-                        <Phone className="absolute start-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                        <Phone className="absolute start-4 top-1/2 -translate-y-1/2 text-slate-300" size={16} />
                         <Input
                           type="tel"
                           placeholder="05xxxxxxxx"
                           value={form.phone}
                           onChange={e => setForm(p => ({ ...p, phone: e.target.value }))}
                           dir="ltr"
-                          className="ps-11 h-14 rounded-2xl border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary transition-all font-bold"
+                          className="ps-11 h-11 rounded-xl border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary transition-all font-bold text-xs"
                         />
                       </div>
                     </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label className="text-xs font-bold text-slate-500 ms-1">البريد الإلكتروني</Label>
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] font-black text-slate-400 ms-1 uppercase">البريد الإلكتروني</Label>
                     <Input
                       type="email"
                       placeholder="example@mail.com"
@@ -234,73 +236,58 @@ export default function RegisterPage() {
                       onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
                       required
                       dir="ltr"
-                      className="h-14 rounded-2xl border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary transition-all font-bold shadow-sm"
+                      className="h-11 rounded-xl border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary transition-all font-bold text-xs shadow-sm"
                     />
                   </div>
 
                   {/* Password Grid */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label className="text-xs font-bold text-slate-500 ms-1">كلمة المرور</Label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-[10px] font-black text-slate-400 ms-1 uppercase">كلمة المرور</Label>
                       <div className="relative">
                         <Input
                           type={showPassword ? "text" : "password"}
                           value={form.password}
                           onChange={e => setForm(p => ({ ...p, password: e.target.value }))}
                           required
-                          className="h-14 rounded-2xl border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary transition-all font-bold pe-12"
+                          dir="ltr"
+                          className="h-11 rounded-xl border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary transition-all font-bold text-xs"
                         />
-                        <button
-                          type="button"
-                          onClick={() => setShowPassword(!showPassword)}
-                          className="absolute end-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-primary transition-colors"
-                        >
-                          {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute end-4 top-1/2 -translate-y-1/2 text-slate-300">
+                          {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
                         </button>
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <Label className="text-xs font-bold text-slate-500 ms-1">تأكيد كلمة المرور</Label>
+                    <div className="space-y-1.5">
+                      <Label className="text-[10px] font-black text-slate-400 ms-1 uppercase">تأكيد كلمة المرور</Label>
                       <div className="relative">
                         <Input
                           type={showConfirmPassword ? "text" : "password"}
                           value={form.confirmPassword}
                           onChange={e => setForm(p => ({ ...p, confirmPassword: e.target.value }))}
                           required
-                          className="h-14 rounded-2xl border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary transition-all font-bold pe-12"
+                          dir="ltr"
+                          className="h-11 rounded-xl border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary transition-all font-bold text-xs"
                         />
-                        <button
-                          type="button"
-                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                          className="absolute end-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-primary transition-colors"
-                        >
-                          {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                        <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute end-4 top-1/2 -translate-y-1/2 text-slate-300">
+                          {showConfirmPassword ? <EyeOff size={14} /> : <Eye size={14} />}
                         </button>
                       </div>
                     </div>
                   </div>
 
-                  <div className="space-y-4 py-2">
-                    <div className="flex items-center space-x-2 space-x-reverse">
-                      <Checkbox
-                        id="privacy"
-                        checked={agreePrivacy}
-                        onCheckedChange={(checked) => setAgreePrivacy(checked as boolean)}
-                        className="border-slate-300 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
-                      />
-                      <Label htmlFor="privacy" className="text-sm font-bold text-slate-600 cursor-pointer">
-                        أوافق على <Link to="/privacy" className="text-primary hover:underline">سياسة الخصوصية</Link> الخاصة بـ SAS Transport
+                  {/* Policies Checkboxes */}
+                  <div className="space-y-1.5 bg-slate-50/50 p-3 rounded-xl border border-dashed border-slate-200">
+                    <div className="flex items-center gap-2">
+                      <Checkbox id="privacy" checked={agreePrivacy} onCheckedChange={(val) => setAgreePrivacy(val as boolean)} className="rounded-md border-slate-300 h-4 w-4" />
+                      <Label htmlFor="privacy" className="text-[10px] font-bold text-slate-500 cursor-pointer">
+                        أوافق على <Link to="/privacy" className="text-primary hover:underline">سياسة الخصوصية</Link>
                       </Label>
                     </div>
-                    <div className="flex items-center space-x-2 space-x-reverse">
-                      <Checkbox
-                        id="terms"
-                        checked={agreeTerms}
-                        onCheckedChange={(checked) => setAgreeTerms(checked as boolean)}
-                        className="border-slate-300 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
-                      />
-                      <Label htmlFor="terms" className="text-sm font-bold text-slate-600 cursor-pointer">
-                        أوافق على <Link to="/terms" className="text-primary hover:underline">الشروط والأحكام</Link> المنظمة للخدمة
+                    <div className="flex items-center gap-2">
+                      <Checkbox id="terms" checked={agreeTerms} onCheckedChange={(val) => setAgreeTerms(val as boolean)} className="rounded-md border-slate-300 h-4 w-4" />
+                      <Label htmlFor="terms" className="text-[10px] font-bold text-slate-500 cursor-pointer">
+                        أوافق على <Link to="/terms" className="text-primary hover:underline">الشروط والأحكام</Link>
                       </Label>
                     </div>
                   </div>
@@ -308,33 +295,33 @@ export default function RegisterPage() {
                   <Button
                     type="submit"
                     disabled={loading}
-                    className="w-full h-15 py-7 rounded-2xl mt-4 text-lg font-black bg-primary hover:bg-primary/90 text-white shadow-lg shadow-primary/20 transition-all active:scale-[0.98]"
+                    className="w-full h-11 rounded-xl text-sm font-black bg-primary hover:bg-primary/90 text-white shadow-lg shadow-primary/20 transition-all active:scale-[0.98]"
                   >
                     {loading ? <Loader2 className="animate-spin" /> : 'إنشاء حساب جديد'}
                   </Button>
 
-                  <div className="text-center mt-6">
-                    <p className="text-sm font-bold text-slate-500">
-                      لديك حساب بالفعل؟ <Link to="/login" className="text-primary hover:underline font-black">تسجيل الدخول</Link>
+                  <div className="text-center mt-4">
+                    <p className="text-[11px] font-bold text-slate-400">
+                      لديك حساب بالفعل؟ <Link to="/login" className="text-primary hover:underline font-black">دخول</Link>
                     </p>
                   </div>
                 </motion.form>
               ) : (
                 <motion.form
                   key="otp-form"
-                  initial={{ opacity: 0, x: -20 }}
+                  initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 20 }}
+                  exit={{ opacity: 0, x: 10 }}
                   onSubmit={handleVerify}
-                  className="space-y-8 text-center"
+                  className="space-y-6 text-center"
                 >
-                  <div className="w-24 h-24 bg-primary/5 text-primary rounded-[2rem] flex items-center justify-center mx-auto shadow-inner border border-primary/10">
-                    <MailCheck size={40} className="animate-pulse" />
+                  <div className="w-16 h-16 bg-primary/5 text-primary rounded-2xl flex items-center justify-center mx-auto shadow-inner border border-primary/10">
+                    <MailCheck size={32} className="animate-pulse" />
                   </div>
 
-                  <div className="space-y-2">
-                    <h2 className="text-2xl font-black text-slate-800">تحقق من بريدك</h2>
-                    <p className="text-slate-500 font-bold px-4">
+                  <div className="space-y-1">
+                    <h2 className="text-lg font-black text-slate-800">تحقق من بريدك</h2>
+                    <p className="text-[10px] font-bold text-slate-400 px-4">
                       أدخل الرمز المكون من 6 أرقام المرسل إلى: <br />
                       <span className="text-primary font-black break-all">{form.email}</span>
                     </p>
@@ -367,13 +354,14 @@ export default function RegisterPage() {
                       <Button
                         type="button"
                         variant="ghost"
+                        size="sm"
                         disabled={timer > 0 || loading}
                         onClick={handleResendOtp}
-                        className="font-bold text-slate-500 hover:text-primary transition-colors"
+                        className="font-bold text-slate-500 hover:text-primary transition-colors text-[10px]"
                       >
                         {timer > 0 ? `إعادة إرسال خلال (${timer} ثانية)` : (
                           <span className="flex items-center gap-2">
-                            <RefreshCcw size={16} /> إعادة إرسال الرمز
+                            <RefreshCcw size={12} /> إعادة إرسال الرمز
                           </span>
                         )}
                       </Button>
@@ -385,9 +373,9 @@ export default function RegisterPage() {
                           setShowOtp(false);
                           setOtpCode("");
                         }}
-                        className="text-xs font-bold text-slate-400 hover:text-slate-600 flex items-center justify-center gap-1"
+                        className="text-[9px] font-bold text-slate-400 hover:text-slate-600 flex items-center justify-center gap-1"
                       >
-                        <ChevronRight size={14} className="rotate-180" /> تعديل بيانات التسجيل
+                        <ChevronRight size={12} className="rotate-180" /> تعديل بيانات التسجيل
                       </button>
                     </div>
                   </div>

@@ -100,21 +100,30 @@ export default function WelcomePage() {
 
     setIsSending(true);
     try {
-      // 1. أولاً: حفظ في قاعدة البيانات
-      await (supabase as any)
-        .from('contact_messages')
-        .insert([{
-          name: contactData.name,
-          email: contactData.email,
-          phone: contactData.phone,
-          company: contactData.company,
-          subject: contactData.subject,
-          message: contactData.message,
-          to_email: "yalqlb019@gmail.com"
-        }]);
+      // 1. أولاً: محاولة الحفظ في قاعدة البيانات (بشكل منفصل حتى لا يعطل الإرسال)
+      try {
+        await (supabase as any)
+          .from('contact_messages')
+          .insert([{
+            name: contactData.name,
+            email: contactData.email,
+            phone: contactData.phone,
+            company: contactData.company,
+            subject: contactData.subject,
+            message: contactData.message,
+            to_email: "yalqlb019@gmail.com"
+          }]);
+      } catch (dbErr) {
+        console.warn("⚠️ فشل الحفظ في قاعدة البيانات ولكن سنحاول إرسال الإيميل:", dbErr);
+      }
 
-      // 2. ثانياً: إرسال الإيميل (بالقيم المباشرة للتجربة)
-      console.log("جاري محاولة الإرسال لـ EmailJS...");
+      // 2. ثانياً: إرسال الإيميل (قوة واحترافية)
+      console.log("🚀 محاولة الإرسال لـ EmailJS...");
+
+      // تجهيز رابط الواتساب بشكل صحيح
+      const cleanPhone = contactData.phone?.replace(/\D/g, '') || '';
+      const waPhone = cleanPhone.startsWith('0') ? '966' + cleanPhone.substring(1) : (cleanPhone.startsWith('966') ? cleanPhone : '966' + cleanPhone);
+      const whatsapp_link = cleanPhone ? `https://wa.me/${waPhone}` : `https://wa.me/966550258358`;
 
       const response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
         method: 'POST',
@@ -125,12 +134,18 @@ export default function WelcomePage() {
           user_id: "uFVJ_0paYoHGm544e",
           template_params: {
             from_name: contactData.name,
+            user_name: contactData.name,
             from_email: contactData.email,
+            user_email: contactData.email,
             phone: contactData.phone,
+            user_phone: contactData.phone,
             company: contactData.company,
-            subject: contactData.subject || "طلب جديد من الموقع",
+            user_company: contactData.company,
+            subject: contactData.subject || "طلب تواصل جديد",
+            user_subject: contactData.subject || "طلب تواصل جديد",
             message: contactData.message,
-            to_email: "yalqlb019@gmail.com"
+            whatsapp_link: whatsapp_link,
+            to_email: "yalqlb019@gmail.com" // الإيميل المباشر لضمان الوصول
           }
         })
       });
@@ -164,16 +179,16 @@ export default function WelcomePage() {
 
         {/* أزرار الدخول على اليسار (الأخيرة في RTL) - خط صغير جداً بناءً على طلبك */}
         <div className="flex items-center gap-2 md:gap-3">
-          <div className="hidden sm:flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2">
             <Button
               onClick={() => navigate('/login')}
-              className="bg-slate-900 hover:bg-slate-800 text-white font-black px-3 py-1 h-8 rounded-lg shadow-sm transition-all text-[8px] md:text-[10px] whitespace-nowrap"
+              className="bg-slate-900 hover:bg-slate-800 text-white font-black px-2 sm:px-3 py-1 h-7 sm:h-8 rounded-lg shadow-sm transition-all text-[7px] sm:text-[10px] whitespace-nowrap"
             >
               دخول النظام
             </Button>
             <Button
               onClick={() => navigate('/register')}
-              className="bg-primary hover:bg-primary/90 text-white font-black px-3 py-1 h-8 rounded-lg shadow-sm transition-all text-[8px] md:text-[10px] whitespace-nowrap"
+              className="bg-primary hover:bg-primary/90 text-white font-black px-2 sm:px-3 py-1 h-7 sm:h-8 rounded-lg shadow-sm transition-all text-[7px] sm:text-[10px] whitespace-nowrap"
             >
               ابدأ رحلتك
             </Button>
@@ -240,10 +255,25 @@ export default function WelcomePage() {
               </button>
               <button
                 onClick={() => { navigate('/tracking'); setIsMobileMenuOpen(false); }}
-                className="w-full text-right text-xl font-black text-primary py-4 flex items-center justify-end gap-3"
+                className="w-full text-right text-xl font-black text-primary py-4 border-b border-slate-50 flex items-center justify-end gap-3"
               >
                 تتبع الشحنة <Search size={24} />
               </button>
+
+              <div className="pt-8 grid grid-cols-2 gap-4">
+                <Button
+                  onClick={() => { navigate('/login'); setIsMobileMenuOpen(false); }}
+                  className="h-16 rounded-2xl bg-slate-900 text-white font-black text-lg shadow-xl shadow-slate-200"
+                >
+                  دخول
+                </Button>
+                <Button
+                  onClick={() => { navigate('/register'); setIsMobileMenuOpen(false); }}
+                  className="h-16 rounded-2xl bg-primary text-white font-black text-lg shadow-xl shadow-primary/20"
+                >
+                  تسجيل
+                </Button>
+              </div>
             </div>
           </motion.div>
         )}
@@ -440,7 +470,7 @@ export default function WelcomePage() {
                       />
                     </div>
                     <div className="space-y-3">
-                      <label className="font-black text-slate-700 text-sm">رقم الهاتف</label>
+                      <label className="font-black text-slate-700 text-sm">الجوال / واتساب <span className="text-slate-400 text-[10px]">(اختياري)</span></label>
                       <Input
                         value={contactData.phone}
                         onChange={e => setContactData({ ...contactData, phone: e.target.value })}
@@ -449,11 +479,11 @@ export default function WelcomePage() {
                       />
                     </div>
                     <div className="space-y-3">
-                      <label className="font-black text-slate-700 text-sm">اسم الشركة (اختياري)</label>
+                      <label className="font-black text-slate-700 text-sm">اسم الشركة <span className="text-slate-400 text-[10px]">(اختياري)</span></label>
                       <Input
                         value={contactData.company}
                         onChange={e => setContactData({ ...contactData, company: e.target.value })}
-                        placeholder="اسم الشركة"
+                        placeholder="شركة..."
                         className="h-14 bg-slate-50 border-none rounded-2xl font-bold focus:ring-2 ring-primary/20 transition-all"
                       />
                     </div>
