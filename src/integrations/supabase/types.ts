@@ -505,6 +505,12 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      delete_all_shipper_loads: {
+        Args: {
+          p_shipper_id: string
+        }
+        Returns: boolean
+      }
       delete_user_by_admin: {
         Args: {
           target_user_id: string

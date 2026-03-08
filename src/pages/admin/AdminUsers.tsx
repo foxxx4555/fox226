@@ -39,13 +39,6 @@ export default function AdminUsers() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isUpdatingPass, setIsUpdatingPass] = useState(false);
 
-  // حالات إدارة المحفظة
-  const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
-  const [selectedUserWallet, setSelectedUserWallet] = useState<any>(null);
-  const [adjustmentAmount, setAdjustmentAmount] = useState('');
-  const [adjustmentType, setAdjustmentType] = useState<'deposit' | 'deduction'>('deposit');
-  const [adjustmentNotes, setAdjustmentNotes] = useState('');
-  const [isProcessingWallet, setIsProcessingWallet] = useState(false);
   const [showUserDetails, setShowUserDetails] = useState(false);
   const [userDetails, setUserDetails] = useState<any>(null);
 
@@ -201,62 +194,6 @@ export default function AdminUsers() {
     setShowUserDetails(true);
   };
 
-  const openWalletManager = async (user: any) => {
-    setSelectedUser(user);
-    setIsWalletModalOpen(true);
-    try {
-      const { data, error } = await (supabase as any)
-        .from('wallets')
-        .select('*')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (error) throw error;
-      setSelectedUserWallet(data);
-    } catch (e) {
-      toast.error('فشل في جلب بيانات المحفظة');
-    }
-  };
-
-  const handleBalanceAdjustment = async () => {
-    if (!adjustmentAmount || Number(adjustmentAmount) <= 0) {
-      toast.error('يرجى إدخال مبلغ صحيح');
-      return;
-    }
-
-    setIsProcessingWallet(true);
-    const amount = Number(adjustmentAmount);
-
-    try {
-      if (!selectedUserWallet) {
-        toast.error('لا توجد محفظة لهذا المستخدم');
-        return;
-      }
-
-      // تسجيل العملية في جدول المعاملات المالية (التريجر سيتكفل بتحديث الرصيد اللحظي)
-      const { error: transErr } = await (supabase as any).from('financial_transactions').insert([{
-        wallet_id: selectedUserWallet.wallet_id,
-        amount: amount,
-        type: adjustmentType === 'deposit' ? 'credit' : 'debit',
-        transaction_type: adjustmentType === 'deposit' ? 'deposit' : 'manual_adjustment',
-        description: adjustmentNotes || `تعديل يدوي من الإدارة: ${adjustmentType === 'deposit' ? 'إيداع' : 'خصم'}`,
-      }]);
-
-      if (transErr) throw transErr;
-
-      await logAdminAction('WALLET_ADJUSTMENT', selectedUser.id, `تعديل رصيد: ${adjustmentType === 'deposit' ? '+' : '-'}${amount} ر.س`);
-
-      toast.success('تم تحديث الرصيد بنجاح');
-      setIsWalletModalOpen(false);
-      setAdjustmentAmount('');
-      setAdjustmentNotes('');
-    } catch (e: any) {
-      console.error(e);
-      toast.error('حدث خطأ أثناء تحديث الرصيد: ' + (e.message || ''));
-    } finally {
-      setIsProcessingWallet(false);
-    }
-  };
 
   const filteredUsers = users.filter((user: any) =>
     user?.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -283,7 +220,8 @@ export default function AdminUsers() {
     return roles[role] || 'مسؤول';
   };
 
-  const UserList = ({ items }: { items: any[] }) => (
+  // تم تحويلها من Component إلى Render Function لمنع إعادة التحميل (Re-render lag)
+  const renderUserList = (items: any[]) => (
     <div className="grid gap-6">
       {items.map(user => (
         <Card key={user.id} className="rounded-[2.5rem] border-none shadow-xl hover:shadow-2xl transition-all bg-white relative overflow-hidden group">
@@ -322,7 +260,6 @@ export default function AdminUsers() {
             </div>
 
             <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-              {/* إخفاء خيارات تعديل المرور وإغلاق الحساب للعملاء التابعين (لأنهم بدون حساب حقيقي) */}
               {!user.is_contact_only && (
                 <>
                   <Dialog open={selectedUser?.id === user.id} onOpenChange={(open) => !open && setSelectedUser(null)}>
@@ -331,15 +268,7 @@ export default function AdminUsers() {
                         كلمة المرور
                       </Button>
                     </DialogTrigger>
-                    {!user.is_contact_only && (
-                      <Button
-                        onClick={() => openWalletManager(user)}
-                        variant="outline"
-                        className="h-12 rounded-2xl font-bold bg-emerald-50 border-emerald-100 text-emerald-600 hover:bg-white transition-all gap-2"
-                      >
-                        <Wallet size={18} /> المحفظة
-                      </Button>
-                    )}
+
                     <DialogContent className="rounded-[2.5rem] p-10 max-w-md" dir="rtl">
                       <DialogHeader>
                         <DialogTitle className="text-3xl font-black text-slate-900 mb-2 text-right">أمان الحساب</DialogTitle>
@@ -473,22 +402,22 @@ export default function AdminUsers() {
             </div>
 
             <TabsContent value="all" className="mt-0 outline-none">
-              <UserList items={filteredUsers} />
+              {renderUserList(filteredUsers)}
             </TabsContent>
             <TabsContent value="shippers" className="mt-0 outline-none">
-              <UserList items={shippers} />
+              {renderUserList(shippers)}
             </TabsContent>
             <TabsContent value="drivers" className="mt-0 outline-none">
-              <UserList items={drivers} />
+              {renderUserList(drivers)}
             </TabsContent>
             <TabsContent value="pending" className="mt-0 outline-none">
-              <UserList items={pendingDrivers} />
+              {renderUserList(pendingDrivers)}
             </TabsContent>
             <TabsContent value="receivers" className="mt-0 outline-none">
-              <UserList items={receivers} />
+              {renderUserList(receivers)}
             </TabsContent>
             <TabsContent value="admins" className="mt-0 outline-none">
-              <UserList items={admins} />
+              {renderUserList(admins)}
             </TabsContent>
           </Tabs>
         )}
@@ -604,70 +533,6 @@ export default function AdminUsers() {
           </DialogContent>
         </Dialog>
 
-        {/* نافذة إدارة رصيد المحفظة */}
-        <Dialog open={isWalletModalOpen} onOpenChange={setIsWalletModalOpen}>
-          <DialogContent className="rounded-[2.5rem] p-0 overflow-hidden max-w-md border-none shadow-2xl" dir="rtl">
-            <div className="bg-slate-900 p-8 text-white relative">
-              <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
-                <Wallet size={200} className="-ml-10 -mt-10 rotate-12" />
-              </div>
-              <DialogTitle className="text-2xl font-black mb-2 relative z-10 text-right">إدارة الرصيد</DialogTitle>
-              <p className="text-slate-400 font-bold relative z-10 text-right">المستخدم: {selectedUser?.full_name}</p>
-
-              <div className="mt-6 bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/10 relative z-10 text-center">
-                <p className="text-xs font-bold text-slate-300 mb-1">الرصيد الحالي</p>
-                <h4 className="text-3xl font-black" dir="ltr">
-                  {Number(selectedUserWallet?.balance || 0).toLocaleString()} <span className="text-sm font-bold opacity-60">SAR</span>
-                </h4>
-              </div>
-            </div>
-
-            <div className="p-8 space-y-6 bg-white">
-              <div className="flex p-1 bg-slate-100 rounded-2xl gap-1">
-                <button
-                  onClick={() => setAdjustmentType('deposit')}
-                  className={`flex-1 h-12 rounded-xl font-black transition-all ${adjustmentType === 'deposit' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-                >إيداع رصيد</button>
-                <button
-                  onClick={() => setAdjustmentType('deduction')}
-                  className={`flex-1 h-12 rounded-xl font-black transition-all ${adjustmentType === 'deduction' ? 'bg-white text-rose-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-                >خصم رصيد</button>
-              </div>
-
-              <div className="space-y-4">
-                <div className="space-y-2 text-right">
-                  <Label className="font-black text-slate-700 mr-2">المبلغ (ر.س)</Label>
-                  <Input
-                    type="number"
-                    value={adjustmentAmount}
-                    onChange={e => setAdjustmentAmount(e.target.value)}
-                    className="h-14 rounded-2xl border-2 bg-slate-50 font-black text-xl text-center focus:ring-blue-500"
-                    placeholder="0.00"
-                  />
-                </div>
-
-                <div className="space-y-2 text-right">
-                  <Label className="font-black text-slate-700 mr-2">ملاحظات العملية</Label>
-                  <Input
-                    value={adjustmentNotes}
-                    onChange={e => setAdjustmentNotes(e.target.value)}
-                    className="h-12 rounded-2xl border-2 bg-slate-50 font-bold"
-                    placeholder="سبب الإيداع أو الخصم..."
-                  />
-                </div>
-              </div>
-
-              <Button
-                onClick={handleBalanceAdjustment}
-                disabled={isProcessingWallet}
-                className={`w-full h-14 rounded-2xl font-black text-lg text-white shadow-xl transition-all active:scale-95 ${adjustmentType === 'deposit' ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/20' : 'bg-rose-600 hover:bg-rose-700 shadow-rose-500/20'
-                  }`}
-              >
-                {isProcessingWallet ? <Loader2 className="animate-spin" /> : (adjustmentType === 'deposit' ? 'تأكيد الإيداع' : 'تأكيد الخصم')}
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
       </div>
     </AdminLayout>
   );
