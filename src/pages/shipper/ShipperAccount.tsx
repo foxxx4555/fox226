@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { Loader2, User, Building, Shield, Image as ImageIcon, CheckCircle2 } from 'lucide-react';
+import { Loader2, User, Building, Shield, Image as ImageIcon, CheckCircle2, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
 export default function ShipperAccount() {
@@ -80,6 +80,21 @@ export default function ShipperAccount() {
       toast.error(err.message || 'حدث خطأ أثناء الحفظ');
     }
     finally { setSaving(false); }
+  };
+
+  const handleResetAccount = async () => {
+    if (!confirm("تنبيه: سيتم حذف كافة الشحنات والعمليات بصفة نهائية من هذا الحساب. هل أنت متأكد؟")) return;
+    setSaving(true);
+    try {
+      await api.deleteAllUserLoads(userProfile.id);
+      toast.success("تم تصفية بيانات الحساب بنجاح");
+      window.location.reload(); // Reload to refresh all stats
+    } catch (err) {
+      console.error(err);
+      toast.error("حدث خطأ أثناء التصفية");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -189,6 +204,20 @@ export default function ShipperAccount() {
                     <Input type="password" placeholder="••••••••" value={form.password} onChange={e => setForm(p => ({ ...p, password: e.target.value }))} className="h-14 rounded-2xl bg-slate-50 border-slate-100 font-bold px-6" dir="ltr" />
                   </div>
                   <p className="text-[10px] text-slate-400 font-bold pb-4">اترك هذا الحقل فارغاً في حال لم ترغب في تغيير كلمة المرور الحالية.</p>
+                </div>
+
+                <div className="mt-12 pt-8 border-t border-rose-50 flex flex-col md:flex-row items-center justify-between gap-6">
+                  <div>
+                    <h4 className="text-xl font-black text-rose-600 mb-2">منطقة الخطر</h4>
+                    <p className="text-slate-400 font-bold text-sm">سيتم مسح كافة سجلات الشحنات والعمليات المالية المرتبطة بهذا الحساب.</p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    onClick={handleResetAccount}
+                    className="h-16 rounded-[1.5rem] border-rose-200 text-rose-600 hover:bg-rose-50 px-10 text-lg font-black gap-3 transition-all"
+                  >
+                    <Trash2 size={24} /> تصفية كافة البيانات
+                  </Button>
                 </div>
               </div>
             </Card>

@@ -16,7 +16,7 @@ import {
     FileText, Download, Calendar, ArrowUpRight,
     ArrowDownRight, DollarSign, Loader2, Search,
     Wallet, Printer, CreditCard, Receipt,
-    CheckCircle2, Clock, XCircle, FileImage, Info, Upload
+    CheckCircle2, Clock, XCircle, FileImage, Info, Upload, Trash2
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -33,6 +33,69 @@ import WalletCard from '@/components/finance/WalletCard';
 import TransactionList from '@/components/finance/TransactionList';
 import InvoiceTemplate from '@/components/finance/InvoiceTemplate';
 import { toast } from 'sonner';
+
+function PaymentLoadDetails({ linkedLoad, payment }: { linkedLoad: any, payment: any }) {
+    const [showDetails, setShowDetails] = useState(false);
+
+    return (
+        <div className="bg-blue-50/50 border border-blue-100 rounded-xl p-3 mt-1 cursor-pointer transition-all hover:bg-blue-50" onClick={() => setShowDetails(!showDetails)}>
+            <div className="flex items-center justify-between mb-2">
+                <Badge
+                    className="bg-blue-600 text-white cursor-pointer hover:bg-blue-700"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        window.open(`/loads/${payment.shipment_id}`, '_blank');
+                    }}
+                >
+                    شحنة #{payment.shipment_id.substring(0, 8)}
+                </Badge>
+                {linkedLoad.price && Number(payment.amount) < linkedLoad.price && (
+                    <span className="text-[10px] font-black text-rose-500 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-100">سداد جزئي</span>
+                )}
+            </div>
+
+            <Button
+                variant="ghost"
+                size="sm"
+                className="w-full h-8 text-xs font-bold text-blue-600 bg-white border border-blue-100 mb-2 hover:bg-blue-50"
+                onClick={(e) => {
+                    e.stopPropagation();
+                    setShowDetails(!showDetails);
+                }}
+            >
+                {showDetails ? 'إخفاء التفاصيل' : 'عرض التفاصيل'}
+            </Button>
+
+            {showDetails && (
+                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="overflow-hidden">
+                    <div className="flex justify-between items-center bg-white p-2 rounded-lg border border-slate-100 shadow-sm">
+                        <div className="text-right flex-1">
+                            <p className="text-[10px] text-slate-400 font-bold mb-0.5">إجمالي الشحنة</p>
+                            <p className="font-black text-sm text-slate-800">{linkedLoad.price?.toLocaleString()} <span className="text-[10px]">ر.س</span></p>
+                        </div>
+                        <div className="w-px h-8 bg-slate-100 mx-2"></div>
+                        <div className="text-center flex-1">
+                            <p className="text-[10px] text-slate-400 font-bold mb-0.5">المدفوع</p>
+                            <p className="font-black text-sm text-blue-600">{Number(payment.amount).toLocaleString()} <span className="text-[10px]">ر.س</span></p>
+                        </div>
+                        {linkedLoad.price && Number(payment.amount) < linkedLoad.price && (
+                            <>
+                                <div className="w-px h-8 bg-slate-100 mx-2"></div>
+                                <div className="text-left flex-1">
+                                    <p className="text-[10px] text-slate-400 font-bold mb-0.5">المتبقي</p>
+                                    <p className="font-black text-sm text-rose-600">{(linkedLoad.price - Number(payment.amount)).toLocaleString()} <span className="text-[10px]">ر.س</span></p>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                    <p className="text-[10px] font-bold text-slate-500 mt-2 text-center">
+                        {linkedLoad.origin} ➔ {linkedLoad.destination}
+                    </p>
+                </motion.div>
+            )}
+        </div>
+    );
+}
 
 export default function ShipperStatement() {
     const { userProfile } = useAuth();
@@ -66,17 +129,22 @@ export default function ShipperStatement() {
     const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
     const [userLoads, setUserLoads] = useState<any[]>([]);
     const [selectedLoadId, setSelectedLoadId] = useState<string>('general');
-    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+    const [isResetting, setIsResetting] = useState(false);
 
-    useEffect(() => {
-        if (!paymentImage) {
-            setPreviewUrl(null);
-            return;
+    const handleResetAccount = async () => {
+        if (!confirm("تنبيه: سيتم حذف كافة الشحنات والعمليات بصفة نهائية. هل أنت متأكد؟")) return;
+        setIsResetting(true);
+        try {
+            await api.deleteAllUserLoads(userProfile.id);
+            toast.success("تم تصفية الحساب بنجاح");
+            loadFinancialData();
+        } catch (err) {
+            console.error(err);
+            toast.error("حدث خطأ أثناء التصفية");
+        } finally {
+            setIsResetting(false);
         }
-        const url = URL.createObjectURL(paymentImage);
-        setPreviewUrl(url);
-        return () => URL.revokeObjectURL(url);
-    }, [paymentImage]);
+    };
 
     const loadFinancialData = async () => {
         if (!userProfile?.id) return;
@@ -91,7 +159,7 @@ export default function ShipperStatement() {
 
             setWallet(walletData);
             setShipperPayments(payments || []);
-            setUserLoads(loads?.filter((l: any) => l.owner_id === userProfile.id && l.status !== 'cancelled') || []);
+            setUserLoads(loads?.filter((l: any) => l.owner_id === userProfile.id) || []);
 
             const mappedTransactions = txHistory?.map((t: any) => {
                 const amount = Math.abs(Number(t.amount) || 0);
@@ -176,18 +244,44 @@ export default function ShipperStatement() {
     // حساب الإحصائيات (المصروفات والمدفوعات)
     const stats = useMemo(() => {
         // Total amount paid (Credits/Income)
-        const earned = filteredTransactions
+        const earned = transactions
             .filter(t => t.type === 'income')
             .reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
 
-        // For the "Debt" card, we want the current absolute balance
-        // For the "Earned" card, we show the total confirmed payments
-        const currentBalance = Number(wallet?.balance) || 0;
+        // حساب الديون الحقيقية بناءً على الشحنات المكتملة فقط + الديون العامة
+        const completedShipmentExpenses = transactions
+            .filter(t => t.type === 'expense')
+            .filter(t => {
+                const loadIdMatch = t.description?.match(/#[0-9a-f-]+/);
+                const idToCheck = t.shipment_id || (loadIdMatch ? loadIdMatch[0].replace('#', '') : null);
+
+                if (idToCheck) {
+                    return userLoads.some(l =>
+                        (l.id === idToCheck ||
+                            l.id.includes(idToCheck) ||
+                            idToCheck.includes(l.id.substring(0, 8))) &&
+                        (l.status === 'completed' || l.status === 'delivered')
+                    );
+                }
+
+                // إذا لم يكن هناك ID في الوصف، نعتبره رسوماً عامة ونحسبه فقط إذا لم يكن مرتبطاً بشحنة جارية.
+                // لتفادي حساب شحنات غير مكتملة لم يتم التقاط معرفها بشكل صحيح، نتحقق من الوصف.
+                if (t.description?.includes('شحنة') || t.description?.includes('DEBT:')) {
+                    return false; // نرفض أي شيء يبدو كشحنة لكن لم يتم التعرف على الـ ID الخاص به
+                }
+
+                return true;
+            })
+            .reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
+
+        // إجمالي الدين = المصروفات المستحقة - ما تم دفعه
+        const calculatedDebt = Math.max(0, completedShipmentExpenses - earned);
+
         return {
-            debt: Math.abs(currentBalance),
+            debt: calculatedDebt,
             paid: earned
         };
-    }, [filteredTransactions, wallet?.balance]);
+    }, [transactions, userLoads]);
 
     const chartData = useMemo(() => {
         const last7Days = Array.from({ length: 7 }, (_, i) => {
@@ -200,10 +294,29 @@ export default function ShipperStatement() {
             const dayName = new Date(date).toLocaleDateString('ar-SA', { weekday: 'short' });
             const dayAmount = transactions
                 .filter(t => (t.created_at || t.date).startsWith(date) && t.type === 'expense')
+                .filter(t => {
+                    const loadIdMatch = t.description?.match(/#[0-9a-f-]+/);
+                    const idToCheck = t.shipment_id || (loadIdMatch ? loadIdMatch[0].replace('#', '') : null);
+
+                    if (idToCheck) {
+                        return userLoads.some(l =>
+                            (l.id === idToCheck ||
+                                l.id.includes(idToCheck) ||
+                                idToCheck.includes(l.id.substring(0, 8))) &&
+                            (l.status === 'completed' || l.status === 'delivered')
+                        );
+                    }
+
+                    if (t.description?.includes('شحنة') || t.description?.includes('DEBT:')) {
+                        return false;
+                    }
+
+                    return true;
+                })
                 .reduce((acc, curr) => acc + Number(curr.amount), 0);
             return { name: dayName, amount: dayAmount };
         });
-    }, [transactions]);
+    }, [transactions, userLoads]);
 
     const handlePayDebt = async () => {
         if (!paymentAmount || Number(paymentAmount) <= 0 || !paymentImage) {
@@ -214,6 +327,16 @@ export default function ShipperStatement() {
         if (paymentImage.size > 2 * 1024 * 1024) {
             toast.error("حجم الصورة كبير جداً، يرجى اختيار صورة أقل من 2 ميجابايت");
             return;
+        }
+
+        if (selectedLoadId !== 'general') {
+            const selectedLoad = userLoads.find(l => l.id === selectedLoadId);
+            if (selectedLoad && selectedLoad.price) {
+                if (Number(paymentAmount) > selectedLoad.price) {
+                    toast.error(`المبلغ المدفوع يجب أن لا يتجاوز إجمالي الشحنة (${selectedLoad.price} ر.س)`);
+                    return;
+                }
+            }
         }
 
         setIsSubmitting(true);
@@ -294,6 +417,13 @@ export default function ShipperStatement() {
                     </div>
 
                     <div className="flex items-center gap-2 md:gap-3">
+                        <Button
+                            onClick={handleResetAccount}
+                            variant="outline"
+                            className="h-12 md:h-14 rounded-2xl border-rose-200 text-rose-600 hover:bg-rose-50 font-black px-4 md:px-6 shadow-sm transition-all active:scale-95 text-xs md:text-sm"
+                        >
+                            <Trash2 size={18} className="md:ml-2" /> <span className="hidden md:inline">تصفية الحساب</span>
+                        </Button>
                         <Button variant="outline" className="h-12 md:h-14 rounded-2xl font-black px-4 md:px-6 border-slate-200 hover:bg-slate-50 text-xs md:text-sm">
                             <Printer size={18} className="md:ml-2 text-slate-400" /> <span className="hidden md:inline">طباعة سجل النشاط</span>
                         </Button>
@@ -317,7 +447,7 @@ export default function ShipperStatement() {
                     <div className="lg:col-span-1">
                         <div className={`transition-all duration-500 rounded-[2.5rem] ${isGlow ? 'ring-4 ring-emerald-400 ring-offset-4 shadow-[0_0_30px_rgba(52,211,153,0.5)]' : ''}`}>
                             <WalletCard
-                                balance={wallet?.balance || 0}
+                                balance={-stats.debt}
                                 currency={wallet?.currency || 'SAR'}
                                 type="shipper"
                                 onRefresh={loadFinancialData}
@@ -436,31 +566,7 @@ export default function ShipperStatement() {
                                             (() => {
                                                 const linkedLoad = userLoads.find(l => l.id === payment.shipment_id);
                                                 return linkedLoad ? (
-                                                    <div className="bg-blue-50/50 border border-blue-100 rounded-xl p-3 mt-1">
-                                                        <div className="flex items-center justify-between mb-2">
-                                                            <Badge
-                                                                className="bg-blue-600 text-white cursor-pointer hover:bg-blue-700"
-                                                                onClick={() => window.open(`/loads/${payment.shipment_id}`, '_blank')}
-                                                            >
-                                                                شحنة #{payment.shipment_id.substring(0, 8)}
-                                                            </Badge>
-                                                            <span className="text-[10px] font-black text-slate-400">سداد جزئي</span>
-                                                        </div>
-                                                        <div className="flex justify-between items-center bg-white p-2 rounded-lg border border-slate-100 shadow-sm">
-                                                            <div className="text-right">
-                                                                <p className="text-[10px] text-slate-400 font-bold mb-0.5">إجمالي الشحنة</p>
-                                                                <p className="font-black text-sm text-slate-800">{linkedLoad.price?.toLocaleString()} <span className="text-[10px]">ر.س</span></p>
-                                                            </div>
-                                                            <div className="w-px h-8 bg-slate-100 mx-3"></div>
-                                                            <div className="text-left">
-                                                                <p className="text-[10px] text-slate-400 font-bold mb-0.5">المبلغ المدفوع</p>
-                                                                <p className="font-black text-sm text-blue-600">{Number(payment.amount).toLocaleString()} <span className="text-[10px]">ر.س</span></p>
-                                                            </div>
-                                                        </div>
-                                                        <p className="text-[10px] font-bold text-slate-500 mt-2 text-center">
-                                                            {linkedLoad.origin} ➔ {linkedLoad.destination}
-                                                        </p>
-                                                    </div>
+                                                    <PaymentLoadDetails linkedLoad={linkedLoad} payment={payment} />
                                                 ) : (
                                                     <Badge variant="outline" className="bg-slate-50 border-slate-200 text-slate-400">شحنة #{payment.shipment_id.substring(0, 8)}</Badge>
                                                 );
@@ -536,7 +642,7 @@ export default function ShipperStatement() {
                         </div>
                     </div>
 
-                    <div className="p-6 space-y-6 bg-slate-100/30">
+                    <div className="p-6 space-y-6 bg-slate-100/30 overflow-y-auto max-h-[60vh] custom-scrollbar">
                         <div className="space-y-3">
                             <Label className="text-sm font-black text-slate-700">المبلغ المحول (ر.س) *</Label>
                             <Input
@@ -556,7 +662,7 @@ export default function ShipperStatement() {
                                 </SelectTrigger>
                                 <SelectContent className="bg-white rounded-xl border-slate-200 shadow-xl">
                                     <SelectItem value="general" className="font-bold">سداد عام للمديونية</SelectItem>
-                                    {userLoads.map((load) => (
+                                    {userLoads.filter(l => l.status === 'completed' || l.status === 'delivered').map((load) => (
                                         <SelectItem key={load.id} value={load.id} className="font-bold">
                                             شحنة #{load.id.substring(0, 8)} ({load.origin} ➔ {load.destination}) - {load.price} ر.س
                                         </SelectItem>
@@ -567,7 +673,7 @@ export default function ShipperStatement() {
 
                         <div className="space-y-3">
                             <Label className="text-sm font-black text-slate-700">صورة إيصال التحويل *</Label>
-                            <div className="border-2 border-dashed border-slate-300 rounded-2xl p-4 text-center hover:bg-slate-50 transition-colors bg-white overflow-hidden">
+                            <div className="border-2 border-dashed border-slate-300 rounded-2xl p-6 text-center hover:bg-slate-50 transition-colors bg-white">
                                 <Input
                                     type="file"
                                     accept="image/*"
@@ -576,29 +682,12 @@ export default function ShipperStatement() {
                                     id="receipt-upload"
                                 />
                                 <Label htmlFor="receipt-upload" className="cursor-pointer flex flex-col items-center gap-3">
-                                    {previewUrl ? (
-                                        <div className="relative group w-full aspect-video rounded-xl overflow-hidden border border-slate-100 bg-slate-50">
-                                            <img src={previewUrl} alt="Preview" className="w-full h-full object-contain" />
-                                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                                <p className="text-white font-bold text-sm">تغيير الصورة</p>
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <div className="py-4 flex flex-col items-center gap-3">
-                                            <div className="w-16 h-16 bg-blue-50 text-blue-500 rounded-2xl flex items-center justify-center">
-                                                <FileImage size={32} />
-                                            </div>
-                                            <div className="font-bold text-slate-600">
-                                                انقر لاختيار صورة الإيصال
-                                            </div>
-                                            <p className="text-[10px] text-slate-400 font-bold">الحد الأقصى 2 ميجابايت (JPG, PNG)</p>
-                                        </div>
-                                    )}
-                                    {paymentImage && !previewUrl && (
-                                        <div className="font-bold text-slate-600">
-                                            {paymentImage.name}
-                                        </div>
-                                    )}
+                                    <div className="w-16 h-16 bg-blue-50 text-blue-500 rounded-2xl flex items-center justify-center">
+                                        <FileImage size={32} />
+                                    </div>
+                                    <div className="font-bold text-slate-600">
+                                        {paymentImage ? paymentImage.name : 'انقر لاختيار صورة الإيصال'}
+                                    </div>
                                 </Label>
                             </div>
                         </div>
@@ -631,6 +720,18 @@ export default function ShipperStatement() {
                             className="h-14 px-6 rounded-xl font-bold bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
                         >
                             إلغاء
+                        </Button>
+                        <Button onClick={() => window.print()} variant="outline" className="h-14 px-6 rounded-2xl border-slate-200 text-slate-600 hover:bg-slate-50 font-bold gap-2">
+                            <Printer size={20} /> طباعة سجل النشاط
+                        </Button>
+
+                        <Button
+                            onClick={handleResetAccount}
+                            disabled={isResetting}
+                            variant="outline"
+                            className="h-14 px-6 rounded-2xl border-rose-200 text-rose-600 hover:bg-rose-50 font-bold gap-2"
+                        >
+                            {isResetting ? <Loader2 size={20} className="animate-spin me-2" /> : <Trash2 size={20} />} تصفية الحساب
                         </Button>
                     </div>
                 </DialogContent>
@@ -693,7 +794,7 @@ export default function ShipperStatement() {
                             <DialogDescription className="font-bold">رقم العملية: {selectedTransaction?.id?.substring(0, 8).toUpperCase()}</DialogDescription>
                         </div>
                     </div>
-                    <div className="p-6 space-y-4">
+                    <div className="p-6 space-y-4 overflow-y-auto max-h-[60vh] custom-scrollbar">
                         <div className="flex justify-between items-center p-4 bg-slate-50 rounded-2xl">
                             <span className="font-bold text-slate-500">المبلغ:</span>
                             <span className={`text-xl font-black ${selectedTransaction?.amount > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>

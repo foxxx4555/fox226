@@ -59,14 +59,7 @@ export default function DriverTasks() {
     try {
       await api.completeLoad(task.id);
 
-      // Financial Settlement
-      try {
-        const { financeApi } = await import('@/lib/finances');
-        await financeApi.settleShipment(task.id);
-      } catch (e) {
-        console.error('Settlement Error:', e);
-        toast.error("حدث خطأ أثناء تسوية المستحقات المالية");
-      }
+      // (Financial settlement is automatically handled by Postgres triggers upon status change)
 
       // إرسال إشعار فوري للتاجر (صاحب الشحنة)
       if (task.owner_id) {

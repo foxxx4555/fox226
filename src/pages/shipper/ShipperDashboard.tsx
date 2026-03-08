@@ -3,13 +3,14 @@ import { useAuth } from '@/hooks/useAuth';
 import { api } from '@/services/api';
 import AppLayout from '@/components/AppLayout';
 import StatCard from '@/components/StatCard';
-import { Package, CheckCircle, Plus, Search, MapPin, Loader2, ArrowRight, Users } from 'lucide-react';
+import { Package, CheckCircle, Plus, Search, MapPin, Loader2, ArrowRight, Users, Trash2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 // قاموس ثابت لترجمة الحالات عشان نمنع خطأ "t is not defined"
 const statusTranslations: Record<string, string> = {
@@ -27,6 +28,21 @@ export default function ShipperDashboard() {
   const [recentLoads, setRecentLoads] = useState<any[]>([]);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const handleResetAccount = async () => {
+    if (!confirm("تنبيه: سيتم حذف كافة الشحنات والعمليات بصفة نهائية. هل أنت متأكد؟")) return;
+    setLoading(true);
+    try {
+      await api.deleteAllUserLoads(userProfile.id);
+      toast.success("تم تصفية الحساب بنجاح");
+      fetchDashboardData();
+    } catch (err) {
+      console.error(err);
+      toast.error("حدث خطأ أثناء التصفية");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchDashboardData = async () => {
     if (!userProfile?.id) return;
@@ -61,6 +77,13 @@ export default function ShipperDashboard() {
             <p className="text-muted-foreground font-medium text-lg mt-2">نظم شحناتك وراقب أعمالك بكل سهولة وذكاء</p>
           </motion.div>
           <div className="flex gap-3">
+            <Button
+              variant="outline"
+              className="rounded-2xl h-14 px-6 border-rose-200 text-rose-600 hover:bg-rose-50 font-black"
+              onClick={handleResetAccount}
+            >
+              <Trash2 className="me-2" size={20} /> تصفية الحساب
+            </Button>
             <Button className="rounded-2xl h-14 px-8 font-black text-lg bg-primary shadow-xl text-white" onClick={() => navigate('/shipper/post')}>
               <Plus className="me-2" size={24} /> نشر شحنة
             </Button>

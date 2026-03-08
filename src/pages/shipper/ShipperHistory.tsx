@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Star, Loader2, MapPin, Calendar, FileSearch, User, Phone, DollarSign, CheckCircle2, History, RotateCw, Filter, Clock, XCircle, ChevronLeft } from 'lucide-react';
+import { Star, Loader2, MapPin, Calendar, FileSearch, User, Phone, DollarSign, CheckCircle2, History, RotateCw, Filter, Clock, XCircle, ChevronLeft, Trash2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -53,6 +53,23 @@ export default function ShipperHistory() {
 
     setLoads(filtered);
   }, [statusFilter, dateFilter, allLoads]);
+
+  const handleResetAccount = async () => {
+    if (!confirm("تحذير: هذا الإجراء سيقوم بحذف كافة شحناتك الحالية والسابقة ولن يمكنك التراجع عنه. هل أنت متأكد من تصفية الحساب؟")) return;
+
+    setLoading(true);
+    try {
+      await api.deleteAllUserLoads(userProfile.id);
+      setAllLoads([]);
+      setLoads([]);
+      toast.success('تم تصفية الحساب ومسح كافة الشحنات بنجاح.');
+    } catch (err) {
+      console.error(err);
+      toast.error('لم نتمكن من حذف بعض السجلات بسبب ارتباطات مالية مسجلة.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleRepeatOrder = (load: any) => {
     // Navigate to post load with pre-filled data via state
@@ -136,6 +153,14 @@ export default function ShipperHistory() {
             {(statusFilter !== 'all' || dateFilter) && (
               <Button variant="ghost" onClick={() => { setStatusFilter('all'); setDateFilter(''); }} className="text-rose-500 font-bold text-xs">مسح</Button>
             )}
+
+            <Button
+              variant="outline"
+              onClick={handleResetAccount}
+              className="h-10 border-rose-200 text-rose-600 hover:bg-rose-50 font-bold rounded-xl gap-2 ms-2"
+            >
+              <Trash2 size={16} /> تصفية الشحنات
+            </Button>
           </div>
         </div>
 

@@ -1028,6 +1028,20 @@ export const api = {
     return data || [];
   },
 
+  async deleteAllUserLoads(userId: string) {
+    // استدعاء الوظيفة البرمجية في قاعدة البيانات التي تقوم بالحذف المتسلسل لجميع السجلات المرتبطة
+    // (Bids, Tracking, Invoices, Finances, Transactions, Loads)
+    const { error } = await supabase.rpc('delete_all_shipper_loads', {
+      p_shipper_id: userId
+    });
+
+    if (error) {
+      console.error("RPC Deletion Error:", error);
+      throw error;
+    }
+    return true;
+  },
+
   async getBids(userId: string, role: 'driver' | 'shipper') {
     if (role === 'driver') {
       const { data } = await supabase.from('load_bids').select('*, loads(*, owner:profiles!loads_owner_id_fkey(*))').eq('driver_id', userId);

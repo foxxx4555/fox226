@@ -26,6 +26,21 @@ export default function ShipperLoads() {
   const [walletBalance, setWalletBalance] = useState(0);
   const [finances, setFinances] = useState<Record<string, any>>({});
 
+  const handleResetAccount = async () => {
+    if (!confirm("تنبيه: سيتم حذف كافة الشحنات والعمليات بصفة نهائية. هل أنت متأكد؟")) return;
+    setLoading(true);
+    try {
+      await api.deleteAllUserLoads(userProfile.id);
+      toast.success("تم تصفية الحساب بنجاح");
+      fetchLoads();
+    } catch (err) {
+      console.error(err);
+      toast.error("حدث خطأ أثناء التصفية");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const fetchLoads = async () => {
     if (userProfile?.id) {
       try {
@@ -134,7 +149,16 @@ export default function ShipperLoads() {
               <p className="text-muted-foreground font-medium mt-1">تابع شحناتك، سدد المستحقات وتتبع السائقين</p>
             </div>
           </div>
-          <Button onClick={() => navigate('/shipper/post')} className="bg-primary text-white font-bold h-12 rounded-xl shadow-lg hover:bg-primary/90">إضافة شحنة جديدة</Button>
+          <div className="flex gap-3">
+            <Button
+              variant="outline"
+              className="h-12 border-rose-200 text-rose-600 hover:bg-rose-50 font-bold rounded-xl gap-2 shadow-sm"
+              onClick={handleResetAccount}
+            >
+              <Trash2 size={18} /> تصفية الحساب
+            </Button>
+            <Button onClick={() => navigate('/shipper/post')} className="bg-primary text-white font-bold h-12 rounded-xl shadow-lg hover:bg-primary/90">إضافة شحنة جديدة</Button>
+          </div>
         </div>
 
         {loading ? (
