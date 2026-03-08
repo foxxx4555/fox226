@@ -22,6 +22,13 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { motion } from 'framer-motion';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import WalletCard from '@/components/finance/WalletCard';
 import TransactionList from '@/components/finance/TransactionList';
 import InvoiceTemplate from '@/components/finance/InvoiceTemplate';
@@ -57,19 +64,23 @@ export default function ShipperStatement() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [selectedReceipt, setSelectedReceipt] = useState<string | null>(null);
     const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
+    const [userLoads, setUserLoads] = useState<any[]>([]);
+    const [selectedLoadId, setSelectedLoadId] = useState<string>('general');
 
     const loadFinancialData = async () => {
         if (!userProfile?.id) return;
         setLoading(true);
         try {
-            const [walletData, txHistory, payments] = await Promise.all([
+            const [walletData, txHistory, payments, loads] = await Promise.all([
                 api.getWalletBalance(userProfile.id, 'shipper'),
                 api.getTransactionHistory(userProfile.id),
-                api.getShipperPayments(userProfile.id)
+                api.getShipperPayments(userProfile.id),
+                api.getUserLoads(userProfile.id)
             ]);
 
             setWallet(walletData);
             setShipperPayments(payments || []);
+            setUserLoads(loads?.filter((l: any) => l.owner_id === userProfile.id && l.status !== 'cancelled') || []);
 
             const mappedTransactions = txHistory?.map((t: any) => {
                 const amount = Math.abs(Number(t.amount) || 0);
@@ -197,12 +208,14 @@ export default function ShipperStatement() {
         setIsSubmitting(true);
         try {
             const proofUrl = await api.uploadImage(paymentImage, 'receipts');
-            await api.submitShipperPayment(userProfile!.id, Number(paymentAmount), proofUrl, paymentNotes);
+            const loadIdForSubmit = selectedLoadId === 'general' ? undefined : selectedLoadId;
+            await api.submitShipperPayment(userProfile!.id, Number(paymentAmount), proofUrl, paymentNotes, loadIdForSubmit);
 
             toast.success("تم إرسال إثبات السداد بنجاح، بانتظار مراجعة الإدارة");
             setIsPaymentModalOpen(false);
             setPaymentAmount('');
             setPaymentImage(null);
+            setSelectedLoadId('general');
             loadFinancialData();
         } catch (err) {
             toast.error("فشل إرسال البيانات");
@@ -407,18 +420,40 @@ export default function ShipperStatement() {
                                                 شاهد الإيصال
                                             </Button>
                                         )}
-                                        {/* محاولة استخراج رقم الشحنة من الملاحظات إذا لم يكن هناك حقل صريح */}
-                                        {(payment.shipper_notes?.match(/#[0-9a-f-]+/) || payment.admin_notes?.match(/#[0-9a-f-]+/)) && (
-                                            <Badge
-                                                variant="outline"
-                                                className="bg-blue-50 border-blue-100 text-blue-600 font-bold py-1 px-3 rounded-lg flex items-center justify-center cursor-pointer hover:bg-blue-100 transition-colors"
-                                                onClick={() => {
-                                                    const match = (payment.shipper_notes + (payment.admin_notes || '')).match(/#[0-9a-f-]+/);
-                                                    if (match) window.open(`/loads/${match[0].replace('#', '')}`, '_blank');
-                                                }}
-                                            >
-                                                شحنة مرتبطة: {(payment.shipper_notes + (payment.admin_notes || '')).match(/#[0-9a-f-]+/)?.[0].substring(0, 9)}
-                                            </Badge>
+
+                                        {payment.shipment_id && (
+                                            (() => {
+                                                const linkedLoad = userLoads.find(l => l.id === payment.shipment_id);
+                                                return linkedLoad ? (
+                                                    <div className="bg-blue-50/50 border border-blue-100 rounded-xl p-3 mt-1">
+                                                        <div className="flex items-center justify-between mb-2">
+                                                            <Badge
+                                                                className="bg-blue-600 text-white cursor-pointer hover:bg-blue-700"
+                                                                onClick={() => window.open(`/loads/${payment.shipment_id}`, '_blank')}
+                                                            >
+                                                                شحنة #{payment.shipment_id.substring(0, 8)}
+                                                            </Badge>
+                                                            <span className="text-[10px] font-black text-slate-400">سداد جزئي</span>
+                                                        </div>
+                                                        <div className="flex justify-between items-center bg-white p-2 rounded-lg border border-slate-100 shadow-sm">
+                                                            <div className="text-right">
+                                                                <p className="text-[10px] text-slate-400 font-bold mb-0.5">إجمالي الشحنة</p>
+                                                                <p className="font-black text-sm text-slate-800">{linkedLoad.price?.toLocaleString()} <span className="text-[10px]">ر.س</span></p>
+                                                            </div>
+                                                            <div className="w-px h-8 bg-slate-100 mx-3"></div>
+                                                            <div className="text-left">
+                                                                <p className="text-[10px] text-slate-400 font-bold mb-0.5">المبلغ المدفوع</p>
+                                                                <p className="font-black text-sm text-blue-600">{Number(payment.amount).toLocaleString()} <span className="text-[10px]">ر.س</span></p>
+                                                            </div>
+                                                        </div>
+                                                        <p className="text-[10px] font-bold text-slate-500 mt-2 text-center">
+                                                            {linkedLoad.origin} ➔ {linkedLoad.destination}
+                                                        </p>
+                                                    </div>
+                                                ) : (
+                                                    <Badge variant="outline" className="bg-slate-50 border-slate-200 text-slate-400">شحنة #{payment.shipment_id.substring(0, 8)}</Badge>
+                                                );
+                                            })()
                                         )}
                                     </div>
 
@@ -500,6 +535,23 @@ export default function ShipperStatement() {
                                 onChange={(e) => setPaymentAmount(e.target.value)}
                                 className="h-14 rounded-2xl border-slate-200 font-black text-lg focus:ring-blue-500 focus:border-blue-500 bg-white"
                             />
+                        </div>
+
+                        <div className="space-y-3">
+                            <Label className="text-sm font-black text-slate-700">ربط السداد بشحنة محددة (اختياري)</Label>
+                            <Select value={selectedLoadId} onValueChange={setSelectedLoadId}>
+                                <SelectTrigger className="h-14 rounded-2xl border-slate-200 font-bold bg-white">
+                                    <SelectValue placeholder="اختر الشحنة" />
+                                </SelectTrigger>
+                                <SelectContent className="bg-white rounded-xl border-slate-200 shadow-xl">
+                                    <SelectItem value="general" className="font-bold">سداد عام للمديونية</SelectItem>
+                                    {userLoads.map((load) => (
+                                        <SelectItem key={load.id} value={load.id} className="font-bold">
+                                            شحنة #{load.id.substring(0, 8)} ({load.origin} ➔ {load.destination}) - {load.price} ر.س
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </div>
 
                         <div className="space-y-3">

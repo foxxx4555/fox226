@@ -683,13 +683,14 @@ export const api = {
     }
   },
 
-  async submitShipperPayment(shipperId: string, amount: number, proofImageUrl: string, notes?: string) {
+  async submitShipperPayment(shipperId: string, amount: number, proofImageUrl: string, notes?: string, shipmentId?: string) {
     try {
       const { data, error } = await (supabase as any)
         .from('shipper_payments')
         .insert({
           shipper_id: shipperId,
           amount,
+          shipment_id: shipmentId,
           proof_image_url: proofImageUrl,
           shipper_notes: notes,
           status: 'pending'
