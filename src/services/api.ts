@@ -638,7 +638,7 @@ export const api = {
         .from('financial_transactions')
         .select(`
           *,
-          loads(origin, destination)
+          loads(id, origin, destination)
         `)
         .in('wallet_id', walletIds)
         .order('created_at', { ascending: false });

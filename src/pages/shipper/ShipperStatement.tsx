@@ -73,18 +73,25 @@ export default function ShipperStatement() {
 
             const mappedTransactions = txHistory?.map((t: any) => {
                 const amount = Math.abs(Number(t.amount) || 0);
-                // Map DB types (debit/credit) to UI common types (expense/income)
-                // In Shipper context: debit = they owe more (expense), credit = they paid (income/settlement)
                 const type = (t.type === 'debit' || t.transaction_type === 'usage') ? 'expense' : 'income';
+
+                // تعريب الوصف إذا كان إنجليزياً أو يحتوي على ديون
+                let rawDesc = t.description || (t.loads ? `شحنة من ${t.loads.origin}` : 'عملية مالية');
+                if (rawDesc.includes('DEBT:') || rawDesc.includes('Outstanding shipment payment')) {
+                    const loadIdMatch = rawDesc.match(/#[0-9a-f-]+/);
+                    const loadIdShort = loadIdMatch ? loadIdMatch[0].substring(0, 9) : '';
+                    rawDesc = `مستحقات شحنة رقم ${loadIdShort}`;
+                }
 
                 return {
                     ...t,
-                    id: t.id || t.transaction_id, // Safety check for ID column name
+                    id: t.id || t.transaction_id,
                     date: t.created_at,
-                    description: t.description || (t.shipment ? `شحنة من ${t.shipment.origin}` : 'عملية مالية'),
+                    description: rawDesc,
                     amount,
                     type,
-                    status: t.status || 'completed'
+                    status: t.status || 'completed',
+                    shipment_id: t.loads?.id || t.shipment_id
                 };
             }) || [];
 
@@ -386,7 +393,7 @@ export default function ShipperStatement() {
                                 <div className="text-left w-full md:w-auto">
                                     <p className="font-black text-2xl tracking-tight text-slate-800 mb-2 border-b border-slate-200 pb-2">{Number(payment.amount).toLocaleString()} <span className="text-sm font-bold text-slate-500">ر.س</span></p>
 
-                                    <div className="flex gap-2">
+                                    <div className="flex flex-col gap-2">
                                         {payment.proof_image_url && (
                                             <Button
                                                 variant="outline"
@@ -397,8 +404,21 @@ export default function ShipperStatement() {
                                                 className="w-full h-10 rounded-xl font-bold border-blue-200 text-blue-600 bg-blue-50 hover:bg-blue-100 shadow-sm"
                                             >
                                                 <FileImage size={16} className="me-2" />
-                                                الإيصال
+                                                شاهد الإيصال
                                             </Button>
+                                        )}
+                                        {/* محاولة استخراج رقم الشحنة من الملاحظات إذا لم يكن هناك حقل صريح */}
+                                        {(payment.shipper_notes?.match(/#[0-9a-f-]+/) || payment.admin_notes?.match(/#[0-9a-f-]+/)) && (
+                                            <Badge
+                                                variant="outline"
+                                                className="bg-blue-50 border-blue-100 text-blue-600 font-bold py-1 px-3 rounded-lg flex items-center justify-center cursor-pointer hover:bg-blue-100 transition-colors"
+                                                onClick={() => {
+                                                    const match = (payment.shipper_notes + (payment.admin_notes || '')).match(/#[0-9a-f-]+/);
+                                                    if (match) window.open(`/loads/${match[0].replace('#', '')}`, '_blank');
+                                                }}
+                                            >
+                                                شحنة مرتبطة: {(payment.shipper_notes + (payment.admin_notes || '')).match(/#[0-9a-f-]+/)?.[0].substring(0, 9)}
+                                            </Badge>
                                         )}
                                     </div>
 
