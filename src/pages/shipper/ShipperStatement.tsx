@@ -60,6 +60,9 @@ export default function ShipperStatement() {
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
     const [paymentAmount, setPaymentAmount] = useState('');
     const [paymentNotes, setPaymentNotes] = useState('');
+    const [paymentImage, setPaymentImage] = useState<File | null>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [selectedReceipt, setSelectedReceipt] = useState<string | null>(null);
     const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
     const [userLoads, setUserLoads] = useState<any[]>([]);
     const [selectedLoadId, setSelectedLoadId] = useState<string>('general');
