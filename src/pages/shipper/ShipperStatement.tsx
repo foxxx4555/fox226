@@ -60,12 +60,20 @@ export default function ShipperStatement() {
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
     const [paymentAmount, setPaymentAmount] = useState('');
     const [paymentNotes, setPaymentNotes] = useState('');
-    const [paymentImage, setPaymentImage] = useState<File | null>(null);
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [selectedReceipt, setSelectedReceipt] = useState<string | null>(null);
     const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
     const [userLoads, setUserLoads] = useState<any[]>([]);
     const [selectedLoadId, setSelectedLoadId] = useState<string>('general');
+    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (!paymentImage) {
+            setPreviewUrl(null);
+            return;
+        }
+        const url = URL.createObjectURL(paymentImage);
+        setPreviewUrl(url);
+        return () => URL.revokeObjectURL(url);
+    }, [paymentImage]);
 
     const loadFinancialData = async () => {
         if (!userProfile?.id) return;
@@ -556,7 +564,7 @@ export default function ShipperStatement() {
 
                         <div className="space-y-3">
                             <Label className="text-sm font-black text-slate-700">صورة إيصال التحويل *</Label>
-                            <div className="border-2 border-dashed border-slate-300 rounded-2xl p-6 text-center hover:bg-slate-50 transition-colors bg-white">
+                            <div className="border-2 border-dashed border-slate-300 rounded-2xl p-4 text-center hover:bg-slate-50 transition-colors bg-white overflow-hidden">
                                 <Input
                                     type="file"
                                     accept="image/*"
@@ -565,12 +573,29 @@ export default function ShipperStatement() {
                                     id="receipt-upload"
                                 />
                                 <Label htmlFor="receipt-upload" className="cursor-pointer flex flex-col items-center gap-3">
-                                    <div className="w-16 h-16 bg-blue-50 text-blue-500 rounded-2xl flex items-center justify-center">
-                                        <FileImage size={32} />
-                                    </div>
-                                    <div className="font-bold text-slate-600">
-                                        {paymentImage ? paymentImage.name : 'انقر لاختيار صورة الإيصال'}
-                                    </div>
+                                    {previewUrl ? (
+                                        <div className="relative group w-full aspect-video rounded-xl overflow-hidden border border-slate-100 bg-slate-50">
+                                            <img src={previewUrl} alt="Preview" className="w-full h-full object-contain" />
+                                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                                <p className="text-white font-bold text-sm">تغيير الصورة</p>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="py-4 flex flex-col items-center gap-3">
+                                            <div className="w-16 h-16 bg-blue-50 text-blue-500 rounded-2xl flex items-center justify-center">
+                                                <FileImage size={32} />
+                                            </div>
+                                            <div className="font-bold text-slate-600">
+                                                انقر لاختيار صورة الإيصال
+                                            </div>
+                                            <p className="text-[10px] text-slate-400 font-bold">الحد الأقصى 2 ميجابايت (JPG, PNG)</p>
+                                        </div>
+                                    )}
+                                    {paymentImage && !previewUrl && (
+                                        <div className="font-bold text-slate-600">
+                                            {paymentImage.name}
+                                        </div>
+                                    )}
                                 </Label>
                             </div>
                         </div>
