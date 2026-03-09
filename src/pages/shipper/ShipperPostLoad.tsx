@@ -1,5 +1,4 @@
-// Refresh: 2026-02-26 02:05
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { api } from '../../services/api';
 import AppLayout from '../../components/AppLayout';
@@ -10,12 +9,14 @@ import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from "../../components/ui/popover";
-import { Command, CommandEmpty, CommandGroup, CommandList, CommandItem } from "../../components/ui/command";
+import { Command, CommandEmpty, CommandGroup, CommandList, CommandItem, CommandInput } from "../../components/ui/command";
 import { toast } from 'sonner';
 import { Loader2, ChevronsUpDown, Package, Info, Search, MapPin, CheckCircle2, User, Users, ChevronRight, ChevronLeft, Calendar, Truck, Warehouse, Star, Activity, Navigation as NavIcon } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../../integrations/supabase/client';
+import TypeSelectorGrid from '@/components/TypeSelectorGrid';
+import DetailedTypeSelector from '@/components/DetailedTypeSelector';
 
 // إضافة أداة معالجة الأرقام لتفادي مشاكل الفواصل
 const parseSafeNumber = (val: string | number | null | undefined): number => {
@@ -92,46 +93,7 @@ const DEFAULT_PRICING_CONFIG = {
   long_distance_limit: 0,
   long_distance_price: 0,
   vat_rate: 15,
-};
-
-const TRUCK_TYPES: Record<string, { value: string, label: string, info?: string, capacity?: string, length?: string }[]> = {
-  trella: [
-    { value: 'refrigerated', label: 'تريلا ثلاجة مبرد', capacity: '20 طن', length: '13.5 متر' },
-    { value: 'curtain', label: 'تريلا جوانب', capacity: '20 طن', length: '13.5 متر' },
-    { value: 'german_box', label: 'تريلا جوانب ألماني', capacity: '25 طن', length: '13.5 متر' },
-    { value: 'flatbed', label: 'تريلا ستارة', capacity: '25 طن', length: '13.5 متر' },
-    { value: 'box', label: 'تريلا سطحية', capacity: '25 طن', length: '13.5 متر' },
-    { value: 'tanker', label: 'تريلا ثلاجة مجمد', capacity: '20 طن', length: '13.5 متر' },
-  ],
-  lorry_saks: [
-    { value: 'refrigerated', label: 'سكس جوانب', capacity: '11 طن', length: '9 متر' },
-    { value: 'flatbed', label: 'سكس ثلاجة مجمد', capacity: '11 طن', length: '9 متر' },
-  ],
-  lorry: [
-    { value: 'box', label: 'لوري صندوق مغلق', capacity: '11 طن', length: '9 متر' },
-    { value: 'flatbed', label: 'لوري جوانب', capacity: '11 طن', length: '9 متر' },
-    { value: 'refrigerated', label: 'لوري ثلاجة مبرد', capacity: '11 طن', length: '9 متر' },
-    { value: 'curtain', label: 'لوري ستارة', capacity: '11 طن', length: '9 متر' },
-    { value: 'lowboy', label: 'لوري صندوق معلق', capacity: '11 طن', length: '9 متر' },
-    { value: 'tank', label: 'لوري سطحى', capacity: '11 طن', length: '9 متر' },
-    { value: 'dump', label: 'لوري جوانب قلاب', capacity: '11 طن', length: '9 متر' },
-  ],
-  dyna: [
-    { value: 'refrigerated', label: 'دينا ثلاجة مبردة', capacity: '4 طن', length: '4.5 متر' },
-    { value: 'box', label: 'دينا جوانب', capacity: '4 طن', length: '4.5 متر' },
-    { value: 'flatbed', label: 'دينا ثلاجة مجمدة', capacity: '4 طن', length: '4.5 متر' },
-    { value: 'curtain', label: 'دينا صندوق مغلق', capacity: '4 طن', length: '4.5 متر' },
-    { value: 'open', label: 'دينا سطحية', capacity: '4 طن', length: '4.5 متر' },
-    { value: 'wanet', label: 'دينا جوانب فرنسي', capacity: '4 طن', length: '4.5 متر' },
-  ],
-  wanet: [
-    { value: 'pickup_refrigerated', label: 'بيك اب ثلاجة مبرد', capacity: '1.5 طن', length: '3 متر' },
-    { value: 'pickup_flatbed', label: 'بيكا اب جوانب', capacity: '1.5 طن', length: '3 متر' },
-    { value: 'pickup_box', label: 'بيك اب ثلاجة مجمد', capacity: '1.5 طن', length: '3 متر' },
-    { value: 'pickup_box_closed', label: 'بيك اب صندوق مغلق', capacity: '1.5 طن', length: '3 متر' },
-    { value: 'pickup_flat', label: 'بيك اب سطحية', capacity: '1.5 طن', length: '3 متر' },
-    { value: 'pickup_tank', label: 'بيك اب صهريج', capacity: '1.5 طن', length: '3 متر' },
-  ]
+  commission: 10,
 };
 
 export default function ShipperPostLoad() {
@@ -147,6 +109,8 @@ export default function ShipperPostLoad() {
   const [openDest, setOpenDest] = useState(false);
   const [openProduct, setOpenProduct] = useState(false);
   const [openReceiver, setOpenReceiver] = useState(false);
+  const [openTruckCat, setOpenTruckCat] = useState(false);
+  const [openBodyType, setOpenBodyType] = useState(false);
   const [savedLocations, setSavedLocations] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [receivers, setReceivers] = useState<any[]>([]);
@@ -154,7 +118,19 @@ export default function ShipperPostLoad() {
   const today = new Date().toISOString().split('T')[0];
 
   const [distance, setDistance] = useState<number | null>(null);
+  const [priceBreakdown, setPriceBreakdown] = useState({
+    base: 0,
+    distanceCost: 0,
+    kmRate: 0,
+    vat: 0,
+    total: 0
+  });
   const [pricingConfig, setPricingConfig] = useState(DEFAULT_PRICING_CONFIG);
+  const [truckCategories, setTruckCategories] = useState<any[]>([]);
+  const [bodyTypes, setBodyTypes] = useState<any[]>([]);
+  const [typePricing, setTypePricing] = useState<any[]>([]);
+  const [commodities, setCommodities] = useState<any[]>([]);
+
   const [form, setForm] = useState({
     origin: '',
     destination: '',
@@ -162,8 +138,9 @@ export default function ShipperPostLoad() {
     price: '',
     package_type: '',
     pickup_date: today,
-    truck_category: '',
-    body_type: '',
+    truck_category: '', // This will store the truck_category_id
+    body_type: '',      // This will store the body_type_id
+    commodity_id: '',   // This will store the shipment_commodity_id
     receiver_name: '',
     receiver_phone: '',
     qty: '',
@@ -171,6 +148,36 @@ export default function ShipperPostLoad() {
     goods_value: '',
     payment_method: 'CASH',
   });
+
+  const filteredBodyTypes = form.truck_category
+    ? bodyTypes.filter(bt => bt.category_id === form.truck_category)
+    : bodyTypes;
+
+  const unsuitableBodyTypeIds = useMemo(() => {
+    if (typePricing.length === 0 || !form.weight) return [];
+    const shipperWeight = Number(form.weight);
+    return bodyTypes.filter(bt => {
+      const pricing = typePricing.find(p => p.body_type_id === bt.id && p.truck_category_id === form.truck_category);
+      if (pricing) {
+        const adminCapacity = Number(pricing.capacity_text || '0');
+        return shipperWeight > adminCapacity;
+      }
+      return false;
+    }).map(bt => bt.id);
+  }, [typePricing, form.weight, form.truck_category, bodyTypes]);
+
+  const unsuitableTruckCategoryIds = useMemo(() => {
+    if (typePricing.length === 0 || !form.weight) return [];
+    const shipperWeight = Number(form.weight);
+    return truckCategories.filter(cat => {
+      const catPricing = typePricing.filter(p => p.truck_category_id === cat.id);
+      if (catPricing.length === 0) return false;
+      const maxCatCapacity = Math.max(...catPricing.map(p => Number(p.capacity_text || '0')));
+      return shipperWeight > maxCatCapacity;
+    }).map(cat => cat.id);
+  }, [typePricing, form.weight, truckCategories]);
+
+  const isWeightConflict = form.body_type && unsuitableBodyTypeIds.includes(form.body_type);
 
   const fetchData = async () => {
     if (userProfile?.id) {
@@ -189,37 +196,88 @@ export default function ShipperPostLoad() {
     }
   };
 
+  // جلب إعدادات التسعير والفئات من قاعدة البيانات
+  const fetchConfigs = useCallback(async () => {
+    try {
+      const [settingsRes, trucksRes, bodiesRes, pricingRes, commoditiesRes] = await Promise.all([
+        supabase.from('system_settings').select('data').eq('id', 'pricing_config').maybeSingle(),
+        supabase.from('truck_categories').select('*').eq('is_active', true).order('name_ar'),
+        supabase.from('load_body_types').select('*').eq('is_active', true).order('name_ar'),
+        supabase.from('shipment_type_pricing').select('*'),
+        supabase.from('shipment_commodities').select('*').eq('is_active', true).order('name_ar')
+      ]);
+
+      if (settingsRes.data?.data) {
+        const config = settingsRes.data.data as any;
+        setPricingConfig({
+          short_distance_limit: config.short_distance_limit || DEFAULT_PRICING_CONFIG.short_distance_limit,
+          short_distance_price: config.short_distance_price || DEFAULT_PRICING_CONFIG.short_distance_price,
+          long_distance_limit: config.long_distance_limit || DEFAULT_PRICING_CONFIG.long_distance_limit,
+          long_distance_price: config.long_distance_price || DEFAULT_PRICING_CONFIG.long_distance_price,
+          vat_rate: config.vat_rate ?? DEFAULT_PRICING_CONFIG.vat_rate,
+          commission: config.commission ?? DEFAULT_PRICING_CONFIG.commission,
+        });
+      }
+
+      setTruckCategories(trucksRes.data || []);
+      setBodyTypes(bodiesRes.data || []);
+      setTypePricing(pricingRes.data || []);
+      console.log("البيانات اللي جت من قاعدة البيانات اهي يا بطل (shipment_type_pricing):", pricingRes.data);
+      const fetchedCommodities = commoditiesRes?.data || [];
+      setCommodities(fetchedCommodities);
+
+      if (fetchedCommodities.length > 0 && !form.commodity_id) {
+        setForm(prev => ({ ...prev, commodity_id: fetchedCommodities[0].id }));
+      }
+
+    } catch (err) {
+      console.error("فشل في جلب الإعدادات:", err);
+    }
+  }, [form.commodity_id]);
+
   useEffect(() => {
     fetchData();
+    fetchConfigs();
 
-    // جلب إعدادات التسعير من لوحة الإدارة
-    const fetchPricingConfig = async () => {
-      try {
-        const { data, error } = (await supabase.from('system_settings' as any)
-          .select('data')
-          .eq('id', 'pricing_config')
-          .single()) as any;
-
-        if (data?.data) {
-          const config = data.data as any;
-          setPricingConfig({
-            short_distance_limit: config.short_distance_limit || DEFAULT_PRICING_CONFIG.short_distance_limit,
-            short_distance_price: config.short_distance_price || DEFAULT_PRICING_CONFIG.short_distance_price,
-            long_distance_limit: config.long_distance_limit || DEFAULT_PRICING_CONFIG.long_distance_limit,
-            long_distance_price: config.long_distance_price || DEFAULT_PRICING_CONFIG.long_distance_price,
-            vat_rate: config.vat_rate ?? DEFAULT_PRICING_CONFIG.vat_rate,
-          });
+    // إعداد الاشتراك اللحظي لتحديث الأسعار فوراً عند تغييرها في الإدارة
+    const channel = supabase
+      .channel('pricing-updates')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'system_settings', filter: "id=eq.pricing_config" },
+        () => {
+          console.log("⚡ تحديث لحظي لإعدادات النظام...");
+          fetchConfigs();
         }
-      } catch (err) {
-        console.error("فشل في جلب إعدادات التسعير:", err);
-      }
-    };
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'shipment_type_pricing' },
+        () => {
+          console.log("⚡ تحديث لحظي لأسعار الفئات...");
+          fetchConfigs();
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'route_pricing' },
+        () => {
+          console.log("⚡ تحديث لحظي للمسارات المخصصة...");
+          fetchConfigs();
+        }
+      )
+      .subscribe();
 
-    fetchPricingConfig();
-  }, [userProfile?.id]);
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [userProfile?.id, fetchConfigs]);
 
   useEffect(() => {
-    if (templateLoad) {
+    if (templateLoad && truckCategories.length > 0) {
+      const truckCat = truckCategories.find(c => c.name_ar === templateLoad.truck_type_required || c.id === templateLoad.truck_type_required);
+      const bodyCat = bodyTypes.find(b => b.name_ar === templateLoad.body_type || b.id === templateLoad.body_type);
+
       setForm({
         origin: templateLoad.origin || '',
         destination: templateLoad.destination || '',
@@ -227,8 +285,9 @@ export default function ShipperPostLoad() {
         price: templateLoad.price?.toString() || '',
         package_type: templateLoad.package_type || '',
         pickup_date: today,
-        truck_category: templateLoad.truck_type_required || '',
-        body_type: templateLoad.body_type || '',
+        truck_category: truckCat?.id || '',
+        body_type: bodyCat?.id || '',
+        commodity_id: templateLoad.commodity_id || '',
         receiver_name: templateLoad.receiver_name || '',
         receiver_phone: templateLoad.receiver_phone?.replace('+966', '') || '',
         qty: templateLoad.quantity?.toString() || '',
@@ -238,7 +297,7 @@ export default function ShipperPostLoad() {
       });
       toast.success("تم استيراد بيانات الشحنة السابقة بنجاح");
     }
-  }, [templateLoad]);
+  }, [templateLoad, truckCategories, bodyTypes]);
 
   useEffect(() => {
     if (form.origin && form.destination) {
@@ -262,7 +321,9 @@ export default function ShipperPostLoad() {
         const dist = calculateHaversineDistance(originCity.lat, originCity.lng, destCity.lat, destCity.lng);
 
         // --- منطق التسعير الجديد هنا ---
-        let suggestedPrice = 0;
+        const filteredBodyTypes = bodyTypes.filter(bt => !form.truck_category || bt.category_id === form.truck_category);
+        const selectedCategoryName = truckCategories.find(c => c.id === form.truck_category)?.name_ar;
+        const selectedBodyTypeName = bodyTypes.find(b => b.id === form.body_type)?.name_ar;
 
         const applyPricing = async () => {
           let suggestedPrice = 0;
@@ -282,41 +343,75 @@ export default function ShipperPostLoad() {
             const rawDistance = route?.distance_km || dist;
             const roundedDistance = Math.round(rawDistance);
 
-            if (route?.manual_price && route.manual_price > 0) {
-              // إذا وجدنا سعر يدوي للمسار نستخدمه
-              suggestedPrice = route.manual_price;
-              console.log(`📍 Found custom route price: ${suggestedPrice} SAR`);
-            } else {
-              // 2. الحساب بناءً على مسافة الشريحة (قصيرة أو طويلة) باستخدام المسافة المقربة
-              if (roundedDistance <= pricingConfig.short_distance_limit) {
-                suggestedPrice = roundedDistance * pricingConfig.short_distance_price;
-                console.log(`🤖 Short Distance Price: ${roundedDistance} * ${pricingConfig.short_distance_price} = ${suggestedPrice}`);
-              } else if (roundedDistance >= pricingConfig.long_distance_limit) {
-                suggestedPrice = roundedDistance * pricingConfig.long_distance_price;
-                console.log(`🤖 Long Distance Price: ${roundedDistance} * ${pricingConfig.long_distance_price} = ${suggestedPrice}`);
-              } else {
-                suggestedPrice = roundedDistance * pricingConfig.short_distance_price;
-                console.log(`🤖 Mid Gap Price: ${roundedDistance} * ${pricingConfig.short_distance_price} = ${suggestedPrice}`);
-              }
-            }
+            // التحقق من وجود سعر مخصص لتركيبة (الفئة + البودي)
+            const typeOverride = typePricing.find(p => p.truck_category_id === form.truck_category && p.body_type_id === form.body_type && p.is_active !== false);
+
+            // تحديد "السعر الأساسي": إما من المسار المخصص أو من إعدادات الفئة أو الدرج الأساسي (Fallback)
+            const typeBasePrice = (typeOverride?.base_price && typeOverride.base_price > 0) ? typeOverride.base_price : 0;
+            const defaultKmPrice = roundedDistance <= (pricingConfig.short_distance_limit || 100)
+              ? (pricingConfig.short_distance_price || 5)
+              : (pricingConfig.long_distance_limit ? pricingConfig.long_distance_price : (pricingConfig.short_distance_price || 3));
+
+            // إذا لم يوجد سعر فئة أو سعر مسار، نعتمد على سعر الكيلومتر من المحرك الأساسي (الدرج الأول)
+            const basePrice = (route?.manual_price && route.manual_price > 0)
+              ? route.manual_price
+              : typeBasePrice;
+
+            // تحديد "سعر الكيلو": من إعدادات الفئة أو من المحرك الأساسي (الافتراضي)
+            const kmPrice = (typeOverride?.price_per_km && typeOverride.price_per_km > 0)
+              ? typeOverride.price_per_km
+              : defaultKmPrice;
+
+            const minPrice = typeOverride?.min_price || 0;
+
+            // الحسبة النهائية
+            let calculated = basePrice + (roundedDistance * kmPrice);
+            suggestedPrice = Math.max(calculated, minPrice);
+
+            console.log(`🚛 Applied Pricing: Base:${basePrice} + (Dist:${roundedDistance} * Rate:${kmPrice}) = ${calculated}, Final Max(Calc, Min:${minPrice}) = ${suggestedPrice} SAR`);
 
             suggestedPrice = Math.round(suggestedPrice);
             setDistance(roundedDistance);
-            setForm(p => ({ ...p, price: suggestedPrice.toString() }));
+
+            // تحديث تفاصيل السعر للعرض (إضافة العمولة)
+            const commission = suggestedPrice * (pricingConfig.commission / 100);
+            const priceWithCommission = suggestedPrice + commission;
+            const vat = priceWithCommission * (pricingConfig.vat_rate / 100);
+
+            setPriceBreakdown({
+              base: basePrice,
+              kmRate: kmPrice,
+              distanceCost: roundedDistance * kmPrice,
+              commission: commission,
+              vat: vat,
+              total: priceWithCommission + vat,
+              baseRaw: suggestedPrice
+            } as any);
+
+            setForm(p => ({ ...p, price: Math.round(priceWithCommission).toString() }));
           } catch (err) {
             console.error("Error applying pricing:", err);
-            // Fallback to basic calculation in case of query error
+            // Fallback to basic calculation
             const roundedDist = Math.round(dist);
-            let fallbackPrice = 0;
-            if (roundedDist <= pricingConfig.short_distance_limit) {
-              fallbackPrice = roundedDist * pricingConfig.short_distance_price;
-            } else if (roundedDist >= pricingConfig.long_distance_limit) {
-              fallbackPrice = roundedDist * pricingConfig.long_distance_price;
-            } else {
-              fallbackPrice = roundedDist * pricingConfig.short_distance_price;
-            }
+            const kmRate = roundedDist <= pricingConfig.short_distance_limit ? pricingConfig.short_distance_price : pricingConfig.long_distance_price;
+            const fallbackPrice = roundedDist * kmRate;
+
+            const fallbackCommission = fallbackPrice * (pricingConfig.commission / 100);
+            const fallbackPriceWithComm = fallbackPrice + fallbackCommission;
+            const fallbackVat = fallbackPriceWithComm * (pricingConfig.vat_rate / 100);
+
+            setPriceBreakdown({
+              base: 0,
+              kmRate: kmRate,
+              distanceCost: fallbackPrice,
+              commission: fallbackCommission,
+              vat: fallbackVat,
+              total: fallbackPriceWithComm + fallbackVat,
+              baseRaw: fallbackPrice
+            } as any);
+
             setDistance(roundedDist);
-            setForm(p => ({ ...p, price: Math.round(fallbackPrice).toString() }));
+            setForm(p => ({ ...p, price: Math.round(fallbackPriceWithComm).toString() }));
           }
         };
 
@@ -327,16 +422,19 @@ export default function ShipperPostLoad() {
     } else {
       setDistance(null);
     }
-  }, [form.origin, form.destination]);
+  }, [form.origin, form.destination, form.truck_category, form.body_type, pricingConfig, typePricing]);
 
   const nextStep = () => { if (step < totalSteps) setStep(step + 1); };
   const prevStep = () => { if (step > 1) setStep(step - 1); };
 
   const isCurrentStepValid = () => {
     if (step === 1) return form.origin !== '' && form.destination !== '' && form.pickup_date !== '';
-    if (step === 2) return form.truck_category !== '' && form.body_type !== '' && (form.weight !== '' || form.qty !== '') && form.package_type !== '';
+    if (step === 2) {
+      const basicValid = form.truck_category !== '' && form.body_type !== '' && (form.weight !== '' || form.qty !== '') && form.package_type !== '';
+      return basicValid && !isWeightConflict;
+    }
     if (step === 3) return form.receiver_name !== '' && form.receiver_phone.length >= 8;
-    if (step === 4) return form.price !== '';
+    if (step === 4) return form.price !== '' && parseFloat(form.price) > 0;
     return false;
   };
 
@@ -357,16 +455,38 @@ export default function ShipperPostLoad() {
       let phone = form.receiver_phone.trim();
       if (phone.startsWith('0')) phone = phone.substring(1);
 
-      // Map UI categories to Database ENUM types
-      const categoryMap: Record<string, string> = {
-        'trella': 'trella',
-        'lorry': 'lorry',
-        'lorry_saks': 'lorry', // Map saks to lorry for DB
-        'dyna': 'dyna',
-        'wanet': 'pickup'      // Map wanet to pickup for DB
+      const selectedTruck = truckCategories.find(c => c.id === form.truck_category);
+      const selectedBody = bodyTypes.find(b => b.id === form.body_type);
+      const selectedCommodity = commodities.find(c => c.id === form.commodity_id);
+
+      // Mapping Arabic names to DB Enums (to avoid "invalid input value for enum")
+      const truckTypeMap: Record<string, any> = {
+        'تريلا': 'trella',
+        'تريلا ستارة': 'trella',
+        'تريلا مبردة': 'refrigerated',
+        'لوري': 'lorry',
+        'دينا': 'dyna',
+        'بيك اب': 'pickup',
+        'وانيت': 'pickup',
+        'صهريج': 'tanker',
+        'سطحة': 'flatbed',
+        'كونتينر': 'container'
       };
 
-      const dbTruckType = categoryMap[form.truck_category] || form.truck_category;
+      const bodyTypeMap: Record<string, any> = {
+        'سطحة': 'flatbed',
+        'ستارة': 'curtain',
+        'صندوق': 'box',
+        'ثلاجة': 'refrigerated',
+        'جوانب': 'curtain',
+        'لوبد': 'lowboy',
+        'تانك': 'tank',
+        'خزان': 'tank'
+      };
+
+      const dbTruckType = truckTypeMap[selectedTruck?.name_ar || ''] || 'trella';
+      const dbBodyType = bodyTypeMap[selectedBody?.name_ar || ''] || 'flatbed';
+      const dbShipmentType = selectedCommodity?.name_ar || 'other';
 
       // حساب السعر النهائي المحمل بالضريبة للتخزين في القاعدة
       const basePrice = parseSafeNumber(form.price);
@@ -380,7 +500,7 @@ export default function ShipperPostLoad() {
         price: totalGrossPrice,
         package_type: form.package_type,
         pickup_date: form.pickup_date,
-        body_type: form.body_type,
+        body_type: dbBodyType,
         receiver_name: form.receiver_name,
         receiver_phone: '+966' + phone,
         status: 'available',
@@ -389,7 +509,8 @@ export default function ShipperPostLoad() {
         quantity: parseSafeNumber(form.qty),
         unit: form.unit,
         goods_value: parseSafeNumber(form.goods_value),
-        payment_method: form.payment_method
+        payment_method: form.payment_method,
+        type: dbShipmentType
       };
 
       await api.postLoad(finalPayload, userProfile.id);
@@ -548,75 +669,29 @@ export default function ShipperPostLoad() {
                   )}
 
                   {step === 2 && (
-                    <div className="space-y-10">
-                      <div className="space-y-6">
-                        <Label className="text-xl font-black text-slate-800 flex items-center gap-3">
-                          <Truck className="text-primary" size={24} />
-                          اختر حجم الشاحنة المناسب
-                        </Label>
-                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                          {[
-                            { id: 'trella', label: 'تريلا', icon: '🚛' },
-                            { id: 'lorry_saks', label: 'سكس', icon: '🚚' },
-                            { id: 'lorry', label: 'لوري', icon: '🚛' },
-                            { id: 'dyna', label: 'دينا', icon: '🚚' },
-                            { id: 'wanet', label: 'بيك أب', icon: '🚐' }
-                          ].map((cat) => (
-                            <motion.div
-                              key={cat.id}
-                              whileHover={{ y: -5 }}
-                              whileTap={{ scale: 0.95 }}
-                              onClick={() => setForm(p => ({ ...p, truck_category: cat.id, body_type: '' }))}
-                              className={cn(
-                                "cursor-pointer p-6 rounded-[2rem] border-4 transition-all flex flex-col items-center gap-3 text-center",
-                                form.truck_category === cat.id
-                                  ? "border-primary bg-primary/5 shadow-xl shadow-primary/10"
-                                  : "border-slate-50 bg-slate-50/50 hover:border-slate-100"
-                              )}
-                            >
-                              <span className="text-4xl">{cat.icon}</span>
-                              <span className={cn("font-black text-lg", form.truck_category === cat.id ? "text-primary" : "text-slate-500")}>
-                                {cat.label}
-                              </span>
-                            </motion.div>
-                          ))}
-                        </div>
-                      </div>
-
-                      <AnimatePresence mode="wait">
-                        {form.truck_category && (
-                          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-6">
-                            <Label className="text-xl font-black text-slate-800 flex items-center gap-3">
-                              <Star className="text-amber-500" size={24} />
-                              حدد نوع وتفاصيل الشاحنة
-                            </Label>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              {TRUCK_TYPES[form.truck_category]?.map((type) => (
-                                <div key={type.value} onClick={() => setForm(p => ({ ...p, body_type: type.value }))} className={cn("cursor-pointer p-6 rounded-3xl border-2 transition-all flex items-center justify-between group", form.body_type === type.value ? "border-emerald-500 bg-emerald-50/50" : "border-slate-100 hover:border-emerald-200")}>
-                                  <div className="flex items-center gap-4">
-                                    <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center transition-colors", form.body_type === type.value ? "bg-emerald-500 text-white" : "bg-slate-100 text-slate-400 group-hover:bg-emerald-100 group-hover:text-emerald-500")}>
-                                      <CheckCircle2 size={24} />
-                                    </div>
-                                    <div>
-                                      <p className={cn("font-black text-lg", form.body_type === type.value ? "text-emerald-700" : "text-slate-700")}>{type.label}</p>
-                                      <div className="flex gap-2 mt-1">
-                                        <span className="text-xs font-bold text-slate-400">الحمولة: {type.capacity}</span>
-                                        <span className="text-xs font-bold text-slate-400">الطول: {type.length}</span>
-                                      </div>
-                                    </div>
-                                  </div>
-                                  <ChevronLeft className={cn("transition-transform", form.body_type === type.value ? "text-emerald-500 translate-x-1" : "text-slate-300")} />
-                                </div>
-                              ))}
-                            </div>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-6 border-t">
+                    <div className="space-y-12">
+                      {/* Section 1: Weight & Product Selection (Now First) */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pb-8 border-b">
                         <div className="space-y-4">
-                          <Label className="text-lg font-black text-slate-700">الوزن التقريبي (بالطن)</Label>
-                          <Input type="number" min="0" value={form.weight} onChange={e => setForm(p => ({ ...p, weight: e.target.value }))} className="h-16 rounded-2xl" placeholder="0.0" />
+                          <Label className="text-lg font-black text-slate-700">الوزن بالطن</Label>
+                          <div className="space-y-2">
+                            <Input
+                              type="number"
+                              min="0"
+                              value={form.weight}
+                              onChange={e => setForm(p => ({ ...p, weight: e.target.value }))}
+                              className={cn(
+                                "h-16 rounded-2xl transition-all duration-300",
+                                isWeightConflict ? "border-rose-400 focus:ring-rose-200 bg-rose-50/5 text-rose-600 font-black" : (form.weight ? "border-emerald-400 bg-emerald-50/5" : "")
+                              )}
+                              placeholder="0.0"
+                            />
+                            {isWeightConflict && (
+                              <p className="text-[10px] font-black text-rose-500 mr-2 flex items-center gap-1">
+                                <Info size={12} /> الوزن يتجاوز سعة الشاحنة المختارة
+                              </p>
+                            )}
+                          </div>
                         </div>
                         <div className="space-y-4">
                           <Label className="text-lg font-black text-slate-700">نوع البضاعة / المنتج</Label>
@@ -673,6 +748,97 @@ export default function ShipperPostLoad() {
                           </Popover>
                         </div>
                       </div>
+
+                      {/* Section 2: Truck Category Selection (Conditional on Weight) */}
+                      <AnimatePresence>
+                        {form.weight && parseFloat(form.weight) > 0 && (
+                          <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -20 }}
+                            className="space-y-12"
+                          >
+                            <div className="space-y-6">
+                              <Label className="text-xl font-black text-slate-800 flex items-center gap-3">
+                                <Truck className="text-primary" size={24} />
+                                اختر حجم الشاحنة المناسب
+                              </Label>
+                              <TypeSelectorGrid
+                                items={truckCategories}
+                                selectedValue={form.truck_category}
+                                onSelect={(id) => setForm(p => ({ ...p, truck_category: id, body_type: '' }))}
+                                emptyMessage="لا يوجد فئات متاحة حالياً"
+                                variant="large-horizontal"
+                                unsuitableIds={unsuitableTruckCategoryIds}
+                              />
+                            </div>
+
+                            {/* Section 3: Detailed Body Type Selection */}
+                            <AnimatePresence>
+                              {form.truck_category && (
+                                <motion.div
+                                  initial={{ opacity: 0, y: 20 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  exit={{ opacity: 0, y: -10 }}
+                                  className="space-y-6"
+                                >
+                                  <Label className="text-xl font-black text-slate-800 flex items-center gap-3">
+                                    <span className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center text-amber-600">
+                                      <Star size={20} />
+                                    </span>
+                                    حدد نوع وتفاصيل الشاحنة
+                                  </Label>
+
+                                  <DetailedTypeSelector
+                                    items={filteredBodyTypes}
+                                    selectedValue={form.body_type}
+                                    onSelect={(id) => setForm(p => ({ ...p, body_type: id }))}
+                                    unsuitableIds={unsuitableBodyTypeIds}
+                                  />
+
+                                  <AnimatePresence>
+                                    {isWeightConflict && (
+                                      <motion.div
+                                        initial={{ opacity: 0, height: 0 }}
+                                        animate={{ opacity: 1, height: 'auto' }}
+                                        exit={{ opacity: 0, height: 0 }}
+                                        className="bg-rose-50 border-2 border-rose-100 p-4 rounded-2xl flex items-center gap-3 text-rose-600 animate-pulse"
+                                      >
+                                        <Info size={20} />
+                                        <div className="flex-1">
+                                          <p className="font-black text-sm text-right">عفواً، الوزن المحدد ({form.weight} طن) أكبر من سعة هذه الشاحنة!</p>
+                                          <p className="text-[10px] font-bold text-right">برجاء اختيار شاحنة أكبر أو تقليل الوزن.</p>
+                                        </div>
+                                      </motion.div>
+                                    )}
+                                  </AnimatePresence>
+
+                                  {form.body_type && (
+                                    <motion.div
+                                      initial={{ opacity: 0, scale: 0.95 }}
+                                      animate={{ opacity: 1, scale: 1 }}
+                                      className="bg-primary/5 p-4 rounded-3xl border border-primary/10 flex items-center justify-between"
+                                    >
+                                      <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 bg-primary/10 text-primary rounded-2xl flex items-center justify-center">
+                                          <Activity size={20} />
+                                        </div>
+                                        <div>
+                                          <p className="text-primary font-black">السعر التقديري لهذا المحمل</p>
+                                          <p className="text-[10px] text-slate-500 font-bold">بناءً على المسار والمسافة المقطوعة</p>
+                                        </div>
+                                      </div>
+                                      <div className="text-left">
+                                        <p className="text-2xl font-black text-primary">{form.price || 0} <span className="text-xs">ر.س</span></p>
+                                      </div>
+                                    </motion.div>
+                                  )}
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
                   )}
 
@@ -763,17 +929,42 @@ export default function ShipperPostLoad() {
                         </CardHeader>
                         <CardContent className="p-8 space-y-6">
                           <div className="space-y-4">
-                            <div className="flex justify-between items-center pb-4 border-b border-white/10">
-                              <span className="text-slate-400 font-bold">السعر الأساسي</span>
-                              <span className="text-xl font-black text-white">{Number(form.price).toLocaleString()} <span className="text-xs">ر.س</span></span>
+                            {priceBreakdown.base > 0 && (
+                              <div className="flex justify-between items-center pb-4 border-b border-white/5">
+                                <span className="text-slate-400 font-bold text-sm">السعر الأساسي</span>
+                                <span className="text-lg font-black text-white">{priceBreakdown.base.toLocaleString()} <span className="text-[10px]">ر.س</span></span>
+                              </div>
+                            )}
+
+                            {priceBreakdown.kmRate > 0 && (
+                              <div className="flex justify-between items-center pb-4 border-b border-white/5">
+                                <div className="flex flex-col">
+                                  <span className="text-slate-400 font-bold text-sm">تكلفة المسافة</span>
+                                  <span className="text-[10px] text-blue-400 font-bold">{Math.round(distance || 0)} كم × {priceBreakdown.kmRate} ر.س</span>
+                                </div>
+                                <span className="text-lg font-black text-white">{Math.round(priceBreakdown.distanceCost || 0).toLocaleString()} <span className="text-[10px]">ر.س</span></span>
+                              </div>
+                            )}
+
+                            <div className="flex justify-between items-center pb-4 border-b border-white/5">
+                              <span className="text-slate-400 font-bold text-sm">عمولة المنصة ({pricingConfig.commission}%)</span>
+                              <span className="text-lg font-black text-amber-500">+{Math.round((priceBreakdown as any).commission || 0).toLocaleString()} <span className="text-[10px]">ر.س</span></span>
                             </div>
+
                             <div className="flex justify-between items-center pb-4 border-b border-white/10">
                               <span className="text-slate-400 font-bold text-sm">ضريبة القيمة المضافة ({pricingConfig.vat_rate}%)</span>
-                              <span className="text-lg font-black text-rose-400">{(Number(form.price) * pricingConfig.vat_rate / 100).toLocaleString()} <span className="text-xs">ر.س</span></span>
+                              <span className="text-lg font-black text-rose-400">{Math.round(priceBreakdown.vat).toLocaleString()} <span className="text-[10px]">ر.س</span></span>
                             </div>
+
                             <div className="flex justify-between items-center pt-2">
-                              <span className="text-amber-400 font-black text-lg">الإجمالي النهائي</span>
-                              <span className="text-3xl font-black text-white">{(Number(form.price) * (1 + pricingConfig.vat_rate / 100)).toLocaleString()} <span className="text-xs">ر.س</span></span>
+                              <div className="flex flex-col">
+                                <span className="text-amber-400 font-black text-lg">الإجمالي النهائي</span>
+                                <span className="text-[10px] text-slate-500 font-bold">شامل الضريبة</span>
+                              </div>
+                              <div className="text-right">
+                                <span className="text-4xl font-black text-white">{Math.round(priceBreakdown.total).toLocaleString()}</span>
+                                <span className="text-xs text-white mr-1">ر.س</span>
+                              </div>
                             </div>
                           </div>
 

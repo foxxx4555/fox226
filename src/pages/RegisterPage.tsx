@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { api } from '@/services/api';
@@ -16,7 +16,7 @@ import {
 import { toast } from 'sonner';
 import {
   Loader2, Truck, Package, MailCheck, RefreshCcw, User, Phone, Lock,
-  ChevronRight, UserCircle2, Eye, EyeOff, ShieldCheck
+  ChevronRight, UserCircle2, Eye, EyeOff, ShieldCheck, FileUp, Image as ImageIcon, CheckCircle2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
@@ -43,8 +43,24 @@ export default function RegisterPage() {
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [agreePrivacy, setAgreePrivacy] = useState(false);
   const [agreeTerms, setAgreeTerms] = useState(false);
+
+  // مستندات السائق
+  const [files, setFiles] = useState<{
+    license: File | null;
+    idDoc: File | null;
+    truckImg: File | null;
+  }>({ license: null, idDoc: null, truckImg: null });
+
+  const licenseRef = useRef<HTMLInputElement>(null);
+  const idRef = useRef<HTMLInputElement>(null);
+  const truckRef = useRef<HTMLInputElement>(null);
+
+  const [uploadProgress, setUploadProgress] = useState({
+    license: false,
+    idDoc: false,
+    truckImg: false
+  });
 
   // إدارة العداد الزمني لإعادة الإرسال
   useEffect(() => {
@@ -71,9 +87,24 @@ export default function RegisterPage() {
     if (form.phone.length < 8) { toast.error('رقم الجوال غير صحيح'); return false; }
     if (form.password.length < 6) { toast.error('كلمة المرور يجب أن تكون 6 أحرف على الأقل'); return false; }
     if (form.password !== form.confirmPassword) { toast.error('كلمات المرور غير متطابقة'); return false; }
-    if (!agreePrivacy) { toast.error('يرجى الموافقة على سياسة الخصوصية'); return false; }
-    if (!agreeTerms) { toast.error('يرجى الموافقة على الشروط والأحكام'); return false; }
+    if (!agreeTerms) { toast.error('يرجى الموافقة على الشروط والأحكام وسياسة الخصوصية'); return false; }
+
+    if (role === 'driver') {
+      if (!files.license) { toast.error('يرجى رفع رخصة القيادة'); return false; }
+      if (!files.idDoc) { toast.error('يرجى رفع الهوية الوطنية'); return false; }
+      if (!files.truckImg) { toast.error('يرجى رفع صورة الشاحنة'); return false; }
+    }
     return true;
+  };
+
+  const uploadFile = async (file: File, docType: string) => {
+    try {
+      const publicUrl = await api.uploadImage(file, 'documents');
+      return publicUrl;
+    } catch (error) {
+      console.error(`Error uploading ${docType}:`, error);
+      throw new Error(`فشل رفع ${docType}`);
+    }
   };
 
   const handleRegister = async (e: React.FormEvent) => {
@@ -82,11 +113,35 @@ export default function RegisterPage() {
 
     setLoading(true);
     try {
+      let urls = {
+        driving_license_url: '',
+        id_document_url: '',
+        truck_image_url: ''
+      };
+
+      if (role === 'driver') {
+        toast.info('جاري رفع المستندات...');
+
+        // استخدام uploadImage الموجود في api.ts إذا كان يدعم ذلك أو استخدام supabase مباشرة
+        const [licenseUrl, idUrl, truckUrl] = await Promise.all([
+          api.uploadImage(files.license!, 'driver-docs'),
+          api.uploadImage(files.idDoc!, 'driver-docs'),
+          api.uploadImage(files.truckImg!, 'driver-docs')
+        ]);
+
+        urls = {
+          driving_license_url: licenseUrl,
+          id_document_url: idUrl,
+          truck_image_url: truckUrl
+        };
+      }
+
       await api.registerUser(form.email, form.password, {
         full_name: form.full_name,
         email: form.email,
         phone: form.phone,
-        role: role as UserRole
+        role: role as UserRole,
+        ...urls
       });
 
       localStorage.setItem('pending_email', form.email);
@@ -279,18 +334,76 @@ export default function RegisterPage() {
                   {/* Policies Checkboxes */}
                   <div className="space-y-1.5 bg-slate-50/50 p-3 rounded-xl border border-dashed border-slate-200">
                     <div className="flex items-center gap-2">
-                      <Checkbox id="privacy" checked={agreePrivacy} onCheckedChange={(val) => setAgreePrivacy(val as boolean)} className="rounded-md border-slate-300 h-4 w-4" />
-                      <Label htmlFor="privacy" className="text-[10px] font-bold text-slate-500 cursor-pointer">
-                        أوافق على <Link to="/privacy" className="text-primary hover:underline">سياسة الخصوصية</Link>
-                      </Label>
-                    </div>
-                    <div className="flex items-center gap-2">
                       <Checkbox id="terms" checked={agreeTerms} onCheckedChange={(val) => setAgreeTerms(val as boolean)} className="rounded-md border-slate-300 h-4 w-4" />
-                      <Label htmlFor="terms" className="text-[10px] font-bold text-slate-500 cursor-pointer">
-                        أوافق على <Link to="/terms" className="text-primary hover:underline">الشروط والأحكام</Link>
+                      <Label htmlFor="terms" className="text-xs font-bold text-slate-600 cursor-pointer">
+                        أوافق على <Link to="/terms" className="text-blue-600 hover:underline">الشروط والأحكام</Link> و <Link to="/privacy" className="text-blue-600 hover:underline">سياسة الخصوصية</Link>
                       </Label>
                     </div>
                   </div>
+
+                  {/* Driver Documents Upload (Animated) */}
+                  <AnimatePresence>
+                    {role === 'driver' && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="space-y-4 pt-2 border-t border-dashed border-slate-100"
+                      >
+                        <Label className="text-[10px] font-black text-slate-400 ms-1 uppercase">المستندات المطلوبة للسائق *</Label>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                          {/* License */}
+                          <div
+                            onClick={() => licenseRef.current?.click()}
+                            className={cn(
+                              "relative cursor-pointer group p-3 rounded-2xl border-2 border-dashed transition-all flex flex-col items-center justify-center gap-2",
+                              files.license ? "border-emerald-200 bg-emerald-50/30" : "border-slate-100 bg-slate-50/50 hover:bg-slate-100/80 hover:border-primary/30"
+                            )}
+                          >
+                            <input type="file" ref={licenseRef} onChange={e => setFiles(p => ({ ...p, license: e.target.files?.[0] || null }))} className="hidden" accept="image/*,application/pdf" />
+                            <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center transition-all", files.license ? "bg-emerald-500 text-white" : "bg-white text-slate-400 group-hover:text-primary")}>
+                              {files.license ? <CheckCircle2 size={18} /> : <FileUp size={18} />}
+                            </div>
+                            <span className="text-[9px] font-black text-slate-700">رخصة القيادة</span>
+                            {files.license && <span className="text-[7px] text-emerald-600 font-bold truncate max-w-full px-2">{files.license.name}</span>}
+                          </div>
+
+                          {/* ID Document */}
+                          <div
+                            onClick={() => idRef.current?.click()}
+                            className={cn(
+                              "relative cursor-pointer group p-3 rounded-2xl border-2 border-dashed transition-all flex flex-col items-center justify-center gap-2",
+                              files.idDoc ? "border-emerald-200 bg-emerald-50/30" : "border-slate-100 bg-slate-50/50 hover:bg-slate-100/80 hover:border-primary/30"
+                            )}
+                          >
+                            <input type="file" ref={idRef} onChange={e => setFiles(p => ({ ...p, idDoc: e.target.files?.[0] || null }))} className="hidden" accept="image/*,application/pdf" />
+                            <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center transition-all", files.idDoc ? "bg-emerald-500 text-white" : "bg-white text-slate-400 group-hover:text-primary")}>
+                              {files.idDoc ? <CheckCircle2 size={18} /> : <FileUp size={18} />}
+                            </div>
+                            <span className="text-[9px] font-black text-slate-700">بطاقة الهوية</span>
+                            {files.idDoc && <span className="text-[7px] text-emerald-600 font-bold truncate max-w-full px-2">{files.idDoc.name}</span>}
+                          </div>
+
+                          {/* Truck Image */}
+                          <div
+                            onClick={() => truckRef.current?.click()}
+                            className={cn(
+                              "relative cursor-pointer group p-3 rounded-2xl border-2 border-dashed transition-all flex flex-col items-center justify-center gap-2",
+                              files.truckImg ? "border-emerald-200 bg-emerald-50/30" : "border-slate-100 bg-slate-50/50 hover:bg-slate-100/80 hover:border-primary/30"
+                            )}
+                          >
+                            <input type="file" ref={truckRef} onChange={e => setFiles(p => ({ ...p, truckImg: e.target.files?.[0] || null }))} className="hidden" accept="image/*" />
+                            <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center transition-all", files.truckImg ? "bg-emerald-500 text-white" : "bg-white text-slate-400 group-hover:text-primary")}>
+                              {files.truckImg ? <CheckCircle2 size={18} /> : <ImageIcon size={18} />}
+                            </div>
+                            <span className="text-[9px] font-black text-slate-700">صورة الشاحنة</span>
+                            {files.truckImg && <span className="text-[7px] text-emerald-600 font-bold truncate max-w-full px-2">{files.truckImg.name}</span>}
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
 
                   <Button
                     type="submit"

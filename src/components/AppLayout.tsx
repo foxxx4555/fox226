@@ -1,7 +1,7 @@
 import { ReactNode, useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { LayoutDashboard, Truck, Users, Settings, LogOut, FileText, Plus, Menu, X, Bell, Search, History, Trash2, Volume2, VolumeX, Package, MapPin, MessageSquare, HelpCircle, Hammer, ShieldAlert, User, RotateCcw } from 'lucide-react';
+import { LayoutDashboard, Truck, Users, Settings, LogOut, FileText, Plus, Menu, X, Bell, Search, History, Trash2, Volume2, VolumeX, Package, MapPin, MessageSquare, HelpCircle, Hammer, ShieldAlert, User, RotateCcw, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -200,6 +200,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     { label: "المراسلات", path: '/shipper/messaging', icon: <MessageSquare size={20} /> },
     { label: "الملف الشخصي", path: '/shipper/account', icon: <Settings size={20} /> },
     { label: "الدعم الفني", path: '/shipper/support', icon: <HelpCircle size={20} /> },
+    { label: "الشروط والأحكام", path: '/terms', icon: <FileText size={20} /> },
+    { label: "سياسة الخصوصية", path: '/privacy', icon: <ShieldCheck size={20} /> },
   ] : [
     { label: "الرئيسية", path: '/driver/dashboard', icon: <LayoutDashboard size={20} /> },
     { label: "الشحنات المتاحة", path: '/driver/loads', icon: <Search size={20} /> },
@@ -213,6 +215,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     { label: "المراسلات", path: '/driver/messaging', icon: <MessageSquare size={20} /> },
     { label: "الملف الشخصي", path: '/driver/account', icon: <Settings size={20} /> },
     { label: "الدعم الفني", path: '/driver/support', icon: <HelpCircle size={20} /> },
+    { label: "الشروط والأحكام", path: '/terms', icon: <FileText size={20} /> },
+    { label: "سياسة الخصوصية", path: '/privacy', icon: <ShieldCheck size={20} /> },
   ];
 
   if (currentRole === 'driver' && !(userProfile as any)?.is_verified) {

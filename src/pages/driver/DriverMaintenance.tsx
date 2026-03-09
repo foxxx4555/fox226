@@ -1,245 +1,447 @@
-import { useEffect, useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/services/api';
 import AppLayout from '@/components/AppLayout';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Badge } from '@/components/ui/badge';
-import { useAuth } from '@/hooks/useAuth';
-import { api } from '@/services/api';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+    Wrench,
+    Camera,
+    Upload,
+    CheckCircle2,
+    AlertTriangle,
+    Loader2,
+    Fuel,
+    Disc,
+    Settings,
+    HelpCircle,
+    Package,
+    X,
+    Plus
+} from 'lucide-react';
 import { toast } from 'sonner';
-import { Wrench, Plus, Loader2, AlertTriangle, CheckCircle2, FileText, Truck } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 export default function DriverMaintenance() {
-    const { userProfile, isSubDriver } = useAuth();
-    const [requests, setRequests] = useState<any[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [submitting, setSubmitting] = useState(false);
-    const [isAddOpen, setIsAddOpen] = useState(false);
+    const { userProfile } = useAuth();
+    const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const truckId = searchParams.get('truck_id');
 
-    // Truck list for sub-drivers
-    const [assignedTrucks, setAssignedTrucks] = useState<any[]>([]);
+    const [step, setStep] = useState(1);
+    const [loading, setLoading] = useState(false);
+    const [activeLoads, setActiveLoads] = useState<any[]>([]);
+    const [userTrucks, setUserTrucks] = useState<any[]>([]);
 
-    // Form state
-    const [truckId, setTruckId] = useState('');
-    const [issueType, setIssueType] = useState('breakdown');
-    const [priority, setPriority] = useState('high');
-    const [description, setDescription] = useState('');
+    const [form, setForm] = useState({
+        truck_id: '',
+        category: '',
+        load_id: '',
+        description: '',
+        other_category: '',
+        repair_cost: '',
+        images: [] as string[],
+        invoice_image: ''
+    });
 
-    const fetchRequests = async () => {
-        if (!userProfile?.id) return;
+    const [cameraActive, setCameraActive] = useState(false);
+    const [capturedImages, setCapturedImages] = useState<string[]>([]);
+    const videoRef = useRef<HTMLVideoElement>(null);
+    const streamRef = useRef<MediaStream | null>(null);
+
+    useEffect(() => {
+        if (userProfile?.id) {
+            async function loadData() {
+                // 1. Get ONLY this user's specific loads (Current/Active)
+                const data = await api.getUserLoads(userProfile.id);
+                const current = data.filter((l: any) => l.status === 'in_progress' || l.status === 'accepted');
+
+                setActiveLoads(current || []);
+
+                // 2. Get User Trucks
+                // First check if current user is a carrier/owner
+                const { data: ownedTrucks } = await supabase
+                    .from('trucks')
+                    .select('*')
+                    .eq('owner_id', userProfile.id);
+
+                if (ownedTrucks && ownedTrucks.length > 0) {
+                    setUserTrucks(ownedTrucks);
+                    // Pre-select if truckId in URL
+                    if (truckId) {
+                        setForm(p => ({ ...p, truck_id: truckId }));
+                    }
+                } else {
+                    // Check if they are a sub-driver with an assigned truck
+                    const { data: subDriver } = await supabase
+                        .from('sub_drivers')
+                        .select('assigned_truck_id, trucks(*)')
+                        .eq('id', userProfile.id)
+                        .maybeSingle();
+
+                    if (subDriver?.trucks) {
+                        setUserTrucks([subDriver.trucks]);
+                        setForm(p => ({ ...p, truck_id: (subDriver.trucks as any).id }));
+                    }
+                }
+
+                // 3. Auto-link load if truck is already selected
+                const currentTruckId = truckId || form.truck_id;
+                if (currentTruckId) {
+                    const matchingLoad = (current || []).find((l: any) => l.truck_id === currentTruckId || l.driver_id === userProfile.id);
+                    if (matchingLoad) {
+                        setForm(p => ({ ...p, load_id: matchingLoad.id, truck_id: currentTruckId }));
+                    }
+                }
+            }
+            loadData();
+        }
+    }, [userProfile, truckId]);
+
+    const startCamera = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: 'environment' },
+                audio: false
+            });
+            if (videoRef.current) {
+                videoRef.current.srcObject = stream;
+                streamRef.current = stream;
+                setCameraActive(true);
+            }
+        } catch (err) {
+            toast.error("فشل الوصول للكاميرا");
+        }
+    };
+
+    const stopCamera = () => {
+        if (streamRef.current) {
+            streamRef.current.getTracks().forEach(track => track.stop());
+            setCameraActive(false);
+        }
+    };
+
+    const capturePhoto = () => {
+        if (videoRef.current) {
+            const canvas = document.createElement('canvas');
+            canvas.width = videoRef.current.videoWidth;
+            canvas.height = videoRef.current.videoHeight;
+            const ctx = canvas.getContext('2d');
+            ctx?.drawImage(videoRef.current, 0, 0);
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+
+            if (step === 2) {
+                setCapturedImages(prev => [...prev, dataUrl]);
+            } else if (step === 3) {
+                setForm(p => ({ ...p, invoice_image: dataUrl }));
+                stopCamera();
+            }
+            toast.success("تم التقاط الصورة");
+        }
+    };
+
+    const uploadToSupabase = async (base64: string, path: string) => {
+        const fileName = `${userProfile?.id}/${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
+        const blob = await (await fetch(base64)).blob();
+
+        const { data, error } = await supabase.storage
+            .from('maintenance_photos')
+            .upload(fileName, blob);
+
+        if (error) throw error;
+
+        const { data: { publicUrl } } = supabase.storage
+            .from('maintenance_photos')
+            .getPublicUrl(fileName);
+
+        return publicUrl;
+    };
+
+    const handleSubmit = async () => {
+        const finalCategory = form.category === 'other' ? form.other_category : form.category;
+
+        if (!form.truck_id || !form.category || !form.load_id || !form.description || capturedImages.length === 0 || !form.invoice_image || (form.category === 'other' && !form.other_category)) {
+            toast.error("يرجى إكمال كافة البيانات والصور المطلوبة واختيار الشاحنة والشحنة");
+            return;
+        }
+
         setLoading(true);
         try {
-            const data = await api.getDriverMaintenanceRequests(userProfile.id);
-            setRequests(data);
+            // 1. Upload Images
+            const imageUrls = await Promise.all(
+                capturedImages.map(img => uploadToSupabase(img, 'requests'))
+            );
 
-            // Fetch driver's assigned truck(s)
-            // If they are a sub-driver, we check if they have an assigned_truck_id
-            // Currently, profiles don't directly link to assigned trucks, so we'll grab all trucks they own or are assigned to
-            let trucksData = [];
-            if (isSubDriver) {
-                const { data: subDriverData } = await (api as any).supabase.from('sub_drivers').select('*, trucks(*)').eq('id', userProfile.id).single();
-                if (subDriverData?.trucks) {
-                    trucksData = [subDriverData.trucks];
-                }
-            } else {
-                const { data: myTrucks } = await (api as any).supabase.from('trucks').select('*').eq('owner_id', userProfile.id);
-                trucksData = myTrucks || [];
-            }
-            setAssignedTrucks(trucksData);
+            const invoiceUrl = await uploadToSupabase(form.invoice_image, 'invoices');
 
+            // 2. Save Request
+            const { error } = await supabase.from('maintenance_requests' as any).insert({
+                driver_id: userProfile?.id,
+                truck_id: form.truck_id,
+                load_id: form.load_id,
+                category: form.category === 'other' ? form.other_category : form.category,
+                description: form.description,
+                images: imageUrls,
+                repair_cost: parseFloat(form.repair_cost) || 0,
+                invoice_image: invoiceUrl,
+                status: 'pending'
+            } as any);
+
+            if (error) throw error;
+
+            toast.success("تم إرسال طلب الصيانة بنجاح ✅");
+            navigate('/driver/dashboard');
         } catch (err: any) {
-            console.error(err);
+            toast.error("فشل إرسال الطلب: " + err.message);
         } finally {
             setLoading(false);
         }
     };
 
-    useEffect(() => {
-        fetchRequests();
-    }, [userProfile?.id]);
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!truckId) {
-            toast.error("الرجاء اختيار الشاحنة");
-            return;
-        }
-
-        setSubmitting(true);
-        try {
-            // Determine Carrier ID - if it's an independent driver, carrier = driver. If sub-driver, carrier = their owner
-            let carrier_id = userProfile?.id;
-            if (isSubDriver) {
-                const { data: sub } = await (api as any).supabase.from('sub_drivers').select('carrier_id').eq('id', userProfile!.id).single();
-                if (sub?.carrier_id) carrier_id = sub.carrier_id;
-            }
-
-            const payloadData = {
-                driver_id: userProfile?.id,
-                carrier_id: carrier_id,
-                truck_id: truckId,
-                issue_type: issueType,
-                priority: priority,
-                description: description,
-                status: 'pending'
-            };
-
-            await api.submitMaintenanceRequest(payloadData);
-            toast.success("تم إرسال بلاغ الصيانة للإدارة بنجاح");
-            setIsAddOpen(false);
-            setDescription('');
-            fetchRequests();
-        } catch (err: any) {
-            toast.error(err.message || "فشل إرسال البلاغ");
-        } finally {
-            setSubmitting(false);
-        }
-    };
-
-    const getStatusBadge = (status: string) => {
-        switch (status) {
-            case 'pending': return <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-200">بانتظار الموافقة</Badge>;
-            case 'in_progress': return <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-200">جاري الإصلاح</Badge>;
-            case 'resolved': return <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-200"><CheckCircle2 size={14} className="ml-1" /> تم الإصلاح</Badge>;
-            default: return <Badge>{status}</Badge>;
-        }
-    };
+    const categories = [
+        { id: 'fuel', name: 'وقود / بنزين', icon: <Fuel /> },
+        { id: 'tire', name: 'إطارات / كاوتش', icon: <Disc /> },
+        { id: 'mechanical', name: 'عطل ميكانيكي', icon: <Settings /> },
+        { id: 'other', name: 'أخرى', icon: <HelpCircle /> },
+    ];
 
     return (
         <AppLayout>
-            <div className="max-w-5xl mx-auto pb-20 px-4 space-y-8">
-
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100">
-                    <div>
-                        <h1 className="text-3xl font-black text-slate-900 flex items-center gap-3">
-                            <Wrench className="text-rose-500" size={32} /> بلاغات الصيانة والأعطال
-                        </h1>
-                        <p className="text-slate-500 font-bold mt-1">سجل تقارير أعطال الشاحنة وأرسلها للإدارة الفنية</p>
+            <div className="max-w-3xl mx-auto pb-20">
+                <div className="flex items-center justify-between mb-10">
+                    <div className="flex items-center gap-4">
+                        <div className="p-4 bg-orange-600/10 rounded-2xl text-orange-600">
+                            <Wrench size={32} />
+                        </div>
+                        <div>
+                            <h1 className="text-4xl font-black text-slate-800">صيانة الشاحنة</h1>
+                            <p className="text-muted-foreground font-medium">سجل العطل وارفع الفواتير لطلب التعويض</p>
+                        </div>
                     </div>
-                    <Button onClick={() => setIsAddOpen(true)} className="h-14 rounded-2xl bg-slate-900 hover:bg-slate-800 font-black px-6 gap-2">
-                        <Plus size={20} /> رفع طلب صيانة جديد
+                    <Button variant="ghost" className="rounded-2xl font-black gap-2" onClick={() => navigate(-1)}>
+                        <X size={20} /> إغلاق
                     </Button>
                 </div>
 
-                {loading ? (
-                    <div className="py-20 text-center"><Loader2 className="animate-spin mx-auto text-blue-600" size={40} /></div>
-                ) : requests.length === 0 ? (
-                    <div className="py-24 bg-white rounded-[2.5rem] border-2 border-dashed border-slate-200 text-center flex flex-col items-center justify-center p-10">
-                        <div className="w-20 h-20 bg-slate-50 text-slate-300 rounded-full flex items-center justify-center mb-4">
-                            <FileText size={40} />
+                <div className="flex justify-between mb-8 px-4">
+                    {[1, 2, 3].map(i => (
+                        <div key={i} className={`flex flex-col items-center gap-2 ${step >= i ? 'text-orange-600' : 'text-slate-300'}`}>
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold border-2 ${step >= i ? 'border-orange-600 bg-orange-50' : 'border-slate-200'}`}>
+                                {i}
+                            </div>
+                            <span className="text-xs font-black">{i === 1 ? 'البيانات' : i === 2 ? 'صور العطل' : 'الفاتورة'}</span>
                         </div>
-                        <h3 className="text-xl font-black text-slate-600">سجلك نظيف!</h3>
-                        <p className="text-slate-400 font-bold mt-2">لا توجد بلاغات صيانة سابقة لك.</p>
-                    </div>
-                ) : (
-                    <div className="grid gap-6">
-                        {requests.map((req) => (
-                            <Card key={req.id} className="rounded-[2rem] border-none shadow-lg bg-white overflow-hidden relative">
-                                <div className={`absolute top-0 right-0 w-2 h-full ${req.status === 'resolved' ? 'bg-emerald-500' : req.priority === 'critical' ? 'bg-rose-500' : 'bg-amber-500'}`}></div>
-                                <div className="p-6 md:p-8 flex flex-col md:flex-row gap-6 justify-between items-start md:items-center">
-                                    <div className="flex items-start gap-4">
-                                        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 ${req.priority === 'critical' ? 'bg-rose-50 text-rose-500' : 'bg-slate-50 text-slate-500'}`}>
-                                            {req.priority === 'critical' ? <AlertTriangle size={28} /> : <Wrench size={28} />}
-                                        </div>
-                                        <div>
-                                            <div className="flex items-center gap-3 mb-2">
-                                                <h3 className="text-xl font-black text-slate-800">
-                                                    {req.issue_type === 'breakdown' ? 'عطل مفاجئ' : req.issue_type === 'oil_change' ? 'تغيير زيت وصيانة' : req.issue_type === 'tires' ? 'مشكلة إطارات' : 'أخرى'}
-                                                </h3>
-                                                {getStatusBadge(req.status)}
-                                            </div>
-                                            <p className="text-slate-600 font-medium leading-relaxed max-w-2xl text-right line-clamp-2">{req.description}</p>
+                    ))}
+                </div>
 
-                                            <div className="flex items-center gap-4 mt-4 text-xs font-bold text-slate-400">
-                                                <span className="flex items-center gap-1"><Truck size={14} /> شاحنة: {req.truck?.plate_number || 'غير محدد'}</span>
-                                                <span className="flex items-center gap-1">⌚ {new Date(req.created_at).toLocaleDateString('ar-SA')}</span>
-                                            </div>
+                <Card className="rounded-[2.5rem] border-none shadow-2xl overflow-hidden">
+                    <CardContent className="p-8 md:p-12">
+                        <AnimatePresence mode="wait">
+                            {step === 1 && (
+                                <motion.div key="step1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-8">
+                                    <div className="space-y-4">
+                                        <Label className="text-lg font-black text-orange-600">اختر المركبة (العربية) *</Label>
+                                        <Select value={form.truck_id} onValueChange={val => setForm(p => ({ ...p, truck_id: val }))}>
+                                            <SelectTrigger className="h-14 rounded-2xl border-slate-200">
+                                                <SelectValue placeholder="اختر الشاحنة المصابة" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {userTrucks.map(t => (
+                                                    <SelectItem key={t.id} value={t.id}>{t.plate_number} - {t.brand} ({t.model})</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+
+                                    <div className="space-y-4">
+                                        <Label className="text-lg font-black">نوع العطل</Label>
+                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                            {categories.map(cat => (
+                                                <button
+                                                    key={cat.id}
+                                                    onClick={() => setForm(p => ({ ...p, category: cat.id }))}
+                                                    className={`p-6 rounded-3xl flex flex-col items-center gap-3 transition-all border-2 ${form.category === cat.id ? 'bg-orange-600 text-white border-orange-600 shadow-xl scale-105' : 'bg-white text-slate-600 border-slate-100 hover:border-orange-200'}`}
+                                                >
+                                                    {cat.icon}
+                                                    <span className="font-bold text-xs">{cat.name}</span>
+                                                </button>
+                                            ))}
                                         </div>
                                     </div>
 
-                                    <div className="w-full md:w-auto text-left">
-                                        <Badge className={`px-4 py-2 text-sm ${req.priority === 'critical' ? 'bg-rose-500 hover:bg-rose-600' : req.priority === 'high' ? 'bg-orange-500' : 'bg-slate-500'}`}>
-                                            الأولوية: {req.priority === 'critical' ? 'حرجة جداً' : req.priority === 'high' ? 'مرتفعة' : 'عادية'}
-                                        </Badge>
+                                    <div className="space-y-4">
+                                        <Label className="text-lg font-black text-rose-600">ربط بشحنة (إجباري) *</Label>
+                                        <Select value={form.load_id} onValueChange={val => setForm(p => ({ ...p, load_id: val }))}>
+                                            <SelectTrigger className="h-14 rounded-2xl border-slate-200">
+                                                <SelectValue placeholder="اختر الشحنة المتأثرة" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {activeLoads.map(l => (
+                                                    <SelectItem key={l.id} value={l.id}>{l.origin} - {l.destination} (#{l.id.substring(0, 8)})</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
                                     </div>
-                                </div>
-                            </Card>
-                        ))}
-                    </div>
-                )}
 
-                <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-                    <DialogContent className="max-w-lg rounded-[3rem] p-0 overflow-hidden border-none bg-white shadow-2xl">
-                        <div className="p-6 bg-[#0f172a] text-white">
-                            <h2 className="text-2xl font-black flex items-center gap-3"><Wrench size={24} className="text-rose-400" /> تقديم بلاغ جديد</h2>
-                            <p className="text-slate-400 font-medium mt-1 text-sm">سيتم رفع التقرير فوراً إلى قسم الصيانة والإدارة</p>
-                        </div>
-                        <form onSubmit={handleSubmit} className="p-8 space-y-6 text-right" dir="rtl">
+                                    {form.category === 'other' && (
+                                        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+                                            <Label className="text-lg font-black">حدد نوع العطل الآخر</Label>
+                                            <Input
+                                                placeholder="مثال: عطل في الإضاءة، كسر في الزجاج..."
+                                                className="h-14 rounded-2xl border-slate-200"
+                                                value={form.other_category}
+                                                onChange={e => setForm(p => ({ ...p, other_category: e.target.value }))}
+                                            />
+                                        </motion.div>
+                                    )}
 
-                            <div className="space-y-2">
-                                <Label className="font-bold text-slate-700">تحديد الشاحنة</Label>
-                                <Select value={truckId} onValueChange={setTruckId} required>
-                                    <SelectTrigger className="h-14 bg-slate-50 border-slate-200 rounded-2xl px-4"><SelectValue placeholder="اختر الشاحنة المعطلة..." /></SelectTrigger>
-                                    <SelectContent>
-                                        {assignedTrucks.length === 0 ? (
-                                            <div className="p-4 text-center text-sm text-slate-500 font-bold">لا توجد شاحنات مسندة إليك</div>
+                                    <div className="space-y-4">
+                                        <Label className="text-lg font-black">وصف المشكلة</Label>
+                                        <Textarea
+                                            placeholder="اشرح ما حدث بالتفصيل..."
+                                            className="rounded-2xl min-h-[120px] border-slate-200"
+                                            value={form.description}
+                                            onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
+                                        />
+                                    </div>
+
+                                    <div className="flex gap-4">
+                                        <Button
+                                            variant="ghost"
+                                            className="h-16 flex-1 rounded-2xl font-black"
+                                            onClick={() => navigate(-1)}
+                                        >
+                                            إلغاء
+                                        </Button>
+                                        <Button
+                                            className="h-16 flex-[2] rounded-2xl bg-orange-600 hover:bg-orange-700 text-white font-black text-lg"
+                                            onClick={() => setStep(2)}
+                                            disabled={!form.truck_id || !form.category || !form.load_id || !form.description || (form.category === 'other' && !form.other_category)}
+                                        >
+                                            التالي: تصوير العطل
+                                        </Button>
+                                    </div>
+                                </motion.div>
+                            )}
+
+                            {step === 2 && (
+                                <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-8">
+                                    <div className="text-center space-y-2">
+                                        <h3 className="text-2xl font-black">التقط صوراً للعطل 📸</h3>
+                                        <p className="text-rose-500 font-bold text-sm">يجب التقاط الصور مباشرة (يمنع استخدام الاستوديو)</p>
+                                    </div>
+
+                                    {cameraActive ? (
+                                        <div className="relative rounded-[2rem] overflow-hidden bg-black aspect-video shadow-2xl">
+                                            <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
+                                            <div className="absolute bottom-6 inset-x-0 flex justify-center gap-4">
+                                                <Button size="icon" className="w-16 h-16 rounded-full bg-white text-orange-600 hover:bg-slate-100" onClick={capturePhoto}>
+                                                    <Camera size={32} />
+                                                </Button>
+                                                <Button size="icon" variant="destructive" className="w-16 h-16 rounded-full" onClick={stopCamera}>
+                                                    <X size={32} />
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                            {capturedImages.map((img, i) => (
+                                                <div key={i} className="relative group aspect-square rounded-3xl overflow-hidden shadow-md">
+                                                    <img src={img} className="w-full h-full object-cover" />
+                                                    <button onClick={() => setCapturedImages(prev => prev.filter((_, idx) => idx !== i))} className="absolute top-2 left-2 p-1 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <X size={16} />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                            <button
+                                                onClick={startCamera}
+                                                className="aspect-square rounded-3xl border-4 border-dashed border-slate-200 flex flex-col items-center justify-center gap-3 text-slate-400 hover:border-orange-400 hover:text-orange-400 transition-all font-black"
+                                            >
+                                                <Plus size={32} />
+                                                إضافة صورة
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    <div className="flex gap-4">
+                                        <Button variant="ghost" className="h-16 flex-1 rounded-2xl font-black" onClick={() => setStep(1)}>رجوع</Button>
+                                        <Button
+                                            className="h-16 flex-[2] rounded-2xl bg-orange-600 hover:bg-orange-700 text-white font-black"
+                                            onClick={() => setStep(3)}
+                                            disabled={capturedImages.length === 0}
+                                        >
+                                            التالي: الفاتورة والتكلفة
+                                        </Button>
+                                    </div>
+                                </motion.div>
+                            )}
+
+                            {step === 3 && (
+                                <motion.div key="step3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-8">
+                                    <div className="space-y-6">
+                                        <Label className="text-xl font-black">تكلفة الإصلاح (ريال)</Label>
+                                        <Input
+                                            type="number"
+                                            placeholder="0.00"
+                                            className="h-16 rounded-2xl text-2xl font-black text-orange-600 border-slate-200"
+                                            value={form.repair_cost}
+                                            onChange={e => setForm(p => ({ ...p, repair_cost: e.target.value }))}
+                                        />
+                                    </div>
+
+                                    <div className="space-y-4">
+                                        <Label className="text-xl font-black">صورة الفاتورة 📄</Label>
+                                        {form.invoice_image ? (
+                                            <div className="relative rounded-3xl overflow-hidden shadow-xl aspect-[4/3] group">
+                                                <img src={form.invoice_image} className="w-full h-full object-cover" />
+                                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                                    <Button variant="outline" className="text-white border-white" onClick={startCamera}>إعادة التصوير</Button>
+                                                </div>
+                                            </div>
+                                        ) : cameraActive ? (
+                                            <div className="relative rounded-[2rem] overflow-hidden bg-black aspect-video shadow-2xl">
+                                                <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
+                                                <div className="absolute bottom-6 inset-x-0 flex justify-center gap-4">
+                                                    <Button size="icon" className="w-16 h-16 rounded-full bg-white text-orange-600 hover:bg-slate-100" onClick={capturePhoto}>
+                                                        <Camera size={32} />
+                                                    </Button>
+                                                    <Button size="icon" variant="destructive" className="w-16 h-16 rounded-full" onClick={stopCamera}>
+                                                        <X size={32} />
+                                                    </Button>
+                                                </div>
+                                            </div>
                                         ) : (
-                                            assignedTrucks.map(t => (
-                                                <SelectItem key={t.id} value={t.id} className="font-bold text-right">{t.plate_number} - {t.brand}</SelectItem>
-                                            ))
+                                            <button
+                                                onClick={startCamera}
+                                                className="w-full aspect-video rounded-[2rem] border-4 border-dashed border-slate-200 flex flex-col items-center justify-center gap-4 text-slate-400 hover:border-orange-400 hover:text-orange-400 transition-all font-black"
+                                            >
+                                                <Camera size={48} />
+                                                صور الفاتورة الآن
+                                            </button>
                                         )}
-                                    </SelectContent>
-                                </Select>
-                            </div>
+                                    </div>
 
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label className="font-bold text-slate-700">نوع البلاغ</Label>
-                                    <Select value={issueType} onValueChange={setIssueType}>
-                                        <SelectTrigger className="h-14 bg-slate-50 border-slate-200 rounded-2xl"><SelectValue /></SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="breakdown">عطل مفاجئ بالطريق</SelectItem>
-                                            <SelectItem value="oil_change">صيانة دورية / زيوت</SelectItem>
-                                            <SelectItem value="tires">مشاكل إطارات</SelectItem>
-                                            <SelectItem value="other">أعطال أخرى</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="space-y-2">
-                                    <Label className="font-bold text-slate-700">مستوى الخطورة</Label>
-                                    <Select value={priority} onValueChange={setPriority}>
-                                        <SelectTrigger className="h-14 bg-slate-50 border-slate-200 rounded-2xl"><SelectValue /></SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="critical" className="text-rose-600 font-black">حرج (توقف تام)</SelectItem>
-                                            <SelectItem value="high" className="text-orange-500 font-bold">مرتفع (يحتاج تدخل سريع)</SelectItem>
-                                            <SelectItem value="low">منخفض (أعطال بسيطة)</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label className="font-bold text-slate-700">وصف المشكلة بالتفصيل</Label>
-                                <textarea
-                                    required
-                                    className="w-full h-32 p-4 bg-slate-50 border border-slate-200 rounded-2xl resize-none focus:ring-2 focus:ring-rose-500 outline-none"
-                                    placeholder="اشرح المشكلة أو الأعراض التي تظهر على الشاحنة..."
-                                    value={description}
-                                    onChange={e => setDescription(e.target.value)}
-                                />
-                            </div>
-
-                            <Button type="submit" disabled={submitting} className="w-full h-14 rounded-2xl bg-rose-600 hover:bg-rose-700 font-black text-lg text-white">
-                                {submitting ? <Loader2 className="animate-spin" /> : "إرسال البلاغ عاجلاً"}
-                            </Button>
-
-                        </form>
-                    </DialogContent>
-                </Dialog>
-
+                                    <div className="flex gap-4">
+                                        <Button variant="ghost" className="h-16 flex-1 rounded-2xl font-black" onClick={() => setStep(2)}>رجوع</Button>
+                                        <Button
+                                            className="h-16 flex-[2] rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-lg gap-2 shadow-xl shadow-emerald-100"
+                                            onClick={handleSubmit}
+                                            disabled={loading || !form.repair_cost || !form.invoice_image}
+                                        >
+                                            {loading ? <Loader2 className="animate-spin" /> : <><CheckCircle2 /> إرسال للمراجعة</>}
+                                        </Button>
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </CardContent>
+                </Card>
             </div>
         </AppLayout>
     );

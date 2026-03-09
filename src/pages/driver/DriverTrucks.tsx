@@ -4,7 +4,7 @@ import AppLayout from '@/components/AppLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Truck, Plus, Trash2, ShieldCheck, X, User, Users, ClipboardCheck, Phone, Mail, Shield, Search, Wrench, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { Loader2, Truck, Plus, Trash2, ShieldCheck, X, User, Users, ClipboardCheck, Phone, Mail, Shield, Search, Wrench, CheckCircle2, AlertTriangle, ChevronsUpDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { api } from '@/services/api';
@@ -13,9 +13,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandList, CommandItem, CommandInput } from "@/components/ui/command";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { cn } from '@/lib/utils';
+import TypeSelectorGrid from '@/components/TypeSelectorGrid';
+import DetailedTypeSelector from '@/components/DetailedTypeSelector';
+
+import { useNavigate } from 'react-router-dom';
 
 export default function DriverTrucks() {
+  const navigate = useNavigate();
   const { userProfile } = useAuth();
   const [trucks, setTrucks] = useState<any[]>([]);
   const [drivers, setDrivers] = useState<any[]>([]);
@@ -28,16 +36,46 @@ export default function DriverTrucks() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [plateNumber, setPlateNumber] = useState('');
   const [capacity, setCapacity] = useState('');
-  const [truckType, setTruckType] = useState('flatbed');
+  const [selectedCategoryId, setSelectedCategoryId] = useState('');
+  const [selectedBodyTypeId, setSelectedBodyTypeId] = useState('');
+  const [selectedCommodityId, setSelectedCommodityId] = useState('');
   const [brand, setBrand] = useState('');
   const [operationCard, setOperationCard] = useState('');
+
+  const [openTruckCat, setOpenTruckCat] = useState(false);
+  const [openBodyType, setOpenBodyType] = useState(false);
+  const [openCommodity, setOpenCommodity] = useState(false);
+
+  // Categories & Body Types for selection
+  const [categories, setCategories] = useState<any[]>([]);
+  const [bodyTypes, setBodyTypes] = useState<any[]>([]);
+  const [commodities, setCommodities] = useState<any[]>([]);
+
+  const fetchFilters = async () => {
+    try {
+      const [catData, bodyData, commodityData] = await Promise.all([
+        supabase.from('truck_categories').select('*').eq('is_active', true),
+        supabase.from('load_body_types').select('*').eq('is_active', true),
+        supabase.from('shipment_commodities').select('*').eq('is_active', true)
+      ]);
+      setCategories(catData.data || []);
+      setBodyTypes(bodyData.data || []);
+      setCommodities(commodityData.data || []);
+    } catch (err) {
+      console.error("Error fetching filters:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchFilters();
+  }, []);
 
   const fetchManagementData = async () => {
     if (!userProfile?.id) return;
     setLoading(true);
     try {
       const [truckData, driverData, maintenanceData] = await Promise.all([
-        supabase.from('trucks').select('*').eq('owner_id', userProfile.id),
+        supabase.from('trucks').select('*, truck_categories(name_ar), load_body_types(name_ar)').eq('owner_id', userProfile.id),
         supabase.from('sub_drivers' as any).select('*').eq('carrier_id', userProfile.id),
         api.getCarrierMaintenanceRequests(userProfile.id)
       ]);
@@ -56,6 +94,17 @@ export default function DriverTrucks() {
     fetchManagementData();
   }, [userProfile?.id]);
 
+  // Filtered body types based on selected category
+  const filteredBodyTypes = selectedCategoryId
+    ? bodyTypes.filter(bt => bt.category_id === selectedCategoryId)
+    : bodyTypes;
+
+  // If a category is selected but no specific body types are found (DB not synced yet), 
+  // we show a helpful fallback or the general list to prevent a dead-end
+  const displayBodyTypes = (selectedCategoryId && filteredBodyTypes.length === 0)
+    ? bodyTypes
+    : filteredBodyTypes;
+
   const handleAddTruck = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -64,7 +113,9 @@ export default function DriverTrucks() {
         owner_id: userProfile?.id,
         plate_number: plateNumber,
         capacity: capacity,
-        truck_type: truckType,
+        truck_category_id: selectedCategoryId || null,
+        body_type_id: selectedBodyTypeId || null,
+        commodity_id: selectedCommodityId || null,
         brand: brand,
         operation_card_number: operationCard
       };
@@ -74,7 +125,7 @@ export default function DriverTrucks() {
 
       toast.success('تمت إضافة الشاحنة بنجاح 🚛');
       setIsAdding(false);
-      setPlateNumber(''); setCapacity(''); setTruckType('flatbed'); setBrand(''); setOperationCard('');
+      setPlateNumber(''); setCapacity(''); setSelectedCategoryId(''); setSelectedBodyTypeId(''); setSelectedCommodityId(''); setBrand(''); setOperationCard('');
       fetchManagementData();
     } catch (err: any) {
       toast.error(`حدث خطأ: ${err.message}`);
@@ -197,7 +248,9 @@ export default function DriverTrucks() {
                       </div>
 
                       <h3 className="text-3xl font-black text-center mb-2 tracking-widest uppercase">{truck.plate_number}</h3>
-                      <p className="text-center text-slate-400 font-bold mb-6">{truck.brand} - {truck.truck_type}</p>
+                      <p className="text-center text-slate-400 font-bold mb-6">
+                        {truck.brand} - {truck.truck_categories?.name_ar || 'غير محدد'} ({truck.load_body_types?.name_ar || 'بدون محمل'})
+                      </p>
 
                       <div className="grid grid-cols-2 gap-2 border-t pt-4">
                         <div className="text-right">
@@ -205,13 +258,22 @@ export default function DriverTrucks() {
                           <p className="font-bold">{truck.capacity} طن</p>
                         </div>
                         <div className="text-left">
-                          <Button
-                            variant="ghost"
-                            onClick={() => handleDeleteTruck(truck.id, isAssigned)}
-                            className="text-rose-500 hover:bg-rose-50 rounded-xl"
-                          >
-                            <Trash2 size={18} />
-                          </Button>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="ghost"
+                              onClick={() => navigate(`/driver/maintenance?truck_id=${truck.id}`)}
+                              className="text-orange-500 hover:bg-orange-50 rounded-xl"
+                            >
+                              <Wrench size={18} />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              onClick={() => handleDeleteTruck(truck.id, isAssigned)}
+                              className="text-rose-500 hover:bg-rose-50 rounded-xl"
+                            >
+                              <Trash2 size={18} />
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     </Card>
@@ -278,6 +340,9 @@ export default function DriverTrucks() {
           <TabsContent value="maintenance" className="space-y-6">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xl font-black">تقارير الصيانة وبلاغات الأعطال</h3>
+              <Button onClick={() => navigate('/driver/maintenance')} className="rounded-2xl bg-orange-600 hover:bg-orange-700 font-bold shadow-xl shadow-orange-100">
+                <Plus size={20} className="ml-2" /> إبلاغ عن عطل جديد
+              </Button>
             </div>
 
             {loading ? (
@@ -328,8 +393,8 @@ export default function DriverTrucks() {
 
         {/* Dialog إضافة شاحنة */}
         <Dialog open={isAdding} onOpenChange={setIsAdding}>
-          <DialogContent className="max-w-md rounded-[3rem] p-0 overflow-hidden border-none bg-white shadow-2xl">
-            <div className="p-6 bg-[#0f172a] text-white flex justify-between items-center">
+          <DialogContent className="max-w-2xl rounded-[3rem] p-0 overflow-hidden border-none bg-white shadow-2xl max-h-[90vh] flex flex-col">
+            <div className="p-6 bg-[#0f172a] text-white flex justify-between items-center shrink-0">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg"><Truck size={22} /></div>
                 <h2 className="text-xl font-black">تسجيل شاحنة</h2>
@@ -337,31 +402,123 @@ export default function DriverTrucks() {
               <Button variant="ghost" size="icon" onClick={() => setIsAdding(false)} className="text-white rounded-full"><X /></Button>
             </div>
 
-            <form onSubmit={handleAddTruck} className="p-8 space-y-5 text-right">
-              <div className="space-y-2">
-                <Label className="font-bold">رقم اللوحة</Label>
-                <Input required value={plateNumber} onChange={e => setPlateNumber(e.target.value)} className="h-14 rounded-2xl bg-slate-50 font-bold text-center text-xl" placeholder="أ ب ج 1234" />
-              </div>
-              <div className="space-y-2">
-                <Label className="font-bold">رقم كرت التشغيل</Label>
-                <Input value={operationCard} onChange={e => setOperationCard(e.target.value)} className="h-12 rounded-xl bg-slate-50 text-right" placeholder="أدخل رقم الكرت" />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label className="font-bold">نوع الشاحنة</Label>
-                  <Select value={truckType} onValueChange={setTruckType}>
-                    <SelectTrigger className="h-12 bg-slate-50 rounded-xl px-4" dir="rtl"><SelectValue /></SelectTrigger>
-                    <SelectContent dir="rtl"><SelectItem value="flatbed">سطحة</SelectItem><SelectItem value="box">صندوق</SelectItem><SelectItem value="refrigerated">براد</SelectItem></SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label className="font-bold">السعة (طن)</Label>
-                  <Input required type="number" value={capacity} onChange={e => setCapacity(e.target.value)} className="h-12 bg-slate-50 text-right" />
+            <form onSubmit={handleAddTruck} className="space-y-8 py-4 px-8 text-right overflow-y-auto flex-1 custom-scrollbar">
+              {/* القسم الأول: هوية الشاحنة */}
+              <div className="bg-slate-50/50 p-6 rounded-[2rem] border border-slate-100 space-y-4">
+                <h3 className="text-sm font-black text-blue-600 uppercase tracking-widest flex items-center gap-2">
+                  <span className="w-2 h-2 bg-blue-600 rounded-full animate-pulse" />
+                  هوية الشاحنة الأساسية
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="font-bold flex items-center gap-2">
+                      <Truck size={16} className="text-slate-400" /> رقم اللوحة
+                    </Label>
+                    <Input required value={plateNumber} onChange={e => setPlateNumber(e.target.value)} className="h-14 rounded-2xl bg-white font-black text-center text-xl border-2 focus:border-blue-500 transition-all" placeholder="أ ب ج 1234" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="font-bold">الماركة / الموديل</Label>
+                    <Input value={brand} onChange={e => setBrand(e.target.value)} className="h-14 bg-white rounded-2xl text-right border-2" placeholder="مثلاً: مرسيدس 2024" />
+                  </div>
                 </div>
               </div>
-              <Button disabled={isSubmitting} className="w-full h-14 rounded-2xl bg-blue-600 hover:bg-blue-700 font-extrabold text-lg mt-4 text-white">
-                {isSubmitting ? <Loader2 className="animate-spin" /> : "حفظ الشاحنة ✅"}
-              </Button>
+
+              {/* القسم الثاني: تصنيف النقل */}
+              <div className="space-y-12">
+                {/* المستوى الأول: فئة الشاحنة */}
+                <div className="space-y-4">
+                  <Label className="text-xl font-black text-slate-800 flex items-center gap-3">
+                    <Truck className="text-primary" size={24} />
+                    اختر حجم الشاحنة المناسب
+                  </Label>
+                  <TypeSelectorGrid
+                    items={categories}
+                    selectedValue={selectedCategoryId}
+                    onSelect={(id) => {
+                      setSelectedCategoryId(id);
+                      setSelectedBodyTypeId('');
+                    }}
+                    emptyMessage="لا يوجد فئات متاحة"
+                    variant="large-horizontal"
+                  />
+                </div>
+
+                {/* المستوى الثاني: نوع المحمل (يظهر بعد اختيار الفئة) */}
+                <AnimatePresence>
+                  {selectedCategoryId && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="space-y-4"
+                    >
+                      <Label className="text-xl font-black text-slate-800 flex items-center gap-3">
+                        <CheckCircle2 className="text-amber-500" size={24} />
+                        حدد نوع وتفاصيل الشاحنة
+                      </Label>
+                      <DetailedTypeSelector
+                        items={displayBodyTypes}
+                        selectedValue={selectedBodyTypeId}
+                        onSelect={(id) => setSelectedBodyTypeId(id)}
+                        emptyMessage="لا يوجد محامل متوفرة لهذه الفئة"
+                      />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {/* المستوى الثالث: التخصص (اختياري) */}
+                <AnimatePresence>
+                  {selectedBodyTypeId && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="space-y-4"
+                    >
+                      <Label className="text-xl font-black text-slate-800 flex items-center gap-3">
+                        <ClipboardCheck className="text-blue-500" size={24} />
+                        تخصص الشحنات (اختياري)
+                      </Label>
+                      <TypeSelectorGrid
+                        items={commodities}
+                        selectedValue={selectedCommodityId}
+                        onSelect={(id) => setSelectedCommodityId(id)}
+                        emptyMessage="لا يوجد أنواع متاحة حالياً"
+                        columns={3}
+                      />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              {/* القسم الثالث: بيانات التشغيل */}
+              <div className="bg-amber-50/30 p-6 rounded-[2rem] border border-amber-100/50 space-y-4">
+                <h3 className="text-sm font-black text-amber-600 uppercase tracking-widest flex items-center gap-2">
+                  <span className="w-2 h-2 bg-amber-600 rounded-full animate-pulse" />
+                  بيانات التشغيل والحمولة
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="font-bold flex items-center gap-2">
+                      <ShieldCheck size={16} className="text-slate-400" /> رقم كرت التشغيل
+                    </Label>
+                    <Input value={operationCard} onChange={e => setOperationCard(e.target.value)} className="h-14 rounded-2xl bg-white text-right border-2" placeholder="أدخل رقم الكرت" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="font-bold">السعة القصوى (طن)</Label>
+                    <Input required type="number" value={capacity} onChange={e => setCapacity(e.target.value)} className="h-14 bg-white rounded-2xl text-right border-2 font-black" placeholder="مثلاً: 20" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-4">
+                <Button disabled={isSubmitting} className="w-full h-16 rounded-[2rem] bg-blue-600 hover:bg-blue-700 font-black text-xl text-white shadow-xl shadow-blue-200 transition-all hover:scale-[1.02] active:scale-[0.98]">
+                  {isSubmitting ? (
+                    <div className="flex items-center gap-3">
+                      <Loader2 className="animate-spin" />
+                      جاري الحفظ...
+                    </div>
+                  ) : "حفظ الشاحنة في الأسطول ✅"}
+                </Button>
+              </div>
             </form>
           </DialogContent>
         </Dialog>

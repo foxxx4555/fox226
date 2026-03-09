@@ -15,7 +15,8 @@ import {
   DollarSign,
   TrendingUp,
   Calendar,
-  ChevronLeft
+  ChevronLeft,
+  Wrench
 } from 'lucide-react';
 import { AdminStats } from '@/types';
 import {
@@ -165,11 +166,11 @@ function AdminDashboard() {
               color="secondary"
             />
           </Link>
-          <Link to="/admin/financials" className="block transition-transform hover:scale-105 active:scale-95 duration-200">
+          <Link to="/admin/maintenance" className="block transition-transform hover:scale-105 active:scale-95 duration-200">
             <StatCard
-              title="إجمالي العمولات"
-              value={`${stats.totalCommissions || 0} ر.س`}
-              icon={<DollarSign size={28} />}
+              title="طلبات الصيانة"
+              value="إدارة"
+              icon={<Wrench size={28} />}
               color="accent"
             />
           </Link>

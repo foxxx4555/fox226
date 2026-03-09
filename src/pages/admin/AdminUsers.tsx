@@ -114,12 +114,41 @@ export default function AdminUsers() {
   };
 
   const handleDeleteUser = async (userId: string) => {
-    if (!confirm('هل أنت متأكد من حذف هذا الحساب نهائياً؟')) return;
+    // التحقق من صلاحية السوبر أدمن للحذف الشامل
+    const { data: authUser } = await supabase.auth.getUser();
+    const currentUserId = authUser.user?.id;
+
+    if (!currentUserId) {
+      toast.error('لم يتم العثور على المستخدم الحالي.');
+      return;
+    }
+
+    const { data: rolesData } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', currentUserId);
+
+    const rolesArray = rolesData || [];
+    const isSuperAdmin = rolesArray.some((r: { role: string }) => r.role === 'super_admin');
+
+    const warningMsg = isSuperAdmin
+      ? '🚨 تحذير نهائي: أنت على وشك مسح هذا المستخدم وكل ما يتعلق به من "شحنات، محافظ مالية، عروض، وسجلات" نهائياً من النظام. هذه العملية لا يمكن التراجع عنها. هل أنت متأكد تماماً؟'
+      : 'هل أنت متأكد من حذف هذا الحساب؟';
+
+    if (!confirm(warningMsg)) return;
+
     setIsDeleting(true);
     try {
-      await api.deleteUser(userId);
-      await logAdminAction('DELETE_USER', userId, 'حذف المستخدم نهائياً');
-      toast.success('تم حذف المستخدم بنجاح');
+      if (isSuperAdmin) {
+        // استدعاء الحذف الشامل الذي يعتمد على CASCADE في قاعدة البيانات
+        await api.deleteUserEntirely(userId);
+      } else {
+        // الحذف العادي للمسؤولين الآخرين
+        await api.deleteUser(userId);
+      }
+
+      await logAdminAction('DELETE_USER', userId, isSuperAdmin ? 'حذف شامل (مدير عام)' : 'حذف مستخدم');
+      toast.success('تم مسح كافة بيانات المستخدم بنجاح');
       fetchUsers();
     } catch (e: any) {
       toast.error(e.message || 'فشل حذف المستخدم');
@@ -150,7 +179,7 @@ export default function AdminUsers() {
   const handleUpdateStatus = async (userId: string, status: 'active' | 'suspended') => {
     try {
       await api.updateUserStatus(userId, status);
-      await logAdminAction('UPDATE_STATUS', userId, `تغيير الحالة إلى ${status}`);
+      await logAdminAction('UPDATE_STATUS', userId, `تغيير الحالة إلى ${status === 'active' ? 'نشط' : 'موقف'}`);
       toast.success(status === 'active' ? 'تم تفعيل الحساب بنجاح' : 'تم إيقاف الحساب مؤقتاً');
       // تحديث الحالة فوراً في الـ UI دون انتظار Reload
       setUsers(users.map(u => u.id === userId ? { ...u, status } : u));

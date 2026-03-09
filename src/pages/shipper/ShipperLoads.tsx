@@ -77,8 +77,22 @@ export default function ShipperLoads() {
 
     // Realtime updates
     const channel = supabase.channel('shipper_active_loads')
-      .on('postgres_changes' as any, { event: '*', schema: 'public', table: 'loads', filter: `owner_id=eq.${userProfile?.id}` }, fetchLoads)
-      .on('postgres_changes' as any, { event: '*', schema: 'public', table: 'shipment_finances' }, fetchLoads)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'loads', filter: `owner_id=eq.${userProfile?.id}` },
+        () => {
+          console.log("⚡ تحديث لحظي للشحنات...");
+          fetchLoads();
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'shipment_finances' },
+        () => {
+          console.log("⚡ تحديث لحظي للمدفوعات...");
+          fetchLoads();
+        }
+      )
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };

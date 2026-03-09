@@ -88,15 +88,25 @@ export default function DriverLoads() {
       api.getBids(userProfile.id, 'driver').then(data => setUserBids(data || []));
     }
 
-    const channel = (supabase as any).channel('driver_available_loads_rt')
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'loads' }, (payload: any) => {
-        console.log('🔄 Available Load updated via realtime:', payload);
-        fetchLoads();
-      })
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'loads' }, () => fetchLoads())
-      .subscribe((status: string) => {
-        console.log("DriverLoads Realtime Status:", status);
-      });
+    const channel = supabase.channel('driver_available_loads_rt')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'loads', filter: 'status=eq.available' },
+        () => {
+          console.log('🔄 تحديث لحظي للشحنات المتاحة...');
+          fetchLoads();
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'load_bids', filter: `driver_id=eq.${userProfile?.id}` },
+        () => {
+          console.log('🔄 تحديث لحظي لحالة العروض...');
+          // Optional: fetchBids() if you had a separate function
+          api.getBids(userProfile?.id!, 'driver').then(data => setUserBids(data || []));
+        }
+      )
+      .subscribe();
 
     return () => { supabase.removeChannel(channel); };
   }, [userProfile?.id]);

@@ -165,12 +165,15 @@ export default function ShipperStatement() {
                 const amount = Math.abs(Number(t.amount) || 0);
                 const type = (t.type === 'debit' || t.transaction_type === 'usage') ? 'expense' : 'income';
 
-                // تعريب الوصف إذا كان إنجليزياً أو يحتوي على ديون
-                let rawDesc = t.description || (t.loads ? `شحنة من ${t.loads.origin}` : 'عملية مالية');
-                if (rawDesc.includes('DEBT:') || rawDesc.includes('Outstanding shipment payment')) {
-                    const loadIdMatch = rawDesc.match(/#[0-9a-f-]+/);
-                    const loadIdShort = loadIdMatch ? loadIdMatch[0].substring(0, 9) : '';
-                    rawDesc = `مستحقات شحنة رقم ${loadIdShort}`;
+                // تعريب متقدم للوصف وتنسيقه
+                let rawDesc = t.description || 'عملية مالية';
+
+                // الاعتماد على shipment_id الثابت بدلاً من البحث في النص
+                const resolvedShipmentId = t.loads?.id || t.shipment_id;
+                if (resolvedShipmentId && (rawDesc.includes('DEBT:') || rawDesc.includes('Outstanding') || rawDesc.includes('سداد'))) {
+                    rawDesc = `سداد مستحقات شحنة #${resolvedShipmentId.substring(0, 8)}`;
+                } else if (t.loads) {
+                    rawDesc = `مستحقات شحنة #${t.loads.id.substring(0, 8)} (${t.loads.origin})`;
                 }
 
                 return {
@@ -181,7 +184,7 @@ export default function ShipperStatement() {
                     amount,
                     type,
                     status: t.status || 'completed',
-                    shipment_id: t.loads?.id || t.shipment_id
+                    shipment_id: resolvedShipmentId
                 };
             }) || [];
 
@@ -252,22 +255,17 @@ export default function ShipperStatement() {
         const completedShipmentExpenses = transactions
             .filter(t => t.type === 'expense')
             .filter(t => {
-                const loadIdMatch = t.description?.match(/#[0-9a-f-]+/);
-                const idToCheck = t.shipment_id || (loadIdMatch ? loadIdMatch[0].replace('#', '') : null);
+                const idToCheck = t.shipment_id;
 
                 if (idToCheck) {
                     return userLoads.some(l =>
-                        (l.id === idToCheck ||
-                            l.id.includes(idToCheck) ||
-                            idToCheck.includes(l.id.substring(0, 8))) &&
+                        l.id === idToCheck &&
                         (l.status === 'completed' || l.status === 'delivered')
                     );
                 }
 
-                // إذا لم يكن هناك ID في الوصف، نعتبره رسوماً عامة ونحسبه فقط إذا لم يكن مرتبطاً بشحنة جارية.
-                // لتفادي حساب شحنات غير مكتملة لم يتم التقاط معرفها بشكل صحيح، نتحقق من الوصف.
                 if (t.description?.includes('شحنة') || t.description?.includes('DEBT:')) {
-                    return false; // نرفض أي شيء يبدو كشحنة لكن لم يتم التعرف على الـ ID الخاص به
+                    return false;
                 }
 
                 return true;
@@ -295,14 +293,11 @@ export default function ShipperStatement() {
             const dayAmount = transactions
                 .filter(t => (t.created_at || t.date).startsWith(date) && t.type === 'expense')
                 .filter(t => {
-                    const loadIdMatch = t.description?.match(/#[0-9a-f-]+/);
-                    const idToCheck = t.shipment_id || (loadIdMatch ? loadIdMatch[0].replace('#', '') : null);
+                    const idToCheck = t.shipment_id;
 
                     if (idToCheck) {
                         return userLoads.some(l =>
-                            (l.id === idToCheck ||
-                                l.id.includes(idToCheck) ||
-                                idToCheck.includes(l.id.substring(0, 8))) &&
+                            l.id === idToCheck &&
                             (l.status === 'completed' || l.status === 'delivered')
                         );
                     }

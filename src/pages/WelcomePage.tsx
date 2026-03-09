@@ -206,6 +206,8 @@ export default function WelcomePage() {
         {/* روابط التنقل في المنتصف - أصغر وأكثر تناسقاً */}
         <div className="hidden xl:flex items-center gap-6">
           <button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="font-black text-slate-600 hover:text-primary transition-all text-[9px] whitespace-nowrap uppercase tracking-tighter">الرئيسية</button>
+          <button onClick={() => navigate('/drivers')} className="font-black text-slate-400 hover:text-primary transition-all text-[9px] whitespace-nowrap uppercase tracking-tighter">السائقين</button>
+          <button onClick={() => navigate('/info')} className="font-black text-slate-400 hover:text-primary transition-all text-[9px] whitespace-nowrap uppercase tracking-tighter">معلومات عامة</button>
           <button onClick={() => scrollToSection('about-us')} className="font-black text-slate-400 hover:text-primary transition-all text-[9px] whitespace-nowrap uppercase tracking-tighter">من نحن</button>
           <button onClick={() => scrollToSection('contact-us')} className="font-black text-slate-400 hover:text-primary transition-all text-[9px] whitespace-nowrap uppercase tracking-tighter">اتصل بنا</button>
           <Button
@@ -252,6 +254,18 @@ export default function WelcomePage() {
                 className="w-full text-right text-xl font-black text-slate-800 py-4 border-b border-slate-50 flex items-center justify-end gap-3"
               >
                 اتصل بنا
+              </button>
+              <button
+                onClick={() => { navigate('/drivers'); setIsMobileMenuOpen(false); }}
+                className="w-full text-right text-xl font-black text-slate-800 py-4 border-b border-slate-50 flex items-center justify-end gap-3"
+              >
+                السائقين
+              </button>
+              <button
+                onClick={() => { navigate('/info'); setIsMobileMenuOpen(false); }}
+                className="w-full text-right text-xl font-black text-slate-800 py-4 border-b border-slate-50 flex items-center justify-end gap-3"
+              >
+                معلومات عامة
               </button>
               <button
                 onClick={() => { navigate('/tracking'); setIsMobileMenuOpen(false); }}
@@ -305,7 +319,7 @@ export default function WelcomePage() {
           </motion.div>
 
           <h1 className="text-xl md:text-3xl font-black text-slate-900 mb-1 leading-[1.1] tracking-tighter">
-            شريكك الموثوق.. <br />
+            SASGO <br />
             <span className="text-primary italic">في كل طريق</span>
           </h1>
 

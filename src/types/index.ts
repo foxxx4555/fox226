@@ -12,6 +12,10 @@ export interface UserProfile {
   phone?: string;
   country_code?: string;
   avatar_url?: string;
+  driving_license_url?: string;
+  id_document_url?: string;
+  vehicle_insurance_url?: string;
+  truck_image_url?: string;
   created_at: string;
   updated_at: string;
   // --- حقول الموقع الحي المضافة ---

@@ -42,8 +42,22 @@ export default function DriverDashboard() {
 
     const channel = supabase
       .channel('driver-dashboard')
-      .on('postgres_changes' as any, { event: '*', table: 'loads', schema: 'public' }, () => fetchDriverData())
-      .on('postgres_changes' as any, { event: '*', table: 'notifications' }, () => fetchDriverData())
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'loads' },
+        () => {
+          console.log("⚡ تحديث لحظي للإحصائيات...");
+          fetchDriverData();
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${userProfile?.id}` },
+        () => {
+          console.log("⚡ تحديث لحظي للإشعارات...");
+          fetchDriverData();
+        }
+      )
       .subscribe();
 
     return () => {

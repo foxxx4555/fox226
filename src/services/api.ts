@@ -588,6 +588,14 @@ export const api = {
     return true;
   },
 
+  async deleteUserEntirely(userId: string) {
+    const { error } = await supabase.rpc('delete_user_entirely', {
+      p_target_user_id: userId
+    });
+    if (error) throw error;
+    return true;
+  },
+
   async adminResetPassword(userId: string, newPassword: string) {
     // Cannot use supabase.auth.admin.updateUserById from client
     // Instead we will call an edge function (or rpc) to handle it

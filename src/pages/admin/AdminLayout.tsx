@@ -1,6 +1,6 @@
 import { ReactNode, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, Users, Truck, Settings, LogOut, Menu, X, ShieldCheck } from "lucide-react";
+import { LayoutDashboard, Users, Truck, Settings, LogOut, Menu, X, ShieldCheck, Banknote, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -14,6 +14,8 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     { label: "الرئيسية", path: "/admin", icon: <LayoutDashboard size={20} /> },
     { label: "المستخدمين", path: "/admin/users", icon: <Users size={20} /> },
     { label: "الشحنات", path: "/admin/loads", icon: <Truck size={20} /> },
+    { label: "إدارة الأسعار", path: "/admin/pricing", icon: <Banknote size={20} /> },
+    { label: "إدارة الصيانة", path: "/admin/maintenance", icon: <Wrench size={20} /> },
     { label: "الإعدادات", path: "/admin/settings", icon: <Settings size={20} /> },
   ];
 

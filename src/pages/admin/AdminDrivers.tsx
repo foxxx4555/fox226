@@ -1,10 +1,8 @@
-import { useEffect, useState } from 'react';
-import AdminLayout from '@/components/AdminLayout';
-import { supabase } from '@/integrations/supabase/client';
+import React, { useState, useEffect } from 'react';
 import {
-    Loader2, Search, Truck, MapPin, Phone, CheckCircle2, XCircle,
-    AlertCircle, FileCheck, ShieldAlert, Star, ExternalLink, Image as ImageIcon,
-    User, Layers, Navigation
+    User, Layers, Navigation, Pencil, Coins, Search, Loader2,
+    Truck, Star, Phone, MapPin, CheckCircle2, ShieldAlert,
+    FileCheck, ExternalLink, XCircle, FileCheck as FileCheckIcon
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,7 +10,10 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
+import AdminLayout from './AdminLayout';
 
 export default function AdminDrivers() {
     const [drivers, setDrivers] = useState<any[]>([]);
@@ -265,8 +266,8 @@ export default function AdminDrivers() {
                                                         <DialogTitle className="text-2xl font-black text-right border-b pb-4 border-slate-100">مراجعة مستندات السائق: {driver.full_name}</DialogTitle>
                                                     </DialogHeader>
                                                     <div className="mt-6 flex flex-col items-center justify-center">
-                                                        {(driver.id_document_url || driver.driving_license_url || driver.vehicle_insurance_url || driver.id_card_url) ? (
-                                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full" dir="rtl">
+                                                        {(driver.id_document_url || driver.driving_license_url || driver.vehicle_insurance_url || driver.truck_image_url || driver.id_card_url) ? (
+                                                            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 w-full" dir="rtl">
                                                                 {/* الهوية */}
                                                                 {(driver.id_document_url || driver.id_card_url) && (
                                                                     <div className="flex flex-col items-center bg-slate-50 p-6 rounded-3xl border border-slate-100">
@@ -278,7 +279,7 @@ export default function AdminDrivers() {
                                                                                     <span className="font-bold text-slate-500 text-lg">ملف PDF</span>
                                                                                 </div>
                                                                             ) : (
-                                                                                <img src={driver.id_document_url || driver.id_card_url} alt="ID Document" className="max-h-[230px] w-auto object-contain rounded-xl" />
+                                                                                <img src={driver.id_document_url || driver.id_card_url} alt="الهوية / الإقامة" className="max-h-[230px] w-auto object-contain rounded-xl" />
                                                                             )}
                                                                         </div>
                                                                         <a href={driver.id_document_url || driver.id_card_url} target="_blank" rel="noreferrer" className="w-full flex items-center justify-center gap-2 bg-white border border-slate-200 hover:bg-slate-50 text-amber-600 font-bold py-3 px-4 rounded-xl transition-colors shadow-sm">
@@ -298,7 +299,7 @@ export default function AdminDrivers() {
                                                                                     <span className="font-bold text-slate-500 text-lg">ملف PDF</span>
                                                                                 </div>
                                                                             ) : (
-                                                                                <img src={driver.driving_license_url} alt="Driving License" className="max-h-[230px] w-auto object-contain rounded-xl" />
+                                                                                <img src={driver.driving_license_url} alt="رخصة القيادة" className="max-h-[230px] w-auto object-contain rounded-xl" />
                                                                             )}
                                                                         </div>
                                                                         <a href={driver.driving_license_url} target="_blank" rel="noreferrer" className="w-full flex items-center justify-center gap-2 bg-white border border-slate-200 hover:bg-slate-50 text-blue-600 font-bold py-3 px-4 rounded-xl transition-colors shadow-sm">
@@ -318,11 +319,31 @@ export default function AdminDrivers() {
                                                                                     <span className="font-bold text-slate-500 text-lg">ملف PDF</span>
                                                                                 </div>
                                                                             ) : (
-                                                                                <img src={driver.vehicle_insurance_url} alt="Vehicle Insurance" className="max-h-[230px] w-auto object-contain rounded-xl" />
+                                                                                <img src={driver.vehicle_insurance_url} alt="تأمين المركبة" className="max-h-[230px] w-auto object-contain rounded-xl" />
                                                                             )}
                                                                         </div>
                                                                         <a href={driver.vehicle_insurance_url} target="_blank" rel="noreferrer" className="w-full flex items-center justify-center gap-2 bg-white border border-slate-200 hover:bg-slate-50 text-emerald-600 font-bold py-3 px-4 rounded-xl transition-colors shadow-sm">
                                                                             <ExternalLink size={18} /> فتح المستند
+                                                                        </a>
+                                                                    </div>
+                                                                )}
+
+                                                                {/* صورة الشاحنة */}
+                                                                {driver.truck_image_url && (
+                                                                    <div className="flex flex-col items-center bg-slate-50 p-6 rounded-3xl border border-slate-100">
+                                                                        <h4 className="font-black text-slate-700 mb-4 text-center">صورة الشاحنة</h4>
+                                                                        <div className="w-full bg-white p-2 rounded-2xl border border-slate-100 mb-4 flex justify-center items-center overflow-hidden h-[250px]">
+                                                                            {driver.truck_image_url.toLowerCase().includes('.pdf') ? (
+                                                                                <div className="flex flex-col items-center justify-center text-center">
+                                                                                    <FileCheck size={64} className="text-blue-500 mb-3" />
+                                                                                    <span className="font-bold text-slate-500 text-lg">ملف PDF</span>
+                                                                                </div>
+                                                                            ) : (
+                                                                                <img src={driver.truck_image_url} alt="صورة الشاحنة" className="max-h-[230px] w-auto object-contain rounded-xl" />
+                                                                            )}
+                                                                        </div>
+                                                                        <a href={driver.truck_image_url} target="_blank" rel="noreferrer" className="w-full flex items-center justify-center gap-2 bg-white border border-slate-200 hover:bg-slate-50 text-blue-600 font-bold py-3 px-4 rounded-xl transition-colors shadow-sm">
+                                                                            <ExternalLink size={18} /> فتح الصورة
                                                                         </a>
                                                                     </div>
                                                                 )}
@@ -418,11 +439,64 @@ export default function AdminDrivers() {
                                             </div>
 
                                             <div className="flex gap-3 pt-2">
-                                                <Button variant="outline" className="flex-1 h-14 rounded-2xl font-bold border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-blue-600 transition-colors">
-                                                    <FileCheck size={20} className="me-2 text-slate-400" /> الاستمارة
+                                                <div className="flex-1 bg-blue-50/50 p-4 rounded-2xl border border-blue-100/50 flex flex-col justify-center">
+                                                    <p className="text-[10px] font-black text-blue-400 uppercase mb-1">الأجرة المحددة</p>
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="text-xl font-black text-blue-700">{truck.rent_price || 0} <small className="text-[10px] text-blue-500">ر.س</small></span>
+                                                        <Dialog>
+                                                            <DialogTrigger asChild>
+                                                                <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-blue-400 hover:text-blue-600 hover:bg-blue-100 rounded-lg">
+                                                                    <Pencil size={16} />
+                                                                </Button>
+                                                            </DialogTrigger>
+                                                            <DialogContent className="bg-white rounded-[2rem] p-8 outline-none border-none shadow-2xl w-[400px]">
+                                                                <DialogHeader>
+                                                                    <DialogTitle className="text-xl font-black text-right">تعديل أجرة الشاحنة</DialogTitle>
+                                                                </DialogHeader>
+                                                                <div className="space-y-6 mt-4">
+                                                                    <div className="space-y-2">
+                                                                        <label className="text-sm font-bold text-slate-500 block text-right">السعر الجديد (ريال سعودي)</label>
+                                                                        <Input
+                                                                            type="number"
+                                                                            defaultValue={truck.rent_price}
+                                                                            className="h-14 rounded-xl bg-slate-50 border-none font-black text-xl text-center"
+                                                                            id={`price-input-${truck.id}`}
+                                                                        />
+                                                                    </div>
+                                                                    <Button
+                                                                        onClick={async () => {
+                                                                            const input = document.getElementById(`price-input-${truck.id}`) as HTMLInputElement;
+                                                                            const price = parseFloat(input.value);
+                                                                            try {
+                                                                                // @ts-ignore
+                                                                                const { error } = await supabase.rpc('admin_update_truck_price', {
+                                                                                    p_truck_id: truck.id,
+                                                                                    p_new_price: price
+                                                                                });
+                                                                                if (error) throw error;
+                                                                                toast.success('تم تحديث السعر بنجاح');
+                                                                                fetchData();
+                                                                            } catch (e) {
+                                                                                toast.error('فشل في تحديث السعر');
+                                                                            }
+                                                                        }}
+                                                                        className="w-full h-14 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-xl text-lg shadow-lg shadow-blue-500/20"
+                                                                    >
+                                                                        حفظ السعر الجديد
+                                                                    </Button>
+                                                                </div>
+                                                            </DialogContent>
+                                                        </Dialog>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex gap-3 pt-2">
+                                                <Button variant="outline" className="flex-1 h-12 rounded-2xl font-bold border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-blue-600 transition-colors">
+                                                    <FileCheck size={18} className="me-2 text-slate-400" /> الاستمارة
                                                 </Button>
-                                                <Button variant="outline" className="flex-1 h-14 rounded-2xl font-bold border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-emerald-600 transition-colors">
-                                                    <ShieldAlert size={20} className="me-2 text-slate-400" /> التأمين
+                                                <Button variant="outline" className="flex-1 h-12 rounded-2xl font-bold border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-emerald-600 transition-colors">
+                                                    <ShieldAlert size={18} className="me-2 text-slate-400" /> التأمين
                                                 </Button>
                                             </div>
                                         </div>

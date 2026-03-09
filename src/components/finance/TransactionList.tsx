@@ -177,31 +177,33 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, loading
             doc.addFont('Cairo-Regular.ttf', 'Cairo', 'normal');
             doc.setFont('Cairo', 'normal');
 
-            const tableColumn = ["المبلغ", "الوصف", "النوع", "رقم العملية", "التاريخ"];
+            const tableColumn = ["المبلغ", "البيان / الوصف", "نوع العملية", "رقم المرجع", "تاريخ العملية"];
             const tableRows = filtered.map(trx => [
-                `${trx.type === 'debit' ? '-' : '+'}${trx.amount.toLocaleString()} ر.س`,
-                trx.description || '',
-                trx.type === 'debit' ? 'خصم' : 'إيداع',
-                (trx.transaction_id || trx.id || '').substring(0, 8),
-                new Date(trx.created_at).toLocaleDateString('ar-SA')
+                `${trx.type === 'debit' ? '-' : '+'}${Number(trx.amount).toLocaleString()} ر.س`,
+                trx.description || 'لا يوجد وصف',
+                trx.type === 'debit' ? 'سحب / مصاريف' : 'إيداع / إيراد',
+                (trx.transaction_id || trx.id || '').substring(0, 10).toUpperCase(),
+                new Date(trx.created_at).toLocaleDateString('ar-SA', { year: 'numeric', month: 'long', day: 'numeric' })
             ]);
 
             autoTable(doc, {
                 head: [tableColumn],
                 body: tableRows,
-                styles: { font: 'Cairo', fontStyle: 'normal', halign: 'right', fontSize: 10 },
-                headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], font: 'Cairo', fontStyle: 'normal' },
+                styles: { font: 'Cairo', fontStyle: 'normal', halign: 'right', fontSize: 10, cellPadding: 8 },
+                headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], font: 'Cairo', fontStyle: 'normal', fontSize: 11 },
                 columnStyles: {
-                    0: { cellWidth: 'auto' }, // المبلغ
-                    1: { cellWidth: 150 },    // الوصف
-                    2: { cellWidth: 'auto' }, // النوع
-                    3: { cellWidth: 100 },    // رقم العملية
-                    4: { cellWidth: 'auto' }  // التاريخ
+                    0: { cellWidth: 80, halign: 'left' }, // المبلغ (English/Numbers often left-aligned even in RTL for readability)
+                    1: { cellWidth: 'auto' },            // الوصف
+                    2: { cellWidth: 80 },              // النوع
+                    3: { cellWidth: 80 },              // رقم العملية
+                    4: { cellWidth: 100 }              // التاريخ
                 },
-                margin: { top: 40 },
+                margin: { top: 60 },
                 didDrawPage: (data) => {
                     doc.setFont('Cairo', 'normal');
-                    doc.text("كشف حساب المعاملات المالية - Fox Logistics", data.settings.margin.left, 30);
+                    doc.setFontSize(16);
+                    doc.setTextColor(15, 23, 42);
+                    doc.text("كشف حساب المعاملات المالية - Fox Logistics", data.settings.margin.left, 40);
                 }
             });
 

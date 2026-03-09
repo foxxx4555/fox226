@@ -28,13 +28,13 @@ import { api } from '@/services/api';
 // --- دالة موحدة لتحويل المسميات لأسماء قاعدة البيانات ---
 const mapRoleForDB = (role: string) => {
     const mapping: Record<string, string> = {
-        'Super Admin': 'super_admin',
-        'Operations': 'operations',
-        'Carrier Manager': 'carrier_manager',
-        'Vendor Manager': 'vendor_manager',
-        'Buyer Support': 'support',
-        'Finance': 'finance',
-        'Analytics': 'analytics'
+        'مدير عام': 'super_admin',
+        'العمليات': 'operations',
+        'إدارة الناقلين': 'carrier_manager',
+        'إدارة التجار': 'vendor_manager',
+        'دعم العملاء': 'support',
+        'المالية': 'finance',
+        'التحليلات': 'analytics'
     };
     return mapping[role] || 'admin';
 };
@@ -50,7 +50,7 @@ export default function AdminAdmins() {
         phone: '',
         email: '',
         password: '',
-        role: 'Operations'
+        role: 'العمليات'
     });
     const [showEditAdmin, setShowEditAdmin] = useState(false);
     const [editingAdmin, setEditingAdmin] = useState<any>(null);
@@ -77,11 +77,24 @@ export default function AdminAdmins() {
 
             const adminUsers = rolesData
                 ?.filter(r => !nonAdminRoles.includes(r.role?.toLowerCase()))
-                ?.map((r: any) => ({
-                    ...(r.profiles || {}),
-                    role: r.role === 'admin' || r.role === 'super_admin' ? 'Super Admin' : r.role,
-                    role_id: r.id
-                })) || [];
+                ?.map((r: any) => {
+                    const dbRole = r.role;
+                    const displayRoles: Record<string, string> = {
+                        'super_admin': 'مدير عام',
+                        'operations': 'العمليات',
+                        'carrier_manager': 'إدارة الناقلين',
+                        'vendor_manager': 'إدارة التجار',
+                        'support': 'دعم العملاء',
+                        'finance': 'المالية',
+                        'analytics': 'التحليلات',
+                        'admin': 'مسؤول نظام'
+                    };
+                    return {
+                        ...(r.profiles || {}),
+                        role: displayRoles[dbRole] || 'مسؤول نظام',
+                        role_id: r.id
+                    };
+                }) || [];
 
             // Remove duplicates if a user has multiple admin roles
             const uniqueAdmins = Array.from(new Map(adminUsers.map(item => [item.id, item])).values());
@@ -190,7 +203,7 @@ export default function AdminAdmins() {
             setShowAddAdmin(false);
             setOtpStep(false);
             setOtpCode('');
-            setNewAdmin({ full_name: '', phone: '', email: '', password: '', role: 'Operations' });
+            setNewAdmin({ full_name: '', phone: '', email: '', password: '', role: 'العمليات' });
 
             // 4. تحديث القائمة
             fetchAdmins();
@@ -267,13 +280,13 @@ export default function AdminAdmins() {
                                                 <SelectValue />
                                             </SelectTrigger>
                                             <SelectContent className="font-bold text-sm">
-                                                <SelectItem value="Super Admin">مدير عام للنظام</SelectItem>
-                                                <SelectItem value="Operations">أخصائي عمليات</SelectItem>
-                                                <SelectItem value="Carrier Manager">إدارة الناقلين</SelectItem>
-                                                <SelectItem value="Vendor Manager">إدارة البائعين والتجار</SelectItem>
-                                                <SelectItem value="Buyer Support">دعم المشترين</SelectItem>
-                                                <SelectItem value="Finance">المالية والحسابات</SelectItem>
-                                                <SelectItem value="Analytics">البيانات والتحليلات</SelectItem>
+                                                <SelectItem value="مدير عام">مدير عام للنظام</SelectItem>
+                                                <SelectItem value="العمليات">أخصائي عمليات</SelectItem>
+                                                <SelectItem value="إدارة الناقلين">إدارة الناقلين</SelectItem>
+                                                <SelectItem value="إدارة التجار">إدارة البائعين والتجار</SelectItem>
+                                                <SelectItem value="دعم العملاء">دعم المشترين</SelectItem>
+                                                <SelectItem value="المالية">المالية والحسابات</SelectItem>
+                                                <SelectItem value="التحليلات">البيانات والتحليلات</SelectItem>
                                             </SelectContent>
                                         </Select>
                                     </div>
@@ -324,13 +337,13 @@ export default function AdminAdmins() {
                                                 <SelectValue />
                                             </SelectTrigger>
                                             <SelectContent className="font-bold">
-                                                <SelectItem value="Super Admin">مدير عام للنظام</SelectItem>
-                                                <SelectItem value="Operations">أخصائي عمليات</SelectItem>
-                                                <SelectItem value="Carrier Manager">إدارة الناقلين</SelectItem>
-                                                <SelectItem value="Vendor Manager">إدارة البائعين والتجار</SelectItem>
-                                                <SelectItem value="Buyer Support">دعم المشترين</SelectItem>
-                                                <SelectItem value="Finance">المالية والحسابات</SelectItem>
-                                                <SelectItem value="Analytics">البيانات والتحليلات</SelectItem>
+                                                <SelectItem value="مدير عام">مدير عام للنظام</SelectItem>
+                                                <SelectItem value="العمليات">أخصائي عمليات</SelectItem>
+                                                <SelectItem value="إدارة الناقلين">إدارة الناقلين</SelectItem>
+                                                <SelectItem value="إدارة التجار">إدارة البائعين والتجار</SelectItem>
+                                                <SelectItem value="دعم العملاء">دعم المشترين</SelectItem>
+                                                <SelectItem value="المالية">المالية والحسابات</SelectItem>
+                                                <SelectItem value="التحليلات">البيانات والتحليلات</SelectItem>
                                             </SelectContent>
                                         </Select>
                                     </div>

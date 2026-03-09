@@ -62,8 +62,22 @@ export default function ShipperDashboard() {
   useEffect(() => {
     fetchDashboardData();
     const channel = supabase.channel('shipper-dash')
-      .on('postgres_changes' as any, { event: '*', table: 'loads' }, () => fetchDashboardData())
-      .on('postgres_changes' as any, { event: '*', table: 'notifications' }, () => fetchDashboardData())
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'loads', filter: `owner_id=eq.${userProfile?.id}` },
+        () => {
+          console.log("⚡ تحديث لحظي للإحصائيات والشحنات...");
+          fetchDashboardData();
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${userProfile?.id}` },
+        () => {
+          console.log("⚡ تحديث لحظي للإشعارات...");
+          fetchDashboardData();
+        }
+      )
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [userProfile]);

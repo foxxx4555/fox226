@@ -202,6 +202,144 @@ export type Database = {
         }
         Relationships: []
       }
+      truck_categories: {
+        Row: {
+          id: string
+          name_ar: string
+          name_en: string | null
+          is_active: boolean
+          created_at: string
+          icon: string | null
+        }
+        Insert: {
+          id?: string
+          name_ar: string
+          name_en?: string | null
+          is_active?: boolean
+          created_at?: string
+          icon?: string | null
+        }
+        Update: {
+          id?: string
+          name_ar?: string
+          name_en?: string | null
+          is_active?: boolean
+          created_at?: string
+          icon?: string | null
+        }
+        Relationships: []
+      }
+      load_body_types: {
+        Row: {
+          id: string
+          name_ar: string
+          name_en: string | null
+          is_active: boolean
+          created_at: string
+          category_id: string | null
+          capacity_tons: number | null
+          length_meters: number | null
+        }
+        Insert: {
+          id?: string
+          name_ar: string
+          name_en?: string | null
+          is_active?: boolean
+          created_at?: string
+          category_id?: string | null
+          capacity_tons?: number | null
+          length_meters?: number | null
+        }
+        Update: {
+          id?: string
+          name_ar?: string
+          name_en?: string | null
+          is_active?: boolean
+          created_at?: string
+          category_id?: string | null
+          capacity_tons?: number | null
+          length_meters?: number | null
+        }
+        Relationships: []
+      }
+      shipment_type_pricing: {
+        Row: {
+          id: string
+          truck_category_id: string
+          body_type_id: string
+          base_price: number | null
+          price_per_km: number | null
+          capacity_text: string | null
+          min_price: number | null
+          is_active: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          truck_category_id: string
+          body_type_id: string
+          base_price?: number | null
+          price_per_km?: number | null
+          capacity_text?: string | null
+          min_price?: number | null
+          is_active?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          truck_category_id?: string
+          body_type_id?: string
+          base_price?: number | null
+          price_per_km?: number | null
+          capacity_text?: string | null
+          min_price?: number | null
+          is_active?: boolean
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shipment_type_pricing_truck_category_id_fkey"
+            columns: ["truck_category_id"]
+            isOneToOne: false
+            referencedRelation: "truck_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shipment_type_pricing_body_type_id_fkey"
+            columns: ["body_type_id"]
+            isOneToOne: false
+            referencedRelation: "load_body_types"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      shipment_commodities: {
+        Row: {
+          id: string
+          name_ar: string
+          name_en: string | null
+          icon: string | null
+          is_active: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          name_ar: string
+          name_en?: string | null
+          icon?: string | null
+          is_active?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          name_ar?: string
+          name_en?: string | null
+          icon?: string | null
+          is_active?: boolean
+          created_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -510,6 +648,12 @@ export type Database = {
           p_shipper_id: string
         }
         Returns: boolean
+      }
+      delete_user_entirely: {
+        Args: {
+          p_target_user_id: string
+        }
+        Returns: undefined
       }
       delete_user_by_admin: {
         Args: {
