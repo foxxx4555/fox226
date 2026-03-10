@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { api } from '@/services/api';
@@ -50,7 +51,11 @@ export default function DriverMaintenance() {
         invoice_image: ''
     });
 
+    const [cameraActive, setCameraActive] = useState(false);
     const [capturedImages, setCapturedImages] = useState<string[]>([]);
+    const [tempPhotos, setTempPhotos] = useState<string[]>([]);
+    const videoRef = useRef<HTMLVideoElement>(null);
+    const streamRef = useRef<MediaStream | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
@@ -102,36 +107,63 @@ export default function DriverMaintenance() {
         }
     }, [userProfile, truckId]);
 
-    const handleCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-
-        setLoading(true);
+    const startCamera = async () => {
         try {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                const dataUrl = reader.result as string;
-                if (step === 2) {
-                    setCapturedImages(prev => [...prev, dataUrl]);
-                    toast.success("تمت إضافة صورة العطل");
-                } else if (step === 3) {
-                    setForm(p => ({ ...p, invoice_image: dataUrl }));
-                    toast.success("تم التقاط صورة الفاتورة");
-                }
-                setLoading(false);
-            };
-            reader.readAsDataURL(file);
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                    facingMode: 'environment',
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                },
+                audio: false
+            });
+            if (videoRef.current) {
+                videoRef.current.srcObject = stream;
+                streamRef.current = stream;
+                setCameraActive(true);
+                setTempPhotos([]); // Clear temp photos on new session
+            }
         } catch (err) {
-            toast.error("فشل في معالجة الصورة");
-            setLoading(false);
+            console.error("Camera error:", err);
+            toast.error("فشل الوصول للكاميرا، يرجى التأكد من إعطاء الصلاحيات للمتصفح.");
         }
-
-        // Reset input to allow picking same file again if needed
-        if (fileInputRef.current) fileInputRef.current.value = '';
     };
 
-    const triggerCamera = () => {
-        fileInputRef.current?.click();
+    const stopCamera = () => {
+        if (streamRef.current) {
+            streamRef.current.getTracks().forEach(track => track.stop());
+            streamRef.current = null;
+        }
+        setCameraActive(false);
+    };
+
+    const capturePhoto = () => {
+        if (videoRef.current) {
+            const canvas = document.createElement('canvas');
+            canvas.width = videoRef.current.videoWidth;
+            canvas.height = videoRef.current.videoHeight;
+            const ctx = canvas.getContext('2d');
+            ctx?.drawImage(videoRef.current, 0, 0);
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+
+            setTempPhotos(prev => [...prev, dataUrl]);
+            toast.success("تم التقاط الصورة بنجاح");
+        }
+    };
+
+    const confirmPhotos = () => {
+        if (tempPhotos.length === 0) {
+            toast.error("يرجى التقاط صورة واحدة على الأقل");
+            return;
+        }
+
+        if (step === 2) {
+            setCapturedImages(prev => [...prev, ...tempPhotos]);
+        } else if (step === 3) {
+            setForm(p => ({ ...p, invoice_image: tempPhotos[tempPhotos.length - 1] }));
+        }
+        stopCamera();
+        toast.success("تم حفظ الصور في الخانة بنجاح ✅");
     };
 
     const uploadToSupabase = async (base64: string, path: string) => {
@@ -328,47 +360,87 @@ export default function DriverMaintenance() {
                                     <div className="text-center space-y-2">
                                         <h3 className="text-2xl font-black">التقط صوراً للعطل 📸</h3>
                                         <div className="p-4 bg-orange-50 border border-orange-200 rounded-2xl space-y-1">
-                                            <p className="text-orange-700 font-black text-sm">💡 ميزة الصور المتعددة مفعلة</p>
-                                            <p className="text-rose-600 font-black text-xs">⚠️ شرط أساسي: يجب تصوير لوحة السيارة الأمامية مع العطل لضمان التوثيق</p>
+                                            <p className="text-orange-700 font-black text-sm">💡 كاميرا برمجية مباشرة (لا تفتح الاستوديو)</p>
+                                            <p className="text-rose-600 font-black text-xs">⚠️ يجب تصوير لوحة السيارة الأمامية مع العطل لضمان التوثيق</p>
                                         </div>
                                     </div>
 
-                                    {/* حقل إدخال مخفي للكاميرا */}
-                                    <input
-                                        type="file"
-                                        ref={fileInputRef}
-                                        className="hidden"
-                                        accept="image/*"
-                                        capture="environment"
-                                        onChange={handleCapture}
-                                    />
+                                    {cameraActive ? (
+                                        <div className="fixed inset-0 z-[1000] bg-black flex flex-col items-center justify-center p-4">
+                                            <div className="relative w-full max-w-2xl aspect-[3/4] md:aspect-video rounded-[3rem] overflow-hidden bg-black shadow-2xl border-4 border-white/10">
+                                                <video
+                                                    ref={videoRef}
+                                                    autoPlay
+                                                    playsInline
+                                                    className="w-full h-full object-cover scale-x-[-1]"
+                                                />
 
-                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                                        {capturedImages.map((img, i) => (
-                                            <div key={i} className="relative group aspect-square rounded-3xl overflow-hidden shadow-md border-2 border-slate-50">
-                                                <img src={img} className="w-full h-full object-cover" />
-                                                <button onClick={() => setCapturedImages(prev => prev.filter((_, idx) => idx !== i))} className="absolute top-2 left-2 p-1.5 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    <X size={16} />
+                                                {/* Guide Overlay */}
+                                                <div className="absolute inset-0 border-2 border-white/20 border-dashed m-10 rounded-2xl pointer-events-none flex items-center justify-center">
+                                                    <p className="text-white/40 text-[10px] uppercase font-black tracking-widest">قم بتوسيط العطل أو لوحة النمر</p>
+                                                </div>
+
+                                                {/* Photos count */}
+                                                <div className="absolute top-6 left-6 px-4 py-2 bg-black/50 backdrop-blur-md rounded-full border border-white/10">
+                                                    <span className="text-white font-black text-xs">{tempPhotos.length} صور ملتقطة</span>
+                                                </div>
+
+                                                <button
+                                                    onClick={stopCamera}
+                                                    className="absolute top-6 right-6 w-10 h-10 bg-black/50 backdrop-blur-md rounded-full border border-white/10 flex items-center justify-center text-white"
+                                                >
+                                                    <X size={20} />
                                                 </button>
                                             </div>
-                                        ))}
-                                        {loading ? (
-                                            <div className="aspect-square rounded-3xl border-4 border-dashed border-slate-200 flex flex-col items-center justify-center gap-3 text-slate-400">
-                                                <Loader2 className="animate-spin" size={32} />
-                                                <span className="text-[10px] font-bold">جاري المعالجة...</span>
+
+                                            {/* Camera Controls */}
+                                            <div className="mt-10 flex items-center gap-12">
+                                                <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-white/20">
+                                                    {tempPhotos.length > 0 && <img src={tempPhotos[tempPhotos.length - 1]} className="w-full h-full object-cover" />}
+                                                </div>
+
+                                                <button
+                                                    onClick={capturePhoto}
+                                                    className="w-24 h-24 rounded-full border-4 border-white flex items-center justify-center active:scale-90 transition-transform"
+                                                >
+                                                    <div className="w-20 h-20 bg-white rounded-full scale-95" />
+                                                </button>
+
+                                                <button
+                                                    onClick={confirmPhotos}
+                                                    disabled={tempPhotos.length === 0}
+                                                    className={cn(
+                                                        "w-16 h-16 rounded-full flex items-center justify-center transition-all",
+                                                        tempPhotos.length > 0 ? "bg-emerald-500 text-white shadow-xl shadow-emerald-500/20" : "bg-white/10 text-white/20"
+                                                    )}
+                                                >
+                                                    <CheckCircle2 size={32} />
+                                                </button>
                                             </div>
-                                        ) : (
+                                            <p className="mt-6 text-white/60 font-medium text-sm">أكمل التقاط الصور ثم اضغط على "صح"</p>
+                                        </div>
+                                    ) : (
+                                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                            {capturedImages.map((img, i) => (
+                                                <div key={i} className="relative group aspect-square rounded-3xl overflow-hidden shadow-md border-2 border-slate-50">
+                                                    <img src={img} className="w-full h-full object-cover" />
+                                                    <button onClick={() => setCapturedImages(prev => prev.filter((_, idx) => idx !== i))} className="absolute top-2 left-2 p-1.5 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <X size={16} />
+                                                    </button>
+                                                </div>
+                                            ))}
+
                                             <button
-                                                onClick={triggerCamera}
-                                                className="aspect-square rounded-3xl border-4 border-dashed border-slate-200 flex flex-col items-center justify-center gap-3 text-slate-400 hover:border-orange-400 hover:text-orange-400 transition-all font-black group"
+                                                onClick={startCamera}
+                                                className="aspect-square rounded-3xl border-4 border-dashed border-slate-200 flex flex-col items-center justify-center gap-3 text-slate-400 hover:border-orange-400 hover:text-orange-400 transition-all font-black group bg-slate-50/50"
                                             >
-                                                <div className="p-4 bg-slate-50 rounded-2xl group-hover:bg-orange-50 transition-colors">
+                                                <div className="p-4 bg-white rounded-2xl group-hover:bg-orange-50 transition-colors shadow-sm border border-slate-100">
                                                     <Plus size={32} />
                                                 </div>
                                                 إضافة صورة
                                             </button>
-                                        )}
-                                    </div>
+                                        </div>
+                                    )}
 
                                     <div className="flex gap-4">
                                         <Button variant="ghost" className="h-16 flex-1 rounded-2xl font-black" onClick={() => setStep(1)}>رجوع</Button>
@@ -402,19 +474,14 @@ export default function DriverMaintenance() {
                                             <div className="relative rounded-3xl overflow-hidden shadow-xl aspect-[4/3] group border-4 border-emerald-50">
                                                 <img src={form.invoice_image} className="w-full h-full object-cover" />
                                                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                                    <Button variant="outline" className="text-white border-white font-black rounded-2xl h-14 px-8" onClick={triggerCamera}>
+                                                    <Button variant="outline" className="text-white border-white font-black rounded-2xl h-14 px-8" onClick={startCamera}>
                                                         {loading ? <Loader2 className="animate-spin" /> : 'إعادة تصوير الفاتورة'}
                                                     </Button>
                                                 </div>
                                             </div>
-                                        ) : loading ? (
-                                            <div className="w-full aspect-video rounded-[2rem] border-4 border-dashed border-slate-200 flex flex-col items-center justify-center gap-4 text-slate-400">
-                                                <Loader2 className="animate-spin" size={48} />
-                                                <span className="font-black">جاري رفع ومعالجة الفاتورة...</span>
-                                            </div>
                                         ) : (
                                             <button
-                                                onClick={triggerCamera}
+                                                onClick={startCamera}
                                                 className="w-full aspect-video rounded-[2rem] border-4 border-dashed border-slate-200 flex flex-col items-center justify-center gap-4 text-slate-400 hover:border-orange-400 hover:text-orange-400 transition-all font-black group bg-slate-50/50"
                                             >
                                                 <div className="p-6 bg-white rounded-3xl shadow-sm border border-slate-100 group-hover:border-orange-200 transition-all">
