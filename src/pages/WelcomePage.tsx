@@ -12,16 +12,17 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
+import { Navbar } from '@/components/layout/Navbar';
+import { Footer } from '@/components/layout/Footer';
 
 export default function WelcomePage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [scrolled, setScrolled] = useState(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [searchID, setSearchID] = useState("");
   const [content, setContent] = useState({
     aboutUs: "",
-    phone: "+966550258358",
+    phone: "+966 55 025 8358",
     email: "pr@sas3pl.com",
     address: "الرياض، المملكة العربية السعودية",
     whatsapp: "",
@@ -63,7 +64,7 @@ export default function WelcomePage() {
         setContent({
           aboutUs: config.aboutUs || "",
           phone: config.phone || "966XXXXXXXXX",
-          email: config.email || "info@sas4pl.com",
+          email: config.email || "pr@sas3pl.com",
           address: config.address || "الرياض، المملكة العربية السعودية",
           whatsapp: config.whatsapp || "",
           contactFormEmail: config.contactFormEmail || "",
@@ -172,126 +173,7 @@ export default function WelcomePage() {
     <div className="min-h-screen relative overflow-x-hidden bg-white font-['Cairo'] flex flex-col" dir="rtl">
 
 
-      {/* 🚀 الـ Navbar الاحترافي - الشعار على اليسار، الأزرار على اليمين */}
-      <nav className={`fixed top-0 left-0 right-0 z-[100] py-2 px-4 md:px-8 flex items-center justify-between
-        bg-white/95 shadow-sm backdrop-blur-md border-b border-slate-100 transition-all duration-300
-      `}>
-
-        {/* أزرار الدخول على اليسار (الأخيرة في RTL) - خط صغير جداً بناءً على طلبك */}
-        <div className="flex items-center gap-2 md:gap-3">
-          <div className="flex items-center gap-1 sm:gap-2">
-            <Button
-              onClick={() => navigate('/login')}
-              className="bg-slate-900 hover:bg-slate-800 text-white font-black px-2 sm:px-3 py-1 h-7 sm:h-8 rounded-lg shadow-sm transition-all text-[7px] sm:text-[10px] whitespace-nowrap"
-            >
-              دخول النظام
-            </Button>
-            <Button
-              onClick={() => navigate('/register')}
-              className="bg-primary hover:bg-primary/90 text-white font-black px-2 sm:px-3 py-1 h-7 sm:h-8 rounded-lg shadow-sm transition-all text-[7px] sm:text-[10px] whitespace-nowrap"
-            >
-              ابدأ رحلتك
-            </Button>
-          </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="xl:hidden rounded-lg w-8 h-8 bg-slate-50 border border-slate-200"
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          >
-            {isMobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
-          </Button>
-        </div>
-
-        {/* روابط التنقل في المنتصف - أصغر وأكثر تناسقاً */}
-        <div className="hidden xl:flex items-center gap-6">
-          <button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="font-black text-slate-600 hover:text-primary transition-all text-[9px] whitespace-nowrap uppercase tracking-tighter">الرئيسية</button>
-          <button onClick={() => navigate('/drivers')} className="font-black text-slate-400 hover:text-primary transition-all text-[9px] whitespace-nowrap uppercase tracking-tighter">السائقين</button>
-          <button onClick={() => navigate('/info')} className="font-black text-slate-400 hover:text-primary transition-all text-[9px] whitespace-nowrap uppercase tracking-tighter">معلومات عامة</button>
-          <button onClick={() => scrollToSection('about-us')} className="font-black text-slate-400 hover:text-primary transition-all text-[9px] whitespace-nowrap uppercase tracking-tighter">من نحن</button>
-          <button onClick={() => scrollToSection('contact-us')} className="font-black text-slate-400 hover:text-primary transition-all text-[9px] whitespace-nowrap uppercase tracking-tighter">اتصل بنا</button>
-          <Button
-            variant="ghost"
-            onClick={() => navigate('/tracking')}
-            className="font-black text-primary hover:bg-primary/5 transition-all text-[9px] flex items-center gap-1 h-auto py-1 px-3 whitespace-nowrap uppercase tracking-tighter"
-          >
-            <Search size={12} />
-            تتبع شحنة
-          </Button>
-        </div>
-
-        {/* مساحة فارغة في اليمين لأن الشعار انتقل للهيرو */}
-        <div className="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center">
-          {/* تم نقل الشعار للاسفل */}
-        </div>
-      </nav>
-
-      {/* 📱 القائمة الجانبية للجوال (Mobile Menu) */}
-      <AnimatePresence>
-        {isMobileMenuOpen && (
-          <motion.div
-            initial={{ x: '100%' }}
-            animate={{ x: 0 }}
-            exit={{ x: '100%' }}
-            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="fixed inset-0 z-[90] bg-white pt-48 pb-10 px-8 flex flex-col xl:hidden"
-          >
-            <div className="space-y-4">
-              <button
-                onClick={() => { scrollToSection('hero'); setIsMobileMenuOpen(false); }}
-                className="w-full text-right text-xl font-black text-slate-800 py-4 border-b border-slate-50 flex items-center justify-end gap-3"
-              >
-                الرئيسية
-              </button>
-              <button
-                onClick={() => { scrollToSection('about-us'); setIsMobileMenuOpen(false); }}
-                className="w-full text-right text-xl font-black text-slate-800 py-4 border-b border-slate-50 flex items-center justify-end gap-3"
-              >
-                من نحن
-              </button>
-              <button
-                onClick={() => { scrollToSection('contact-us'); setIsMobileMenuOpen(false); }}
-                className="w-full text-right text-xl font-black text-slate-800 py-4 border-b border-slate-50 flex items-center justify-end gap-3"
-              >
-                اتصل بنا
-              </button>
-              <button
-                onClick={() => { navigate('/drivers'); setIsMobileMenuOpen(false); }}
-                className="w-full text-right text-xl font-black text-slate-800 py-4 border-b border-slate-50 flex items-center justify-end gap-3"
-              >
-                السائقين
-              </button>
-              <button
-                onClick={() => { navigate('/info'); setIsMobileMenuOpen(false); }}
-                className="w-full text-right text-xl font-black text-slate-800 py-4 border-b border-slate-50 flex items-center justify-end gap-3"
-              >
-                معلومات عامة
-              </button>
-              <button
-                onClick={() => { navigate('/tracking'); setIsMobileMenuOpen(false); }}
-                className="w-full text-right text-xl font-black text-primary py-4 border-b border-slate-50 flex items-center justify-end gap-3"
-              >
-                تتبع الشحنة <Search size={24} />
-              </button>
-
-              <div className="pt-8 grid grid-cols-2 gap-4">
-                <Button
-                  onClick={() => { navigate('/login'); setIsMobileMenuOpen(false); }}
-                  className="h-16 rounded-2xl bg-slate-900 text-white font-black text-lg shadow-xl shadow-slate-200"
-                >
-                  دخول
-                </Button>
-                <Button
-                  onClick={() => { navigate('/register'); setIsMobileMenuOpen(false); }}
-                  className="h-16 rounded-2xl bg-primary text-white font-black text-lg shadow-xl shadow-primary/20"
-                >
-                  تسجيل
-                </Button>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <Navbar />
 
       {/* Hero Section - أقصى ضغط لتقليل الفراغات */}
       <section className="relative pt-8 pb-6 md:pt-14 md:pb-10 flex flex-col items-center justify-center overflow-hidden">
@@ -320,11 +202,11 @@ export default function WelcomePage() {
 
           <h1 className="text-xl md:text-3xl font-black text-slate-900 mb-1 leading-[1.1] tracking-tighter">
             SASGO <br />
-            <span className="text-primary italic">في كل طريق</span>
+            <span className="text-primary italic">{t('everywhere', 'في كل طريق')}</span>
           </h1>
 
           <p className="text-sm md:text-base font-black text-slate-500 mb-6 max-w-2xl mx-auto leading-relaxed px-4">
-            منصة النقل الذكية.. أسرع وأسهل طريقة لإدارة شحناتك ونقل بضائعك
+            {t('welcome_desc', 'منصة النقل الذكية.. أسرع وأسهل طريقة لإدارة شحناتك ونقل بضائعك')}
           </p>
 
           {/* 🔍 صندوق بحث تتبع مباشر */}
@@ -339,7 +221,7 @@ export default function WelcomePage() {
               <Input
                 value={searchID}
                 onChange={(e) => setSearchID(e.target.value)}
-                placeholder="أدخل رقم الشحنة للتتبع المباشر..."
+                placeholder={t('tracking_placeholder', 'أدخل رقم الشحنة للتتبع المباشر...')}
                 className="h-10 md:h-12 px-6 bg-transparent border-none text-sm font-black focus-visible:ring-0 placeholder:text-slate-300"
               />
               <Button
@@ -347,17 +229,17 @@ export default function WelcomePage() {
                 className="h-10 md:h-10 px-8 rounded-[1rem] bg-primary hover:bg-primary/90 text-white font-black flex items-center gap-2 transition-all mr-2 shadow-md shadow-primary/20 text-xs"
               >
                 <Search size={16} />
-                تتبع
+                {t('track', 'تتبع')}
               </Button>
             </div>
           </motion.form>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 max-w-3xl mx-auto mt-4">
             {[
-              { icon: <Shield className="text-primary" size={14} />, text: "آمن وموثوق" },
-              { icon: <Zap className="text-amber-500" size={14} />, text: "سرعة فائقة" },
-              { icon: <Globe className="text-emerald-500" size={14} />, text: "تغطية شاملة" },
-              { icon: <Truck className="text-primary" size={14} />, text: "أسطول ضخم" },
+              { icon: <Shield className="text-primary" size={14} />, text: t('safe_reliable', "آمن وموثوق") },
+              { icon: <Zap className="text-amber-500" size={14} />, text: t('super_fast', "سرعة فائقة") },
+              { icon: <Globe className="text-emerald-500" size={14} />, text: t('global_coverage', "تغطية شاملة") },
+              { icon: <Truck className="text-primary" size={14} />, text: t('large_fleet', "أسطول ضخم") },
             ].map((item, i) => (
               <motion.div
                 key={i}
@@ -386,18 +268,18 @@ export default function WelcomePage() {
             >
               <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-100 text-blue-700 rounded-xl font-black text-sm">
                 <Info size={18} />
-                من نحن
+                {t('about_us', 'من نحن')}
               </div>
               <h2 className="text-2xl md:text-3xl font-black text-slate-900 leading-tight">
-                رواد الحلول اللوجستية <br />
-                <span className="text-primary">في المملكة العربية السعودية</span>
+                {t('logistic_pioneers', 'رواد الحلول اللوجستية')} <br />
+                <span className="text-primary">{t('in_saudi_arabia', 'في المملكة العربية السعودية')}</span>
               </h2>
               <p className="text-base md:text-lg text-slate-600 font-bold leading-relaxed">
-                {content.aboutUs || "نحن شركة رائدة في مجال النقل والخدمات اللوجستية، نسعى دائماً لتقديم أفضل الحلول التقنية لتسهيل عمليات النقل وضمان وصول شحناتكم بأمان وفي أسرع وقت ممكن."}
+                {content.aboutUs || t('about_us_default', "نحن شركة رائدة في مجال النقل والخدمات اللوجستية، نسعى دائماً لتقديم أفضل الحلول التقنية لتسهيل عمليات النقل وضمان وصول شحناتكم بأمان وفي أسرع وقت ممكن.")}
               </p>
               <Button onClick={() => navigate('/register')} className="h-14 px-10 rounded-2xl bg-slate-900 text-white font-black text-lg gap-3 shadow-xl">
-                ابدأ رحلتك معنا
-                <ChevronRight className="rotate-180" />
+                {t('start_journey_with_us', 'ابدأ رحلتك معنا')}
+                <ChevronRight className={i18n.language === 'ar' ? "rotate-180" : ""} />
               </Button>
             </motion.div>
             <motion.div
@@ -419,7 +301,7 @@ export default function WelcomePage() {
                     whileInView={{ scale: 1 }}
                   />
                   <div className="space-y-4">
-                    <h3 className="text-3xl md:text-4xl font-black leading-tight drop-shadow-md">رؤية واضحة .. مستقبل مضمون</h3>
+                    <h3 className="text-3xl md:text-4xl font-black leading-tight drop-shadow-md">{t('clear_vision', 'رؤية واضحة .. مستقبل مضمون')}</h3>
                     <div className="h-1.5 w-24 bg-white/30 mx-auto rounded-full overflow-hidden">
                       <div className="h-full w-1/2 bg-white rounded-full animate-loader"></div>
                     </div>
@@ -428,7 +310,7 @@ export default function WelcomePage() {
               </div>
               <div className="absolute -bottom-10 -right-10 w-48 h-48 bg-white/80 backdrop-blur-xl p-8 rounded-[2rem] shadow-xl border border-white flex flex-col items-center justify-center text-center">
                 <p className="text-4xl font-black text-primary mb-1">100%</p>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">إدارة ذكية</p>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">{t('smart_management', 'إدارة ذكية')}</p>
               </div>
             </motion.div>
           </div>
@@ -439,8 +321,8 @@ export default function WelcomePage() {
       <section id="contact-us" className="py-20 bg-white">
         <div className="container mx-auto px-6">
           <div className="text-center max-w-2xl mx-auto mb-16 space-y-4">
-            <h2 className="text-2xl md:text-3xl font-black text-slate-900">تواصل معنا</h2>
-            <p className="text-slate-500 font-bold text-base leading-relaxed">فريقنا جاهز للرد على استفساراتكم على مدار الساعة</p>
+            <h2 className="text-2xl md:text-3xl font-black text-slate-900">{t('contact_us', 'تواصل معنا')}</h2>
+            <p className="text-slate-500 font-bold text-base leading-relaxed">{t('contact_desc', 'فريقنا جاهز للرد على استفساراتكم على مدار الساعة')}</p>
           </div>
 
           <div className="container mx-auto px-6">
@@ -457,67 +339,67 @@ export default function WelcomePage() {
 
                 <div className="relative z-10 space-y-8">
                   <div>
-                    <h3 className="text-3xl font-black text-slate-900 mb-4">أرسل لنا رسالة</h3>
-                    <p className="text-slate-500 font-bold">اترك استفسارك هنا وسيقوم فريقنا بالرد عليك في أسرع وقت ممكن.</p>
+                    <h3 className="text-3xl font-black text-slate-900 mb-4">{t('send_message', 'أرسل لنا رسالة')}</h3>
+                    <p className="text-slate-500 font-bold">{t('send_message_desc', 'اترك استفسارك هنا وسيقوم فريقنا بالرد عليك في أسرع وقت ممكن.')}</p>
                   </div>
 
                   <form onSubmit={handleContactSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-3">
-                      <label className="font-black text-slate-700 text-sm">الاسم الكامل <span className="text-rose-500">*</span></label>
+                      <label className="font-black text-slate-700 text-sm">{t('full_name_label', 'الاسم الكامل')} <span className="text-rose-500">*</span></label>
                       <Input
                         required
                         value={contactData.name}
                         onChange={e => setContactData({ ...contactData, name: e.target.value })}
-                        placeholder="أدخل اسمك"
+                        placeholder={t('enter_name', 'أدخل اسمك')}
                         className="h-14 bg-slate-50 border-none rounded-2xl font-bold focus:ring-2 ring-primary/20 transition-all"
                       />
                     </div>
                     <div className="space-y-3">
-                      <label className="font-black text-slate-700 text-sm">البريد الإلكتروني <span className="text-rose-500">*</span></label>
+                      <label className="font-black text-slate-700 text-sm">{t('email', 'البريد الإلكتروني')} <span className="text-rose-500">*</span></label>
                       <Input
                         required
                         type="email"
                         value={contactData.email}
                         onChange={e => setContactData({ ...contactData, email: e.target.value })}
                         placeholder="name@example.com"
-                        className="h-14 bg-slate-50 border-none rounded-2xl font-bold focus:ring-2 ring-primary/20 transition-all text-left"
+                        className={`h-14 bg-slate-50 border-none rounded-2xl font-bold focus:ring-2 ring-primary/20 transition-all ${i18n.language === 'en' ? 'text-left' : 'text-right'}`}
                       />
                     </div>
                     <div className="space-y-3">
-                      <label className="font-black text-slate-700 text-sm">الجوال / واتساب <span className="text-slate-400 text-[10px]">(اختياري)</span></label>
+                      <label className="font-black text-slate-700 text-sm">{t('mobile_whatsapp', 'الجوال / واتساب')} <span className="text-slate-400 text-[10px]">({t('optional', 'اختياري')})</span></label>
                       <Input
                         value={contactData.phone}
                         onChange={e => setContactData({ ...contactData, phone: e.target.value })}
                         placeholder="05XXXXXXXX"
-                        className="h-14 bg-slate-50 border-none rounded-2xl font-bold focus:ring-2 ring-primary/20 transition-all text-left"
+                        className={`h-14 bg-slate-50 border-none rounded-2xl font-bold focus:ring-2 ring-primary/20 transition-all ${i18n.language === 'en' ? 'text-left' : 'text-right'}`}
                       />
                     </div>
                     <div className="space-y-3">
-                      <label className="font-black text-slate-700 text-sm">اسم الشركة <span className="text-slate-400 text-[10px]">(اختياري)</span></label>
+                      <label className="font-black text-slate-700 text-sm">{t('company_name', 'اسم الشركة')} <span className="text-slate-400 text-[10px]">({t('optional', 'اختياري')})</span></label>
                       <Input
                         value={contactData.company}
                         onChange={e => setContactData({ ...contactData, company: e.target.value })}
-                        placeholder="شركة..."
+                        placeholder={t('company_placeholder', 'شركة...')}
                         className="h-14 bg-slate-50 border-none rounded-2xl font-bold focus:ring-2 ring-primary/20 transition-all"
                       />
                     </div>
                     <div className="md:col-span-2 space-y-3">
-                      <label className="font-black text-slate-700 text-sm">الموضوع</label>
+                      <label className="font-black text-slate-700 text-sm">{t('subject_label', 'الموضوع')}</label>
                       <Input
                         value={contactData.subject}
                         onChange={e => setContactData({ ...contactData, subject: e.target.value })}
-                        placeholder="عن ماذا تريد التحدث؟"
+                        placeholder={t('subject_placeholder', 'عن ماذا تريد التحدث؟')}
                         className="h-14 bg-slate-50 border-none rounded-2xl font-bold focus:ring-2 ring-primary/20 transition-all"
                       />
                     </div>
                     <div className="md:col-span-2 space-y-3">
-                      <label className="font-black text-slate-700 text-sm">الرسالة <span className="text-rose-500">*</span></label>
+                      <label className="font-black text-slate-700 text-sm">{t('message_label', 'الرسالة')} <span className="text-rose-500">*</span></label>
                       <Textarea
                         required
                         rows={5}
                         value={contactData.message}
                         onChange={e => setContactData({ ...contactData, message: e.target.value })}
-                        placeholder="اكتب رسالتك هنا..."
+                        placeholder={t('message_placeholder', 'اكتب رسالتك هنا...')}
                         className="bg-slate-50 border-none rounded-[2rem] font-bold p-6 focus:ring-2 ring-primary/20 transition-all min-h-[150px]"
                       />
                     </div>
@@ -527,10 +409,10 @@ export default function WelcomePage() {
                         disabled={isSending}
                         className="w-full md:w-auto h-16 px-12 rounded-2xl bg-primary hover:bg-primary/90 text-white font-black text-lg shadow-xl shadow-primary/20 transition-all hover:scale-[1.02] flex items-center gap-3"
                       >
-                        {isSending ? "جاري الإرسال..." : (
+                        {isSending ? t('sending', "جاري الإرسال...") : (
                           <>
-                            <Send size={20} className="rotate-180" />
-                            إرسال الرسالة
+                            <Send size={20} className={i18n.language === 'ar' ? "rotate-180" : ""} />
+                            {t('submit_message', 'إرسال الرسالة')}
                           </>
                         )}
                       </Button>
@@ -550,7 +432,7 @@ export default function WelcomePage() {
                 <div className="p-8 bg-slate-900 rounded-[3rem] text-white space-y-8 relative overflow-hidden group">
                   <div className="absolute top-0 right-0 w-32 h-32 bg-primary/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:bg-primary/30 transition-all" />
 
-                  <h3 className="text-2xl font-black relative z-10">معلومات التواصل</h3>
+                  <h3 className="text-2xl font-black relative z-10">{t('contact_info', 'معلومات التواصل')}</h3>
 
                   <div className="space-y-6 relative z-10">
                     <div className="flex items-center gap-5">
@@ -558,7 +440,7 @@ export default function WelcomePage() {
                         <Phone size={28} />
                       </div>
                       <div>
-                        <p className="text-slate-400 font-bold text-xs mb-1">اتصل بنا</p>
+                        <p className="text-slate-400 font-bold text-xs mb-1">{t('call_us', 'اتصل بنا')}</p>
                         <p className="font-black text-lg hover:text-primary transition-colors cursor-pointer" dir="ltr">{content.phone}</p>
                       </div>
                     </div>
@@ -568,7 +450,7 @@ export default function WelcomePage() {
                         <MessageCircle size={28} />
                       </div>
                       <div>
-                        <p className="text-slate-400 font-bold text-xs mb-1">واتساب</p>
+                        <p className="text-slate-400 font-bold text-xs mb-1">{t('whatsapp', 'واتساب')}</p>
                         <p className="font-black text-lg hover:text-emerald-400 transition-colors cursor-pointer" dir="ltr">{content.whatsapp || content.phone}</p>
                       </div>
                     </div>
@@ -578,7 +460,7 @@ export default function WelcomePage() {
                         <Mail size={28} />
                       </div>
                       <div>
-                        <p className="text-slate-400 font-bold text-xs mb-1">البريد الإلكتروني</p>
+                        <p className="text-slate-400 font-bold text-xs mb-1">{t('email', 'البريد الإلكتروني')}</p>
                         <p className="font-black text-lg hover:text-blue-400 transition-colors cursor-pointer">{content.email}</p>
                       </div>
                     </div>
@@ -588,16 +470,16 @@ export default function WelcomePage() {
                         <MapPin size={28} />
                       </div>
                       <div>
-                        <p className="text-slate-400 font-bold text-xs mb-1">المقر الرئيسي</p>
+                        <p className="text-slate-400 font-bold text-xs mb-1">{t('headquarters', 'المقر الرئيسي')}</p>
                         <p className="font-black text-lg">{content.address}</p>
                       </div>
                     </div>
                   </div>
 
                   <div className="pt-8 border-t border-white/10 flex items-center justify-between">
-                    <p className="text-slate-400 font-bold">ساعات العمل</p>
+                    <p className="text-slate-400 font-bold">{t('working_hours', 'ساعات العمل')}</p>
                     <div className="px-4 py-2 bg-white/5 rounded-xl text-primary font-black text-sm">
-                      8:00 ص - 6:00 م
+                      {t('working_hours_val', '8:00 ص - 6:00 م')}
                     </div>
                   </div>
                 </div>
@@ -607,10 +489,10 @@ export default function WelcomePage() {
                   <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
                     <Star size={32} className="text-yellow-400 fill-yellow-400" />
                   </div>
-                  <h4 className="text-xl font-black">جاهز للبدء؟</h4>
-                  <p className="text-blue-100 font-bold text-sm">انضم لأكثر من 500 عميل يثقون في خدماتنا اللوجستية المتطورة.</p>
+                  <h4 className="text-xl font-black">{t('ready_to_start', 'جاهز للبدء؟')}</h4>
+                  <p className="text-blue-100 font-bold text-sm">{t('ready_to_start_desc', 'انضم لأكثر من 500 عميل يثقون في خدماتنا اللوجستية المتطورة.')}</p>
                   <Button onClick={() => navigate('/register')} className="w-full h-12 bg-white text-blue-600 hover:bg-white/90 font-black rounded-xl">
-                    سجل الآن
+                    {t('register_now', 'سجل الآن')}
                   </Button>
                 </div>
               </motion.div>
@@ -627,22 +509,22 @@ export default function WelcomePage() {
               <div className="p-12 md:p-16 space-y-8">
                 <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary rounded-xl font-black text-sm">
                   <Truck size={18} />
-                  تتبع مباشر
+                  {t('track_live', 'تتبع مباشر')}
                 </div>
-                <h3 className="text-3xl md:text-4xl font-black text-slate-900 leading-tight">اين شحنتك الآن؟</h3>
-                <p className="text-slate-500 font-bold">أدخل رقم التتبع الخاص بك لمعرفة حالة شحنتك وموعد وصولها المتوقع بدقة.</p>
+                <h3 className="text-3xl md:text-4xl font-black text-slate-900 leading-tight">{t('where_is_shipment', 'اين شحنتك الآن؟')}</h3>
+                <p className="text-slate-500 font-bold">{t('tracking_desc', 'أدخل رقم التتبع الخاص بك لمعرفة حالة شحنتك وموعد وصولها المتوقع بدقة.')}</p>
                 <form onSubmit={handleSearch} className="space-y-4">
                   <div className="relative group">
                     <Input
                       value={searchID}
                       onChange={(e) => setSearchID(e.target.value)}
-                      placeholder="رقم الشحنة (مثال: d95d47c6)"
-                      className="h-16 px-6 bg-slate-50 border-2 border-slate-100 rounded-2xl font-black text-lg focus:border-primary transition-all pr-12"
+                      placeholder={t('tracking_placeholder', "رقم الشحنة (مثال: d95d47c6)")}
+                      className={`h-16 px-6 bg-slate-50 border-2 border-slate-100 rounded-2xl font-black text-lg focus:border-primary transition-all ${i18n.language === 'en' ? 'pl-12' : 'pr-12'}`}
                     />
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-primary transition-colors" size={20} />
+                    <Search className={`absolute ${i18n.language === 'en' ? 'right-4' : 'left-4'} top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-primary transition-colors`} size={20} />
                   </div>
                   <Button type="submit" className="w-full h-16 rounded-2xl bg-primary hover:bg-primary/90 text-white font-black text-lg shadow-xl shadow-primary/20 transition-all hover:scale-[1.02]">
-                    بدء التتبع
+                    {t('start_tracking', 'بدء التتبع')}
                   </Button>
                 </form>
               </div>
@@ -654,8 +536,8 @@ export default function WelcomePage() {
                   <div className="w-24 h-24 bg-white/10 backdrop-blur-xl rounded-3xl flex items-center justify-center shadow-2xl">
                     <Globe size={48} className="animate-spin-slow" />
                   </div>
-                  <h4 className="text-2xl font-black">شبكة واسعة</h4>
-                  <p className="text-blue-100 font-bold">نغطي كافة مناطق المملكة العربية السعودية بأسطول حديث ومجهز.</p>
+                  <h4 className="text-2xl font-black">{t('wide_network', 'شبكة واسعة')}</h4>
+                  <p className="text-blue-100 font-bold">{t('wide_network_desc', 'نغطي كافة مناطق المملكة العربية السعودية بأسطول حديث ومجهز.')}</p>
                 </div>
               </div>
             </div>
@@ -664,25 +546,7 @@ export default function WelcomePage() {
       </section>
 
 
-      {/* Footer */}
-      <footer className="py-12 px-6 border-t border-slate-100 bg-white">
-        <div className="container mx-auto flex flex-col md:flex-row justify-between items-center gap-8">
-          <div className="flex items-center gap-6">
-            <img src="/logo.png" alt="SAS Logo" className="h-10 opacity-30 grayscale transition-all hover:opacity-100 cursor-pointer" />
-            <span className="text-slate-400 font-bold text-sm">© {new Date().getFullYear()} SAS TRANSPORT. جميع الحقوق محفوظة</span>
-          </div>
-
-          <div className="flex items-center gap-8">
-            <Link to="/privacy" className="text-slate-400 hover:text-primary font-black text-sm transition-colors">سياسة الخصوصية</Link>
-            <Link to="/terms" className="text-slate-400 hover:text-primary font-black text-sm transition-colors">الشروط والأحكام</Link>
-            <div className="flex gap-4">
-              <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 hover:bg-primary/5 hover:text-primary cursor-pointer transition-all">
-                <Globe size={20} />
-              </div>
-            </div>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }

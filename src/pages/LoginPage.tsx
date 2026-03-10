@@ -11,9 +11,10 @@ import { Card, CardContent } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { Loader2, ArrowRight, Mail, Lock, ShieldCheck, Eye, EyeOff, UserCircle2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { cn } from '@/lib/utils';
 
 export default function LoginPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const { setUserProfile, setCurrentRole, setAuth } = useAppStore();
 
@@ -83,7 +84,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#f8fafc] relative overflow-hidden p-4 md:p-6 py-12" dir="rtl">
+    <div className="min-h-screen flex items-center justify-center bg-[#f8fafc] relative overflow-hidden p-4 md:p-6 py-12" dir={i18n.language === 'ar' ? 'rtl' : 'ltr'}>
       {/* عناصر زخرفية خلفية */}
       <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/5 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/2" />
       <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-blue-500/5 rounded-full blur-[80px] translate-y-1/4 -translate-x-1/4" />
@@ -101,7 +102,7 @@ export default function LoginPage() {
             className="hover:bg-white/80 rounded-xl gap-1 font-bold text-slate-500 text-[10px]"
             onClick={() => navigate('/')}
           >
-            <ArrowRight size={14} className="rotate-0" /> {t('back')}
+            <ArrowRight size={14} className={i18n.language === 'ar' ? "rotate-0" : "rotate-180"} /> {t('back')}
           </Button>
         </div>
 
@@ -115,19 +116,19 @@ export default function LoginPage() {
             <img src="/logo.png" className="w-12 h-12 object-contain relative z-10 p-1" alt="Logo" />
             <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent" />
           </motion.div>
-          <h1 className="text-xl font-black text-slate-900 tracking-tight mb-1">تسجيل الدخول</h1>
-          <p className="text-[10px] font-bold text-slate-400">منصة النقل الذكية</p>
+          <h1 className="text-xl font-black text-slate-900 tracking-tight mb-1">{t('login_title')}</h1>
+          <p className="text-[10px] font-bold text-slate-400">{t('login_subtitle')}</p>
         </div>
 
         <Card className="shadow-2xl shadow-slate-200/50 border-white/60 bg-white/90 backdrop-blur-xl rounded-[2rem] overflow-hidden border-2">
           <CardContent className="p-6 md:p-8">
-            <Tabs defaultValue="user" onValueChange={setActiveTab} dir="rtl" className="w-full">
+            <Tabs defaultValue="user" onValueChange={setActiveTab} dir={i18n.language === 'ar' ? 'rtl' : 'ltr'} className="w-full">
               <TabsList className="w-full grid grid-cols-2 h-11 bg-slate-100/50 p-1 rounded-xl mb-6">
                 <TabsTrigger value="user" className="rounded-lg font-bold text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm">
-                  دخول المستخدم
+                  {t('user_login')}
                 </TabsTrigger>
                 <TabsTrigger value="admin" className="rounded-lg font-bold text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm">
-                  دخول الإدارة
+                  {t('admin_login_tab')}
                 </TabsTrigger>
               </TabsList>
 
@@ -144,14 +145,14 @@ export default function LoginPage() {
                       <div className="space-y-1.5">
                         <Label className="text-[10px] font-black text-slate-400 ms-1 uppercase">{t('email')}</Label>
                         <div className="relative group">
-                          <Mail className="absolute start-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-primary transition-colors" size={16} />
+                          <Mail className={cn("absolute top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-primary transition-colors", i18n.language === 'ar' ? "right-4" : "left-4")} size={16} />
                           <Input
                             type="email"
                             value={email}
                             onChange={e => setEmail(e.target.value)}
                             required
                             dir="ltr"
-                            className="ps-11 h-12 rounded-xl border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary transition-all font-bold text-sm"
+                            className={cn("h-12 rounded-xl border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary transition-all font-bold text-sm", i18n.language === 'ar' ? "pr-11" : "pl-11")}
                             placeholder="name@company.com"
                           />
                         </div>
@@ -160,20 +161,20 @@ export default function LoginPage() {
                       <div className="space-y-1.5">
                         <Label className="text-[10px] font-black text-slate-400 ms-1 uppercase">{t('password')}</Label>
                         <div className="relative group">
-                          <Lock className="absolute start-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-primary transition-colors" size={16} />
+                          <Lock className={cn("absolute top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-primary transition-colors", i18n.language === 'ar' ? "right-4" : "left-4")} size={16} />
                           <Input
                             type={showPassword ? "text" : "password"}
                             value={password}
                             onChange={e => setPassword(e.target.value)}
                             required
                             dir="ltr"
-                            className="ps-11 pe-12 h-12 rounded-xl border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary transition-all font-bold text-sm"
+                            className={cn("h-12 rounded-xl border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary transition-all font-bold text-sm", i18n.language === 'ar' ? "pr-11 pl-12" : "pl-11 pr-12")}
                             placeholder="••••••••"
                           />
                           <button
                             type="button"
                             onClick={() => setShowPassword(!showPassword)}
-                            className="absolute end-4 top-1/2 -translate-y-1/2 text-slate-300 hover:text-primary transition-colors"
+                            className={cn("absolute top-1/2 -translate-y-1/2 text-slate-300 hover:text-primary transition-colors", i18n.language === 'ar' ? "left-4" : "right-4")}
                           >
                             {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                           </button>
@@ -189,12 +190,12 @@ export default function LoginPage() {
                       </Button>
 
                       <div className="flex flex-col gap-3 text-center mt-5">
-                        <Link to="/forgot-password" size="sm" className="text-[11px] text-primary font-bold hover:underline underline-offset-4 decoration-2">
+                        <Link to="/forgot-password" title={t('forgot_password')} className="text-[11px] text-primary font-bold hover:underline underline-offset-4 decoration-2">
                           {t('forgot_password')}
                         </Link>
                         <div className="relative py-1">
                           <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-slate-100"></span></div>
-                          <div className="relative flex justify-center text-[9px] uppercase"><span className="bg-white/50 px-2 text-slate-300 font-black tracking-wider">أو</span></div>
+                          <div className="relative flex justify-center text-[9px] uppercase"><span className="bg-white/50 px-2 text-slate-300 font-black tracking-wider">{t('or')}</span></div>
                         </div>
                         <p className="text-[11px] font-bold text-slate-400">
                           {t('no_account')} <Link to="/register" className="text-primary font-black hover:underline underline-offset-4 decoration-2">{t('register')}</Link>
@@ -208,14 +209,14 @@ export default function LoginPage() {
                       <div className="space-y-1.5">
                         <Label className="text-[10px] font-black text-slate-400 ms-1 uppercase">{t('email')}</Label>
                         <div className="relative group">
-                          <UserCircle2 className="absolute start-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-slate-900 transition-colors" size={16} />
+                          <UserCircle2 className={cn("absolute top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-slate-900 transition-colors", i18n.language === 'ar' ? "right-4" : "left-4")} size={16} />
                           <Input
                             type="email"
                             value={adminEmail}
                             onChange={e => setAdminEmail(e.target.value)}
                             required
                             dir="ltr"
-                            className="ps-11 h-12 rounded-xl border-slate-100 bg-slate-50/50 focus:bg-white focus:border-slate-900 transition-all font-bold text-sm"
+                            className={cn("h-12 rounded-xl border-slate-100 bg-slate-50/50 focus:bg-white focus:border-slate-900 transition-all font-bold text-sm", i18n.language === 'ar' ? "pr-11" : "pl-11")}
                             placeholder="admin@sas-transport.com"
                           />
                         </div>
@@ -224,20 +225,20 @@ export default function LoginPage() {
                       <div className="space-y-1.5">
                         <Label className="text-[10px] font-black text-slate-400 ms-1 uppercase">{t('password')}</Label>
                         <div className="relative group">
-                          <Lock className="absolute start-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-slate-900 transition-colors" size={16} />
+                          <Lock className={cn("absolute top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-slate-900 transition-colors", i18n.language === 'ar' ? "right-4" : "left-4")} size={16} />
                           <Input
                             type={showAdminPassword ? "text" : "password"}
                             value={adminPassword}
                             onChange={e => setAdminPassword(e.target.value)}
                             required
                             dir="ltr"
-                            className="ps-11 pe-12 h-12 rounded-xl border-slate-100 bg-slate-50/50 focus:bg-white focus:border-slate-900 transition-all font-bold text-sm"
+                            className={cn("h-12 rounded-xl border-slate-100 bg-slate-50/50 focus:bg-white focus:border-slate-900 transition-all font-bold text-sm", i18n.language === 'ar' ? "pr-11 pl-12" : "pl-11 pr-12")}
                             placeholder="••••••••"
                           />
                           <button
                             type="button"
                             onClick={() => setShowAdminPassword(!showAdminPassword)}
-                            className="absolute end-4 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-900 transition-colors"
+                            className={cn("absolute top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-900 transition-colors", i18n.language === 'ar' ? "left-4" : "right-4")}
                           >
                             {showAdminPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                           </button>
@@ -249,12 +250,12 @@ export default function LoginPage() {
                         disabled={loading}
                         className="w-full h-12 rounded-xl text-md font-black bg-slate-900 hover:bg-slate-800 text-white shadow-xl shadow-slate-900/10 transition-all active:scale-[0.98]"
                       >
-                        {loading ? <Loader2 className="animate-spin" /> : "دخول المسؤولين"}
+                        {loading ? <Loader2 className="animate-spin" /> : t('admin_login_btn')}
                       </Button>
 
                       <div className="bg-amber-50/50 border border-amber-100 rounded-lg p-3 mt-3 text-center">
                         <p className="text-[9px] text-amber-700 font-bold flex items-center justify-center gap-2">
-                          <ShieldCheck size={12} /> بوابة الوصول الآمن للموظفين والمديرين فقط
+                          <ShieldCheck size={12} /> {t('admin_portal_desc')}
                         </p>
                       </div>
                     </form>

@@ -75,12 +75,12 @@ export const api = {
     } catch (e) { throw e; }
   },
 
-  async registerUser(email: string, password: string, profile: { full_name: string; phone: string; role: UserRole }) {
+  async registerUser(email: string, password: string, profile: { full_name: string; phone: string; role: UserRole;[key: string]: any }) {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        data: { full_name: profile.full_name, phone: profile.phone, role: profile.role },
+        data: { ...profile },
         // أضف هذا السطر لمنع تضارب الجلسات وتسجيل الخروج التلقائي
         // @ts-ignore
         persistSession: false

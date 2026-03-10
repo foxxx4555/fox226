@@ -25,7 +25,7 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp
 import { Checkbox } from '@/components/ui/checkbox';
 
 export default function RegisterPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [role, setRole] = useState<UserRole | "">("");
@@ -81,18 +81,18 @@ export default function RegisterPage() {
   }, []);
 
   const validateForm = () => {
-    if (!role) { toast.error('يرجى اختيار نوع الحساب'); return false; }
-    if (form.full_name.length < 3) { toast.error('الاسم الكامل قصير جداً'); return false; }
-    if (!/^\S+@\S+\.\S+$/.test(form.email)) { toast.error('البريد الإلكتروني غير صحيح'); return false; }
-    if (form.phone.length < 8) { toast.error('رقم الجوال غير صحيح'); return false; }
-    if (form.password.length < 6) { toast.error('كلمة المرور يجب أن تكون 6 أحرف على الأقل'); return false; }
-    if (form.password !== form.confirmPassword) { toast.error('كلمات المرور غير متطابقة'); return false; }
-    if (!agreeTerms) { toast.error('يرجى الموافقة على الشروط والأحكام وسياسة الخصوصية'); return false; }
+    if (!role) { toast.error(t('select_account_type', 'يرجى اختيار نوع الحساب')); return false; }
+    if (form.full_name.length < 3) { toast.error(t('name_too_short', 'الاسم الكامل قصير جداً')); return false; }
+    if (!/^\S+@\S+\.\S+$/.test(form.email)) { toast.error(t('invalid_email', 'البريد الإلكتروني غير صحيح')); return false; }
+    if (form.phone.length < 8) { toast.error(t('invalid_phone', 'رقم الجوال غير صحيح')); return false; }
+    if (form.password.length < 6) { toast.error(t('pass_too_short', 'كلمة المرور يجب أن تكون 6 أحرف على الأقل')); return false; }
+    if (form.password !== form.confirmPassword) { toast.error(t('pass_mismatch', 'كلمات المرور غير متطابقة')); return false; }
+    if (!agreeTerms) { toast.error(t('agree_terms_error', 'يرجى الموافقة على الشروط والأحكام وسياسة الخصوصية')); return false; }
 
     if (role === 'driver') {
-      if (!files.license) { toast.error('يرجى رفع رخصة القيادة'); return false; }
-      if (!files.idDoc) { toast.error('يرجى رفع الهوية الوطنية'); return false; }
-      if (!files.truckImg) { toast.error('يرجى رفع صورة الشاحنة'); return false; }
+      if (!files.license) { toast.error(t('license_required', 'يرجى رفع رخصة القيادة')); return false; }
+      if (!files.idDoc) { toast.error(t('id_required', 'يرجى رفع الهوية الوطنية')); return false; }
+      if (!files.truckImg) { toast.error(t('truck_img_required', 'يرجى رفع صورة الشاحنة')); return false; }
     }
     return true;
   };
@@ -103,7 +103,7 @@ export default function RegisterPage() {
       return publicUrl;
     } catch (error) {
       console.error(`Error uploading ${docType}:`, error);
-      throw new Error(`فشل رفع ${docType}`);
+      throw new Error(t('upload_failed', 'فشل رفع {{type}}', { type: docType }));
     }
   };
 
@@ -120,9 +120,8 @@ export default function RegisterPage() {
       };
 
       if (role === 'driver') {
-        toast.info('جاري رفع المستندات...');
+        toast.info(t('uploading_docs', 'جاري رفع المستندات...'));
 
-        // استخدام uploadImage الموجود في api.ts إذا كان يدعم ذلك أو استخدام supabase مباشرة
         const [licenseUrl, idUrl, truckUrl] = await Promise.all([
           api.uploadImage(files.license!, 'driver-docs'),
           api.uploadImage(files.idDoc!, 'driver-docs'),
@@ -145,11 +144,11 @@ export default function RegisterPage() {
       });
 
       localStorage.setItem('pending_email', form.email);
-      toast.success('تم إرسال رمز التحقق إلى بريدك الإلكتروني');
+      toast.success(t('otp_sent', 'تم إرسال رمز التحقق إلى بريدك الإلكتروني'));
       setShowOtp(true);
       setTimer(60);
     } catch (err: any) {
-      toast.error(err.message || 'حدث خطأ أثناء التسجيل');
+      toast.error(err.message || t('error'));
     } finally {
       setLoading(false);
     }
@@ -157,16 +156,16 @@ export default function RegisterPage() {
 
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (otpCode.length < 6) return toast.error('يرجى إدخال الرمز المكون من 6 أرقام');
+    if (otpCode.length < 6) return toast.error(t('enter_6_digits', 'يرجى إدخال الرمز المكون من 6 أرقام'));
 
     setLoading(true);
     try {
       await api.verifyEmailOtp(form.email, otpCode);
       localStorage.removeItem('pending_email');
-      toast.success('تم تفعيل الحساب بنجاح! جاري التحويل...');
+      toast.success(t('success_activate'));
       setTimeout(() => navigate('/login'), 1500);
     } catch (err: any) {
-      toast.error('الرمز غير صحيح أو منتهي الصلاحية');
+      toast.error(t('invalid_otp', 'الرمز غير صحيح أو منتهي الصلاحية'));
     } finally {
       setLoading(false);
     }
@@ -178,16 +177,16 @@ export default function RegisterPage() {
     try {
       await api.resendOtp(form.email);
       setTimer(60);
-      toast.success('تم إعادة إرسال الكود بنجاح');
+      toast.success(t('otp_resent', 'تم إعادة إرسال الكود بنجاح'));
     } catch (err: any) {
-      toast.error('فشل إعادة الإرسال، حاول ثانية');
+      toast.error(t('resend_failed', 'فشل إعادة الإرسال، حاول ثانية'));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#f8fafc] relative overflow-hidden p-4 md:p-6 py-12" dir="rtl">
+    <div className="min-h-screen flex items-center justify-center bg-[#f8fafc] relative overflow-hidden p-4 md:p-6 py-12" dir={i18n.language === 'ar' ? 'rtl' : 'ltr'}>
       {/* Background Decorative Elements */}
       <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/5 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/2" />
       <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-blue-500/5 rounded-full blur-[80px] translate-y-1/4 -translate-x-1/4" />
@@ -208,10 +207,10 @@ export default function RegisterPage() {
             <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent" />
           </motion.div>
           <h1 className="text-xl font-black text-slate-900 tracking-tight mb-1">
-            {showOtp ? 'تأكيد الحساب' : 'إنشاء حساب جديد'}
+            {showOtp ? t('verify_title') : t('register_title')}
           </h1>
           <p className="text-[10px] font-bold text-slate-400">
-            {showOtp ? 'أدخل الرمز المرسل لإتمام عملية التسجيل' : 'منصة SAS Transport للخدمات اللوجستية'}
+            {showOtp ? t('verify_subtitle') : t('register_subtitle')}
           </p>
         </div>
 
@@ -229,22 +228,22 @@ export default function RegisterPage() {
                 >
                   {/* Role Selection */}
                   <div className="space-y-1.5">
-                    <Label className="text-[10px] font-black text-slate-400 ms-1 uppercase">نوع الحساب *</Label>
+                    <Label className="text-[10px] font-black text-slate-400 ms-1 uppercase">{t('account_type')} *</Label>
                     <Select onValueChange={(val) => setRole(val as UserRole)} value={role}>
                       <SelectTrigger className="w-full h-11 rounded-xl border-slate-100 bg-slate-50/50 shadow-sm font-bold text-xs px-4 focus:ring-primary/20 transition-all">
-                        <SelectValue placeholder="سائق أم صاحب شحنة؟" />
+                        <SelectValue placeholder={t('driver_shipper_placeholder')} />
                       </SelectTrigger>
                       <SelectContent className="rounded-xl shadow-2xl border-slate-100">
                         <SelectItem value="driver" className="h-10 font-bold cursor-pointer">
                           <div className="flex items-center gap-2">
                             <Truck size={14} className="text-primary" />
-                            <span>سائق / ناقل</span>
+                            <span>{t('driver_carrier')}</span>
                           </div>
                         </SelectItem>
                         <SelectItem value="shipper" className="h-10 font-bold cursor-pointer">
                           <div className="flex items-center gap-2">
                             <Package size={14} className="text-blue-500" />
-                            <span>صاحب شحنة / تاجر</span>
+                            <span>{t('shipper_merchant')}</span>
                           </div>
                         </SelectItem>
                       </SelectContent>
@@ -254,39 +253,39 @@ export default function RegisterPage() {
                   {/* Personal Info Grid */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div className="space-y-1.5">
-                      <Label className="text-[10px] font-black text-slate-400 ms-1 uppercase">الاسم الكامل</Label>
+                      <Label className="text-[10px] font-black text-slate-400 ms-1 uppercase">{t('full_name')}</Label>
                       <div className="relative">
-                        <User className="absolute start-4 top-1/2 -translate-y-1/2 text-slate-300" size={16} />
+                        <User className={cn("absolute top-1/2 -translate-y-1/2 text-slate-300", i18n.language === 'ar' ? "right-4" : "left-4")} size={16} />
                         <Input
-                          placeholder="الاسم الثلاثي"
+                          placeholder={t('full_name_placeholder')}
                           value={form.full_name}
                           onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))}
                           required
-                          className="ps-11 h-11 rounded-xl border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary transition-all font-bold text-xs"
+                          className={cn("h-11 rounded-xl border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary transition-all font-bold text-xs", i18n.language === 'ar' ? "pr-11" : "pl-11")}
                         />
                       </div>
                     </div>
                     <div className="space-y-1.5">
-                      <Label className="text-[10px] font-black text-slate-400 ms-1 uppercase">رقم الجوال</Label>
+                      <Label className="text-[10px] font-black text-slate-400 ms-1 uppercase">{t('phone')}</Label>
                       <div className="relative group">
-                        <Phone className="absolute start-4 top-1/2 -translate-y-1/2 text-slate-300" size={16} />
+                        <Phone className={cn("absolute top-1/2 -translate-y-1/2 text-slate-300", i18n.language === 'ar' ? "right-4" : "left-4")} size={16} />
                         <Input
                           type="tel"
-                          placeholder="05xxxxxxxx"
+                          placeholder={t('phone_placeholder')}
                           value={form.phone}
                           onChange={e => setForm(p => ({ ...p, phone: e.target.value }))}
                           dir="ltr"
-                          className="ps-11 h-11 rounded-xl border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary transition-all font-bold text-xs"
+                          className={cn("h-11 rounded-xl border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary transition-all font-bold text-xs", i18n.language === 'ar' ? "pr-11" : "pl-11")}
                         />
                       </div>
                     </div>
                   </div>
 
                   <div className="space-y-1.5">
-                    <Label className="text-[10px] font-black text-slate-400 ms-1 uppercase">البريد الإلكتروني</Label>
+                    <Label className="text-[10px] font-black text-slate-400 ms-1 uppercase">{t('email')}</Label>
                     <Input
                       type="email"
-                      placeholder="example@mail.com"
+                      placeholder={t('email_placeholder')}
                       value={form.email}
                       onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
                       required
@@ -298,7 +297,7 @@ export default function RegisterPage() {
                   {/* Password Grid */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div className="space-y-1.5">
-                      <Label className="text-[10px] font-black text-slate-400 ms-1 uppercase">كلمة المرور</Label>
+                      <Label className="text-[10px] font-black text-slate-400 ms-1 uppercase">{t('password')}</Label>
                       <div className="relative">
                         <Input
                           type={showPassword ? "text" : "password"}
@@ -306,15 +305,15 @@ export default function RegisterPage() {
                           onChange={e => setForm(p => ({ ...p, password: e.target.value }))}
                           required
                           dir="ltr"
-                          className="h-11 rounded-xl border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary transition-all font-bold text-xs"
+                          className={cn("h-11 rounded-xl border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary transition-all font-bold text-xs", i18n.language === 'ar' ? "pr-4 pl-12" : "pl-4 pr-12")}
                         />
-                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute end-4 top-1/2 -translate-y-1/2 text-slate-300">
+                        <button type="button" onClick={() => setShowPassword(!showPassword)} className={cn("absolute top-1/2 -translate-y-1/2 text-slate-300", i18n.language === 'ar' ? "left-4" : "right-4")}>
                           {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
                         </button>
                       </div>
                     </div>
                     <div className="space-y-1.5">
-                      <Label className="text-[10px] font-black text-slate-400 ms-1 uppercase">تأكيد كلمة المرور</Label>
+                      <Label className="text-[10px] font-black text-slate-400 ms-1 uppercase">{t('confirm_password')}</Label>
                       <div className="relative">
                         <Input
                           type={showConfirmPassword ? "text" : "password"}
@@ -322,9 +321,9 @@ export default function RegisterPage() {
                           onChange={e => setForm(p => ({ ...p, confirmPassword: e.target.value }))}
                           required
                           dir="ltr"
-                          className="h-11 rounded-xl border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary transition-all font-bold text-xs"
+                          className={cn("h-11 rounded-xl border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary transition-all font-bold text-xs", i18n.language === 'ar' ? "pr-4 pl-12" : "pl-4 pr-12")}
                         />
-                        <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute end-4 top-1/2 -translate-y-1/2 text-slate-300">
+                        <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className={cn("absolute top-1/2 -translate-y-1/2 text-slate-300", i18n.language === 'ar' ? "left-4" : "right-4")}>
                           {showConfirmPassword ? <EyeOff size={14} /> : <Eye size={14} />}
                         </button>
                       </div>
@@ -336,7 +335,7 @@ export default function RegisterPage() {
                     <div className="flex items-center gap-2">
                       <Checkbox id="terms" checked={agreeTerms} onCheckedChange={(val) => setAgreeTerms(val as boolean)} className="rounded-md border-slate-300 h-4 w-4" />
                       <Label htmlFor="terms" className="text-xs font-bold text-slate-600 cursor-pointer">
-                        أوافق على <Link to="/terms" className="text-blue-600 hover:underline">الشروط والأحكام</Link> و <Link to="/privacy" className="text-blue-600 hover:underline">سياسة الخصوصية</Link>
+                        {t('agree_to')} <Link to="/terms" className="text-blue-600 hover:underline">{t('terms_conditions')}</Link> {i18n.language === 'ar' ? 'و' : '&'} <Link to="/privacy" className="text-blue-600 hover:underline">{t('privacy_policy')}</Link>
                       </Label>
                     </div>
                   </div>
@@ -350,7 +349,7 @@ export default function RegisterPage() {
                         exit={{ opacity: 0, height: 0 }}
                         className="space-y-4 pt-2 border-t border-dashed border-slate-100"
                       >
-                        <Label className="text-[10px] font-black text-slate-400 ms-1 uppercase">المستندات المطلوبة للسائق *</Label>
+                        <Label className="text-[10px] font-black text-slate-400 ms-1 uppercase">{t('required_driver_docs')}</Label>
 
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                           {/* License */}
@@ -365,7 +364,7 @@ export default function RegisterPage() {
                             <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center transition-all", files.license ? "bg-emerald-500 text-white" : "bg-white text-slate-400 group-hover:text-primary")}>
                               {files.license ? <CheckCircle2 size={18} /> : <FileUp size={18} />}
                             </div>
-                            <span className="text-[9px] font-black text-slate-700">رخصة القيادة</span>
+                            <span className="text-[9px] font-black text-slate-700">{t('driving_license')}</span>
                             {files.license && <span className="text-[7px] text-emerald-600 font-bold truncate max-w-full px-2">{files.license.name}</span>}
                           </div>
 
@@ -381,7 +380,7 @@ export default function RegisterPage() {
                             <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center transition-all", files.idDoc ? "bg-emerald-500 text-white" : "bg-white text-slate-400 group-hover:text-primary")}>
                               {files.idDoc ? <CheckCircle2 size={18} /> : <FileUp size={18} />}
                             </div>
-                            <span className="text-[9px] font-black text-slate-700">بطاقة الهوية</span>
+                            <span className="text-[9px] font-black text-slate-700">{t('id_card')}</span>
                             {files.idDoc && <span className="text-[7px] text-emerald-600 font-bold truncate max-w-full px-2">{files.idDoc.name}</span>}
                           </div>
 
@@ -397,7 +396,7 @@ export default function RegisterPage() {
                             <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center transition-all", files.truckImg ? "bg-emerald-500 text-white" : "bg-white text-slate-400 group-hover:text-primary")}>
                               {files.truckImg ? <CheckCircle2 size={18} /> : <ImageIcon size={18} />}
                             </div>
-                            <span className="text-[9px] font-black text-slate-700">صورة الشاحنة</span>
+                            <span className="text-[9px] font-black text-slate-700">{t('truck_pic')}</span>
                             {files.truckImg && <span className="text-[7px] text-emerald-600 font-bold truncate max-w-full px-2">{files.truckImg.name}</span>}
                           </div>
                         </div>
@@ -410,12 +409,12 @@ export default function RegisterPage() {
                     disabled={loading}
                     className="w-full h-11 rounded-xl text-sm font-black bg-primary hover:bg-primary/90 text-white shadow-lg shadow-primary/20 transition-all active:scale-[0.98]"
                   >
-                    {loading ? <Loader2 className="animate-spin" /> : 'إنشاء حساب جديد'}
+                    {loading ? <Loader2 className="animate-spin" /> : t('register_title')}
                   </Button>
 
                   <div className="text-center mt-4">
                     <p className="text-[11px] font-bold text-slate-400">
-                      لديك حساب بالفعل؟ <Link to="/login" className="text-primary hover:underline font-black">دخول</Link>
+                      {t('have_account')} <Link to="/login" className="text-primary hover:underline font-black">{t('login')}</Link>
                     </p>
                   </div>
                 </motion.form>
@@ -433,9 +432,9 @@ export default function RegisterPage() {
                   </div>
 
                   <div className="space-y-1">
-                    <h2 className="text-lg font-black text-slate-800">تحقق من بريدك</h2>
+                    <h2 className="text-lg font-black text-slate-800">{t('check_email_verify')}</h2>
                     <p className="text-[10px] font-bold text-slate-400 px-4">
-                      أدخل الرمز المكون من 6 أرقام المرسل إلى: <br />
+                      {t('verify_code_desc')} <br />
                       <span className="text-primary font-black break-all">{form.email}</span>
                     </p>
                   </div>
@@ -460,7 +459,7 @@ export default function RegisterPage() {
                       className="w-full h-14 rounded-2xl bg-primary hover:bg-primary/90 text-white font-black text-lg shadow-xl shadow-primary/10 transition-all"
                       disabled={loading || otpCode.length < 6}
                     >
-                      {loading ? <Loader2 className="animate-spin" /> : 'تأكيد الرمز ✅'}
+                      {loading ? <Loader2 className="animate-spin" /> : t('confirm_code') + ' ✅'}
                     </Button>
 
                     <div className="flex flex-col gap-2">
@@ -472,9 +471,9 @@ export default function RegisterPage() {
                         onClick={handleResendOtp}
                         className="font-bold text-slate-500 hover:text-primary transition-colors text-[10px]"
                       >
-                        {timer > 0 ? `إعادة إرسال خلال (${timer} ثانية)` : (
+                        {timer > 0 ? `${t('resend_in')} (${timer} ${i18n.language === 'ar' ? 'ثانية' : 'sec'})` : (
                           <span className="flex items-center gap-2">
-                            <RefreshCcw size={12} /> إعادة إرسال الرمز
+                            <RefreshCcw size={12} /> {t('resend_code')}
                           </span>
                         )}
                       </Button>
@@ -488,7 +487,7 @@ export default function RegisterPage() {
                         }}
                         className="text-[9px] font-bold text-slate-400 hover:text-slate-600 flex items-center justify-center gap-1"
                       >
-                        <ChevronRight size={12} className="rotate-180" /> تعديل بيانات التسجيل
+                        <ChevronRight size={12} className={i18n.language === 'ar' ? "rotate-180" : "rotate-0"} /> {t('edit_reg_info')}
                       </button>
                     </div>
                   </div>

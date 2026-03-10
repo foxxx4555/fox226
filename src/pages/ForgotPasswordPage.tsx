@@ -5,25 +5,26 @@ import { api } from '@/services/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'; // Added CardHeader, CardTitle
 import { toast } from 'sonner';
-import { Loader2, ArrowLeft, Mail, ShieldAlert, CheckCircle2 } from 'lucide-react';
+import { Loader2, ArrowRight, Mail, KeySquare } from 'lucide-react'; // Changed ArrowLeft to ArrowRight, ShieldAlert to KeySquare
 import { motion } from 'framer-motion';
+import { cn } from '@/lib/utils'; // Added cn for conditional classes
 
 export default function ForgotPasswordPage() {
+  const { t, i18n } = useTranslation(); // Destructured i18n
   const navigate = useNavigate();
-  const { t } = useTranslation();
-  const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('');
-  const [sent, setSent] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [submitted, setSubmitted] = useState(false); // Renamed 'sent' to 'submitted'
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
       await api.forgotPassword(email);
-      setSent(true);
-      toast.success(t('check_email'));
+      setSubmitted(true);
+      toast.success(t('success'));
     } catch (err: any) {
       toast.error(err.message || t('error'));
     } finally {
@@ -32,73 +33,88 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-muted/30 relative overflow-hidden p-6">
-      <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-primary/5 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/2" />
-      <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-accent/5 rounded-full blur-[120px] translate-y-1/2 -translate-x-1/2" />
+    <div className="min-h-screen flex items-center justify-center bg-[#f8fafc] relative overflow-hidden p-6" dir={i18n.language === 'ar' ? 'rtl' : 'ltr'}>
+      <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/5 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/2" />
 
-      <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-lg relative z-10">
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="w-full max-w-md relative z-10"
+      >
         <Button
           variant="ghost"
-          className="mb-8 hover:bg-white/50 rounded-2xl gap-2 font-black"
+          className="mb-8 hover:bg-white/80 rounded-xl gap-2 font-bold text-slate-500"
           onClick={() => navigate('/login')}
         >
-          <ArrowLeft size={18} /> {t('back')}
+          <ArrowRight size={18} className={i18n.language === 'ar' ? "rotate-0" : "rotate-180"} /> {t('back')}
         </Button>
 
-        <div className="text-center mb-10">
-          <div className="w-20 h-20 bg-amber-500 rounded-3xl flex items-center justify-center mx-auto shadow-2xl shadow-amber-500/20 mb-6 rotate-3">
-            <ShieldAlert size={40} className="text-white" />
-          </div>
-          <h1 className="text-4xl font-black tracking-tight">{t('reset_password')}</h1>
-          <p className="text-muted-foreground font-medium mt-3 text-lg">{t('reset_password_desc')}</p>
-        </div>
-
-        <Card className="shadow-[0_25px_60px_-15px_rgba(0,0,0,0.1)] border-white/50 bg-white/70 backdrop-blur-2xl rounded-[2.5rem] overflow-hidden">
-          <CardContent className="p-8 md:p-12">
-            {sent ? (
-              <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="text-center py-6 space-y-6">
-                <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
-                  <CheckCircle2 size={32} />
-                </div>
-                <div className="space-y-2">
-                  <p className="text-2xl font-black">{t('check_email')}</p>
-                  <p className="text-muted-foreground font-medium">لقد أرسلنا تعليمات استعادة كلمة المرور إلى بريدك الإلكتروني.</p>
-                </div>
-                <Button asChild className="w-full h-14 rounded-2xl font-black text-lg">
-                  <Link to="/login">{t('login')}</Link>
-                </Button>
-              </motion.div>
-            ) : (
+        <Card className="shadow-2xl shadow-slate-200/50 border-white/60 bg-white/90 backdrop-blur-xl rounded-[2.5rem] overflow-hidden border-2">
+          <CardHeader className="text-center pt-10 pb-6 px-10">
+            <div className="w-20 h-20 bg-primary/10 rounded-3xl flex items-center justify-center mx-auto mb-6 text-primary shadow-inner">
+              <KeySquare size={36} strokeWidth={2.5} />
+            </div>
+            <CardTitle className="text-3xl font-black text-slate-900 tracking-tight">{t('reset_password')}</CardTitle>
+            <p className="text-sm font-bold text-slate-400 mt-2 leading-relaxed">
+              {submitted ? t('reset_sent_desc') : t('reset_password_desc')}
+            </p>
+          </CardHeader>
+          <CardContent className="px-10 pb-10">
+            {!submitted ? (
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="space-y-2">
-                  <Label className="text-sm font-black uppercase ms-2 text-muted-foreground">{t('email')}</Label>
+                  <Label className="text-xs font-black text-slate-500 ms-1 uppercase tracking-wider">{t('email')}</Label>
                   <div className="relative group">
-                    <Mail className="absolute start-4 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors" size={20} />
+                    <Mail className={cn("absolute top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-primary transition-colors", i18n.language === 'ar' ? "right-4" : "left-4")} size={20} />
                     <Input
                       type="email"
+                      placeholder="name@company.com"
                       value={email}
-                      onChange={e => setEmail(e.target.value)}
+                      onChange={(e) => setEmail(e.target.value)}
                       required
                       dir="ltr"
-                      className="ps-12 h-16 rounded-2xl border-2 border-transparent bg-muted/40 focus:bg-white focus:border-primary transition-all text-lg font-bold"
-                      placeholder="mail@example.com"
+                      className={cn("h-14 rounded-2xl border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all font-bold text-lg", i18n.language === 'ar' ? "pr-12" : "pl-12")}
                     />
                   </div>
                 </div>
 
-                <Button type="submit" className="w-full h-16 rounded-[1.5rem] text-xl font-black shadow-xl shadow-primary/20 hover:scale-[1.01] active:scale-[0.99] transition-all" disabled={loading}>
+                <Button
+                  type="submit"
+                  className="w-full h-14 rounded-2xl text-lg font-black bg-primary hover:bg-primary/90 text-white shadow-xl shadow-primary/20 transition-all active:scale-[0.98]"
+                  disabled={loading}
+                >
                   {loading ? <Loader2 className="animate-spin" /> : t('send_reset_link')}
                 </Button>
-
-                <div className="text-center pt-4">
-                  <p className="text-sm font-bold text-muted-foreground">تذكرت كلمة المرور؟ <Link to="/login" className="text-primary hover:underline font-black">{t('login')}</Link></p>
-                </div>
               </form>
+            ) : (
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="text-center space-y-6"
+              >
+                <div className="bg-emerald-50 text-emerald-600 rounded-2xl p-6 border border-emerald-100 font-bold">
+                  {t('check_email')}
+                </div>
+                <Button
+                  onClick={() => setSubmitted(false)}
+                  variant="outline"
+                  className="w-full h-14 rounded-2xl font-black border-slate-100 hover:bg-slate-50"
+                >
+                  ← {t('back')}
+                </Button>
+              </motion.div>
             )}
+
+            <div className="text-center mt-8">
+              <p className="text-xs font-bold text-slate-400">
+                {t('remember_password')}{' '}
+                <Link to="/login" className="text-primary font-black hover:underline underline-offset-4 decoration-2">
+                  {t('login')}
+                </Link>
+              </p>
+            </div>
           </CardContent>
         </Card>
-
-        <p className="text-center mt-12 text-muted-foreground/40 text-xs font-black uppercase tracking-widest">SAS Secure Authentication System</p>
       </motion.div>
     </div>
   );

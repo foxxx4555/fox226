@@ -92,6 +92,7 @@ import SuspendedPage from "./pages/shared/SuspendedPage";
 import PublicTrackingPage from "./pages/PublicTrackingPage";
 import PrivacyPage from "./pages/PrivacyPage";
 import TermsPage from "./pages/TermsPage";
+import { ScrollToTop } from "./components/utils/ScrollToTop";
 
 import AdminProtectedRoute from "./components/AdminProtectedRoute";
 
@@ -145,6 +146,7 @@ import AdminPricing from "./pages/admin/AdminPricing";
 import DriverMaintenance from "./pages/driver/DriverMaintenance";
 import AdminMaintenance from "./pages/admin/AdminMaintenance";
 import DriversPage from "./pages/DriversPage";
+import CustomersPage from "./pages/CustomersPage";
 
 const ShipmentsRedirect = () => {
   const { userProfile, currentRole } = useAuth();
@@ -241,12 +243,14 @@ const App = () => {
               v7_relativeSplatPath: true,
             }}
           >
+            <ScrollToTop />
             <GlobalSuspensionWatcher />
             <Routes>
               {/* المسارات العامة */}
               <Route path="/" element={<WelcomePage />} />
               <Route path="/info" element={<GeneralInfoPage />} />
               <Route path="/drivers" element={<DriversPage />} />
+              <Route path="/customers" element={<CustomersPage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
               <Route path="/forgot-password" element={<ForgotPasswordPage />} />

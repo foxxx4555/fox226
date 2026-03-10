@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
     ChevronRight, Download, Menu, X, Instagram, HelpCircle, Home, User, Truck, CheckCircle2, ShieldCheck, Mail, Phone, FileText, Zap
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Navbar } from '@/components/layout/Navbar';
+import { Footer } from '@/components/layout/Footer';
 
 const CountUp = ({ end, duration = 2, suffix = "" }: { end: number, duration?: number, suffix?: string }) => {
     const [count, setCount] = useState(0);
@@ -84,18 +87,19 @@ const TestimonialMarquee = ({ testimonials, reverse = false }: { testimonials: {
 
 const FAQItem = ({ question, answer }: { question: string, answer: React.ReactNode }) => {
     const [isOpen, setIsOpen] = useState(false);
+    const { i18n } = useTranslation();
     return (
         <div className="border-b border-white/10 overflow-hidden">
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className="w-full py-6 flex items-center justify-between text-right group"
+                className={`w-full py-6 flex items-center justify-between ${i18n.language === 'en' ? 'text-left' : 'text-right'} group`}
             >
                 <motion.div
                     animate={{ rotate: isOpen ? 180 : 0 }}
                     transition={{ duration: 0.3 }}
                     className="text-slate-400 group-hover:text-[#FF9800]"
                 >
-                    <ChevronRight size={24} className="rotate-90" />
+                    <ChevronRight size={24} className={i18n.language === 'ar' ? "rotate-90" : ""} />
                 </motion.div>
                 <span className="text-lg md:text-xl font-black text-white group-hover:text-[#FF9800] transition-colors">{question}</span>
             </button>
@@ -118,68 +122,11 @@ const FAQItem = ({ question, answer }: { question: string, answer: React.ReactNo
 
 const GeneralInfoPage = () => {
     const navigate = useNavigate();
-    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const { t, i18n } = useTranslation();
 
     return (
-        <div className="min-h-screen bg-[#F8FAFC]">
-            {/* 🚀 Header الاحترافي المثبت */}
-            <nav className="fixed top-4 left-0 right-0 z-[100] mx-4 md:mx-auto max-w-7xl bg-white rounded-[2.5rem] shadow-[0_8px_30px_rgb(0,0,0,0.08)] border border-slate-100 transition-all duration-300 flex items-center justify-between p-2 md:pr-4 md:pl-2" dir="rtl">
-                {/* القسم الأيمن (اللغة والتحميل) */}
-                <div className="flex items-center gap-2 md:gap-4 flex-shrink-0">
-                    <div className="hidden lg:flex items-center gap-1 px-3 py-2 text-slate-700 font-bold cursor-pointer hover:bg-slate-50 rounded-xl transition-colors">
-                        <span className="text-xs">AR</span>
-                        <ChevronRight size={14} className="rotate-90 text-slate-400" />
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Button onClick={() => navigate('/drivers')} className="bg-[#FF9800] hover:bg-[#F57C00] text-white font-bold h-10 md:h-12 px-4 md:px-6 rounded-[1.5rem] shadow-sm transition-all text-[11px] md:text-[13px] flex items-center gap-2">
-                            تطبيق SAS للسائقين
-                            <Download size={14} />
-                        </Button>
-                        <Button className="hidden sm:flex bg-[#005274] hover:bg-[#003d57] text-white font-bold h-10 md:h-12 px-4 md:px-6 rounded-[1.5rem] shadow-sm transition-all text-[11px] md:text-[13px] items-center gap-2">
-                            تطبيق SAS للعملاء
-                            <Download size={14} />
-                        </Button>
-                    </div>
-                    <Button variant="ghost" size="icon" className="lg:hidden rounded-full w-10 h-10 bg-slate-50 border border-slate-200" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
-                        {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
-                    </Button>
-                </div>
-
-                {/* المنتصف (الروابط) */}
-                <div className="hidden lg:flex items-center gap-8 text-slate-700 mx-auto">
-                    <button onClick={() => navigate('/customers')} className="font-bold hover:text-primary transition-colors text-sm flex items-center gap-2 text-slate-600">العملاء <User size={16} /></button>
-                    <button onClick={() => navigate('/drivers')} className="font-bold hover:text-primary transition-colors text-sm flex items-center gap-2 text-slate-600">السائقين <Truck size={16} /></button>
-                    <button onClick={() => navigate('/info')} className="font-bold text-primary hover:text-primary transition-colors text-sm flex items-center gap-2">معلومات عامة <Home size={16} /></button>
-                </div>
-
-                {/* اليسار (اللوجو) */}
-                <div className="flex-shrink-0 cursor-pointer pl-4" onClick={() => navigate('/')}>
-                    <img src="/logo.png" alt="SAS Transport Logo" className="h-10 md:h-12 w-auto object-contain drop-shadow-sm" />
-                </div>
-            </nav>
-
-            <AnimatePresence>
-                {isMobileMenuOpen && (
-                    <motion.div
-                        initial={{ x: '100%' }}
-                        animate={{ x: 0 }}
-                        exit={{ x: '100%' }}
-                        transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                        className="fixed inset-0 z-[90] bg-white pt-32 pb-10 px-8 flex flex-col lg:hidden overflow-y-auto"
-                    >
-                        <div className="space-y-4 text-right" dir="rtl">
-                            <button onClick={() => { navigate('/info'); setIsMobileMenuOpen(false); }} className="w-full text-xl font-black text-slate-800 py-4 border-b border-slate-50 flex items-center justify-end gap-3"><Home size={20} /> معلومات عامة</button>
-                            <button onClick={() => { navigate('/drivers'); setIsMobileMenuOpen(false); }} className="w-full text-xl font-black text-slate-800 py-4 border-b border-slate-50 flex items-center justify-end gap-3"><Truck size={20} /> السائقين</button>
-                            <button onClick={() => { navigate('/customers'); setIsMobileMenuOpen(false); }} className="w-full text-xl font-black text-slate-800 py-4 border-b border-slate-50 flex items-center justify-end gap-3"><User size={20} /> العملاء</button>
-
-                            <div className="pt-8 flex flex-col gap-4">
-                                <Button className="w-full h-14 rounded-xl bg-[#005274] text-white font-bold">تطبيق SAS للعملاء</Button>
-                                <Button onClick={() => { navigate('/drivers'); setIsMobileMenuOpen(false); }} className="w-full h-14 rounded-xl bg-[#FF9800] text-white font-bold">تطبيق SAS للسائقين</Button>
-                            </div>
-                        </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+        <div className="min-h-screen bg-[#F8FAFC]" dir={i18n.language === 'ar' ? 'rtl' : 'ltr'}>
+            <Navbar />
 
             {/* 🚛 Hero Section - البانر الرئيسي المطلوب */}
             <section className="relative h-[650px] md:h-[750px] w-full pt-28 px-4 md:px-8 max-w-7xl mx-auto overflow-hidden">
@@ -189,7 +136,7 @@ const GeneralInfoPage = () => {
                         alt="Truck on highway"
                         className="absolute inset-0 h-full w-full object-cover"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-r from-slate-900/80 via-slate-900/40 to-transparent"></div>
+                    <div className={`absolute inset-0 bg-gradient-to-r ${i18n.language === 'en' ? 'from-slate-900/80 via-slate-900/40 to-transparent' : 'from-transparent via-slate-900/40 to-slate-900/80'}`}></div>
 
                     <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 md:p-12 z-20">
                         <motion.div
@@ -199,28 +146,28 @@ const GeneralInfoPage = () => {
                             className="space-y-6"
                         >
                             <h1 className="text-4xl md:text-7xl lg:text-8xl font-black text-white drop-shadow-lg leading-tight md:leading-snug">
-                                شريككم الموثوق للنقل<br />في الشرق الأوسط
+                                {t('trust_partner', 'شريككم الموثوق للنقل')}<br />{t('middle_east', 'في الشرق الأوسط')}
                             </h1>
                             <p className="text-white/80 text-lg md:text-2xl font-bold max-w-2xl mx-auto drop-shadow-md">
-                                حلول لوجستية متكاملة تربط الأسواق وتدعم نمو أعمالكم
+                                {t('integrated_solutions', 'حلول لوجستية متكاملة تربط الأسواق وتدعم نمو أعمالكم')}
                             </p>
 
                             <div className="flex flex-col sm:flex-row items-center gap-4 mt-12 justify-center">
                                 <Button onClick={() => navigate('/drivers')} className="bg-[#FF9800] hover:bg-[#F57C00] text-white font-black h-14 md:h-16 px-8 md:px-12 rounded-full shadow-2xl transition-all hover:scale-105 hover:translate-y-[-4px] text-base md:text-xl flex items-center gap-3 w-full sm:w-auto overflow-hidden group">
                                     <Download size={22} className="group-hover:animate-bounce" />
-                                    تطبيق SAS للسائقين
+                                    {t('driver_app', 'تطبيق SAS للسائقين')}
                                 </Button>
                                 <Button className="bg-[#005274] hover:bg-[#003d57] text-white font-black h-14 md:h-16 px-8 md:px-12 rounded-full shadow-2xl transition-all hover:scale-105 hover:translate-y-[-4px] text-base md:text-xl flex items-center gap-3 w-full sm:w-auto overflow-hidden group">
                                     <Download size={22} className="group-hover:animate-bounce" />
-                                    تطبيق SAS للعملاء
+                                    {t('shipper_app', 'تطبيق SAS للعملاء')}
                                 </Button>
                             </div>
                         </motion.div>
                     </div>
 
                     {/* شعار عائم خفيف */}
-                    <div className="absolute top-10 right-10 opacity-20 hidden md:block">
-                        <img src="/logo.png" className="h-20 w-auto brightness-0 invert" alt="" />
+                    <div className={`absolute top-10 ${i18n.language === 'en' ? 'right-10' : 'left-10'} opacity-20 hidden md:block`}>
+                        <img src="/logo.png" className="h-20 w-auto brightness-0 invert" alt="SAS Logo" />
                     </div>
                 </div>
             </section>
@@ -233,13 +180,13 @@ const GeneralInfoPage = () => {
                         whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true }}
                         transition={{ duration: 0.8, delay: 0.2 }}
-                        className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8 bg-white/80 backdrop-blur-2xl p-8 md:p-12 rounded-[3rem] shadow-2xl border border-white/50" dir="rtl"
+                        className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8 bg-white/80 backdrop-blur-2xl p-8 md:p-12 rounded-[3rem] shadow-2xl border border-white/50"
                     >
                         {[
-                            { label: "الدول النشطة", value: 11, suffix: "+" },
-                            { label: "الإعلانات اليومية للحمولات", value: 10000, suffix: "+" },
-                            { label: "عدد السائقين النشطين", value: 100000, suffix: "+" },
-                            { label: "شركات النقل النشطة", value: 3000, suffix: "+" }
+                            { label: t('active_countries', "الدول النشطة"), value: 11, suffix: "+" },
+                            { label: t('daily_loads', "الإعلانات اليومية للحمولات"), value: 10000, suffix: "+" },
+                            { label: t('active_drivers', "عدد السائقين النشطين"), value: 100000, suffix: "+" },
+                            { label: t('active_companies', "شركات النقل النشطة"), value: 3000, suffix: "+" }
                         ].map((stat, idx) => (
                             <div key={idx} className="text-center space-y-1 group">
                                 <div className="text-3xl md:text-5xl font-black text-[#FF9800] drop-shadow-sm tracking-tighter flex items-center justify-center gap-1">
@@ -259,33 +206,33 @@ const GeneralInfoPage = () => {
             <section className="py-24 bg-white relative overflow-hidden">
                 <div className="max-w-7xl mx-auto px-6">
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-                        {/* النص والمحتوى (يمين في RTL) */}
+                        {/* النص والمحتوى */}
                         <motion.div
-                            initial={{ opacity: 0, x: 50 }}
+                            initial={{ opacity: 0, x: i18n.language === 'ar' ? 50 : -50 }}
                             whileInView={{ opacity: 1, x: 0 }}
                             viewport={{ once: true }}
                             transition={{ duration: 0.8 }}
-                            className="order-2 lg:order-1 text-right space-y-8" dir="rtl"
+                            className={`order-2 lg:order-1 ${i18n.language === 'en' ? 'text-left' : 'text-right'} space-y-8`}
                         >
                             <div className="inline-flex items-center gap-2 px-4 py-2 bg-[#FF9800]/10 text-[#FF9800] rounded-full font-black text-sm border border-[#FF9800]/20">
                                 <Zap size={18} />
-                                التكنولوجيا في خدمتك
+                                {t('tech_at_service', 'التكنولوجيا في خدمتك')}
                             </div>
                             <h2 className="text-3xl md:text-5xl font-black text-slate-900 leading-tight">
-                                مع تطبيق <span className="text-[#005274]">ساس ترانسبورت</span>:<br />
-                                <span className="text-[#FF9800]">اختر حمولتك بذكاء!</span>
+                                {t('with_app', 'مع تطبيق')} <span className="text-[#005274]">SAS</span>:<br />
+                                <span className="text-[#FF9800]">{t('choose_load_smart', 'اختر حمولتك بذكاء!')}</span>
                             </h2>
                             <p className="text-lg text-slate-600 font-bold leading-relaxed">
-                                مهما كان نوع الشاحنة التي تقودها، الشحنة المناسبة لك موجودة في ساس ترانسبورت. كل ما عليك هو تثبيت التطبيق واختيار نوع مركبة النقل الخاصة بك، لتظهر لك يومياً آلاف الشحنات من جميع أنحاء المملكة.
+                                {t('choose_load_desc', 'مهما كان نوع الشاحنة التي تقودها، الشحنة المناسبة لك موجودة في SAS. كل ما عليك هو تثبيت التطبيق واختيار نوع مركبة النقل الخاصة بك، لتظهر لك يومياً آلاف الشحنات من جميع أنحاء المملكة.')}
                             </p>
 
                             <div className="space-y-4 pt-4">
                                 {[
-                                    { icon: <CheckCircle2 className="text-[#FF9800]" />, text: "تتبع لحظي دقيق لكافة الشحنات" },
-                                    { icon: <CheckCircle2 className="text-[#FF9800]" />, text: "سهولة في اختيار وتأكيد الحمولات" },
-                                    { icon: <CheckCircle2 className="text-[#FF9800]" />, text: "دعم فني متواصل على مدار الساعة" }
+                                    { icon: <CheckCircle2 className="text-[#FF9800]" />, text: t('real_time_tracking', "تتبع لحظي دقيق لكافة الشحنات") },
+                                    { icon: <CheckCircle2 className="text-[#FF9800]" />, text: t('easy_confirm_load', "سهولة في اختيار وتأكيد الحمولات") },
+                                    { icon: <CheckCircle2 className="text-[#FF9800]" />, text: t('support_24_7', "دعم فني متواصل على مدار الساعة") }
                                 ].map((item, i) => (
-                                    <div key={i} className="flex items-center gap-3 justify-start flex-row-reverse">
+                                    <div key={i} className={`flex items-center gap-3 justify-start ${i18n.language === 'en' ? 'flex-row' : 'flex-row-reverse'}`}>
                                         <span className="text-slate-700 font-black">{item.text}</span>
                                         {item.icon}
                                     </div>
@@ -295,12 +242,12 @@ const GeneralInfoPage = () => {
                             <div className="pt-8">
                                 <Button className="bg-[#FF9800] hover:bg-[#F57C00] text-white font-black h-16 px-12 rounded-2xl shadow-xl shadow-[#FF9800]/20 transition-all hover:scale-105 flex items-center gap-3 text-lg">
                                     <Download size={22} />
-                                    تحميل التطبيق الآن
+                                    {t('download_now', 'تحميل التطبيق الآن')}
                                 </Button>
                             </div>
                         </motion.div>
 
-                        {/* 📱 Mobile Mockup Section (Center/Left) */}
+                        {/* 📱 Mobile Mockup Section */}
                         <motion.div
                             initial={{ opacity: 0, scale: 0.8 }}
                             whileInView={{ opacity: 1, scale: 1 }}
@@ -313,7 +260,7 @@ const GeneralInfoPage = () => {
                                 <div className="absolute top-0 left-1/2 -translate-x-1/2 w-20 h-5 bg-slate-800 rounded-b-xl z-30" />
                                 <div className="absolute inset-0 bg-slate-50 flex flex-col pt-6">
                                     <div className="px-4 py-3 flex items-center justify-between bg-white border-b border-slate-100">
-                                        <img src="/logo.png" className="h-8 w-auto object-contain" alt="SASGO Logo" />
+                                        <img src="/logo.png" className="h-8 w-auto object-contain" alt="SAS Logo" />
                                         <Menu size={16} className="text-slate-400" />
                                     </div>
                                     <div className="flex-1 overflow-y-auto p-3 space-y-4">
@@ -322,15 +269,15 @@ const GeneralInfoPage = () => {
                                                 <Truck size={40} />
                                             </div>
                                             <div className="flex justify-between items-center mb-4">
-                                                <span className="text-[9px] bg-white/20 px-2 py-0.5 rounded-full font-bold">ACTIVE JOB</span>
+                                                <span className="text-[9px] bg-white/20 px-2 py-0.5 rounded-full font-bold">{t('active_job_label', 'ACTIVE JOB')}</span>
                                                 <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
                                             </div>
                                             <p className="text-[10px] font-bold opacity-70 mb-1">Shipment #2941</p>
-                                            <p className="text-[14px] font-black tracking-tight">Riyadh → Dammam</p>
+                                            <p className="text-[14px] font-black tracking-tight">{t('riyadh_dammam', 'Riyadh → Dammam')}</p>
                                         </div>
                                         <div className="space-y-3">
                                             <div className="flex justify-between items-center px-1">
-                                                <p className="text-[11px] font-black text-slate-800">AVAILABLE LOADS</p>
+                                                <p className="text-[11px] font-black text-slate-800">{t('available_loads_label', 'AVAILABLE LOADS')}</p>
                                                 <div className="w-1.5 h-1.5 rounded-full bg-[#FF9800]" />
                                             </div>
                                             {[1, 2].map(i => (
@@ -342,7 +289,7 @@ const GeneralInfoPage = () => {
                                                         <div className="h-2.5 w-24 bg-slate-200 rounded-full" />
                                                         <div className="h-2 w-16 bg-slate-100 rounded-full" />
                                                     </div>
-                                                    <ChevronRight size={14} className="text-slate-300 rotate-180" />
+                                                    <ChevronRight size={14} className={`text-slate-300 ${i18n.language === 'ar' ? 'rotate-180' : ''}`} />
                                                 </div>
                                             ))}
                                             {/* Logo Item (3rd Slot) */}
@@ -377,9 +324,9 @@ const GeneralInfoPage = () => {
             <section className="py-24 relative overflow-hidden bg-slate-50">
                 <div className="max-w-7xl mx-auto px-6 relative z-10">
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center bg-white rounded-[4rem] p-8 md:p-12 border-4 border-[#005274]/10 shadow-2xl">
-                        {/* صورة العميل (يمين في RTL) */}
+                        {/* صورة العميل */}
                         <motion.div
-                            initial={{ opacity: 0, x: 50 }}
+                            initial={{ opacity: 0, x: i18n.language === 'ar' ? 50 : -50 }}
                             whileInView={{ opacity: 1, x: 0 }}
                             viewport={{ once: true }}
                             transition={{ duration: 0.8 }}
@@ -395,30 +342,30 @@ const GeneralInfoPage = () => {
                             </div>
                         </motion.div>
 
-                        {/* النص والمحتوى (يسار في RTL) */}
+                        {/* النص والمحتوى */}
                         <motion.div
-                            initial={{ opacity: 0, x: -50 }}
+                            initial={{ opacity: 0, x: i18n.language === 'ar' ? -50 : 50 }}
                             whileInView={{ opacity: 1, x: 0 }}
                             viewport={{ once: true }}
                             transition={{ duration: 0.8 }}
-                            className="text-right space-y-8 order-1 lg:order-2" dir="rtl"
+                            className={`${i18n.language === 'en' ? 'text-left' : 'text-right'} space-y-8 order-1 lg:order-2`}
                         >
                             <div className="inline-flex items-center gap-2 px-4 py-2 bg-[#005274]/10 text-[#005274] rounded-full font-black text-sm border border-[#005274]/20">
                                 <User size={18} />
-                                إرسال شحناتك بذكاء
+                                {t('send_shipments_smart', 'إرسال شحناتك بذكاء')}
                             </div>
                             <h2 className="text-3xl md:text-5xl font-black text-slate-900 leading-tight">
-                                مع تطبيق SAS <span className="text-[#005274]">للعملاء؛</span><br />
-                                ارسل شحنتك بطريقة <span className="text-[#FF9800]">ذكية!</span>
+                                {t('with_app', 'مع تطبيق')} SAS <span className="text-[#005274]">{t('for_customers', 'للعملاء؛')}</span><br />
+                                {t('send_shipment_desc', 'ارسل شحنتك بطريقة')} <span className="text-[#FF9800]">{t('smart', 'ذكية!')}</span>
                             </h2>
                             <p className="text-lg text-slate-600 font-bold leading-relaxed">
-                                مهما كان نوع الشحنة التي ترغب في نقلها، وسيلة النقل المناسبة لحمل بضاعتك متوفرة في SAS. كل ما عليك هو تثبيت تطبيق SAS وتسجيل تفاصيل شحنتك، ليصل عرض نقل بضاعتك إلى آلاف السائقين النشطين في جميع الدول العربية.
+                                {t('send_shipments_desc', 'مهما كان نوع الشحنة التي ترغب في نقلها، وسيلة النقل المناسبة لحمل بضاعتك متوفرة في SAS. كل ما عليك هو تثبيت تطبيق SAS وتسجيل تفاصيل شحنتك، ليصل عرض نقل بضاعتك إلى آلاف السائقين النشطين في جميع الدول العربية.')}
                             </p>
 
                             <div className="pt-8 flex gap-4 justify-start">
                                 <Button className="bg-[#005274] hover:bg-[#003d57] text-white font-black h-16 px-12 rounded-2xl shadow-xl shadow-[#005274]/20 transition-all hover:scale-105 flex items-center gap-3 text-lg">
                                     <Download size={22} />
-                                    تطبيق SAS للعملاء
+                                    {t('shipper_app', 'تطبيق SAS للعملاء')}
                                 </Button>
                             </div>
                         </motion.div>
@@ -433,18 +380,18 @@ const GeneralInfoPage = () => {
                         {[
                             {
                                 img: "https://naqliat.com/wp-content/uploads/2026/01/image1-350x350.webp",
-                                title: "إدارة سريعة وذكية لنقل البضائع:",
-                                desc: "يقدم SAS تطبيقين مبتكرين للسائقين وللعملاء، لتمكّنهم من إدارة شحناتهم بسرعة وذكاء وسهولة تامة، مع تجربة سلسة تجعل النقل أكثر أمانًا وراحة"
+                                title: t('smart_management_title', "إدارة سريعة وذكية لنقل البضائع:"),
+                                desc: t('smart_management_desc', "يقدم SAS تطبيقين مبتكرين للسائقين وللعملاء، لتمكّنهم من إدارة شحناتهم بسرعة وذكاء وسهولة تامة، مع تجربة سلسة تجعل النقل أكثر أمانًا وراحة")
                             },
                             {
                                 img: "https://naqliat.com/wp-content/uploads/2026/01/image2-350x350.webp",
-                                title: "نشاط واسع في جميع الدول العربية:",
-                                desc: "توفر SAS إمكانية نقل البضائع عبر مسارات متعددة مع تغطية شاملة في الدول العربية. هذا الامر يجعل عمليات النقل أكثر سرعة وموثوقية للمستخدمين."
+                                title: t('wide_activity_title', "نشاط واسع في جميع الدول العربية:"),
+                                desc: t('wide_activity_desc', "توفر SAS إمكانية نقل البضائع عبر مسارات متعددة مع تغطية شاملة في الدول العربية. هذا الامر يجعل عمليات النقل أكثر سرعة وموثوقية للمستخدمين.")
                             },
                             {
                                 img: "https://naqliat.com/wp-content/uploads/2026/01/image3-350x350.webp",
-                                title: "تنوع كاملة في اسطول النقل:",
-                                desc: "يوفر SAS أسطولًا متنوعًا من شاحنات نقل البضائع، يتيح نقل جميع أنواع الشحنات بمختلف الأحجام والظروف، مع إمكانية مطابقة كل شحنة مع السيارة الأنسب بسرعة وفعالية."
+                                title: t('fleet_diversity_title', "تنوع كاملة في اسطول النقل:"),
+                                desc: t('fleet_diversity_desc', "يوفر SAS أسطولًا متنوعًا من شاحنات نقل البضائع، يتيح نقل جميع أنواع الشحنات بمختلف الأحجام والظروف، مع إمكانية مطابقة كل شحنة مع السيارة الأنسب بسرعة وفعالية.")
                             }
                         ].map((feature, i) => (
                             <motion.div
@@ -453,7 +400,7 @@ const GeneralInfoPage = () => {
                                 whileInView={{ opacity: 1, y: 0 }}
                                 viewport={{ once: true }}
                                 transition={{ delay: i * 0.2 }}
-                                className="text-right space-y-6 group" dir="rtl"
+                                className={`${i18n.language === 'en' ? 'text-left' : 'text-right'} space-y-6 group`}
                             >
                                 <div className="overflow-hidden rounded-[2.5rem] shadow-xl border-4 border-slate-50 aspect-square">
                                     <img src={feature.img} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" alt={feature.title} />
@@ -471,17 +418,26 @@ const GeneralInfoPage = () => {
                 <div className="max-w-7xl mx-auto px-6 relative z-10">
                     <div className="flex flex-col lg:flex-row items-center gap-16">
                         <motion.div
-                            initial={{ opacity: 0, x: 50 }}
+                            initial={{ opacity: 0, x: i18n.language === 'ar' ? 50 : -50 }}
                             whileInView={{ opacity: 1, x: 0 }}
                             viewport={{ once: true }}
-                            className="flex-1 text-right space-y-6" dir="rtl"
+                            className={`flex-1 ${i18n.language === 'en' ? 'text-left' : 'text-right'} space-y-6`}
                         >
-                            <h2 className="text-3xl md:text-5xl font-black text-slate-900 leading-tight">نطاق تغطية خدمات النقل</h2>
+                            <h2 className="text-3xl md:text-5xl font-black text-slate-900 leading-tight">{t('coverage_range', 'نطاق تغطية خدمات النقل')}</h2>
                             <p className="text-lg text-slate-600 font-bold leading-relaxed">
-                                تغطي خدمات SAS في المملكة العربية السعودية، العراق، الإمارات، الأردن، البحرين، الكويت، مصر و قطر، ويتم نقل البضائع بسرعة وموثوقية.
+                                {t('coverage_desc', 'تغطي خدمات SAS في المملكة العربية السعودية، العراق، الإمارات، الأردن، البحرين، الكويت، مصر و قطر، ويتم نقل البضائع بسرعة وموثوقية.')}
                             </p>
                             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-6">
-                                {["السعودية", "العراق", "الإمارات", "الأردن", "البحرين", "الكويت", "مصر", "قطر"].map((country, i) => (
+                                {[
+                                    t('saudi_arabia', "السعودية"),
+                                    t('iraq', "العراق"),
+                                    t('uae', "الإمارات"),
+                                    t('jordan', "الأردن"),
+                                    t('bahrain', "البحرين"),
+                                    t('kuwait', "الكويت"),
+                                    t('egypt', "مصر"),
+                                    t('qatar', "قطر")
+                                ].map((country, i) => (
                                     <div key={i} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 text-center font-black text-[#005274] hover:shadow-md transition-shadow">
                                         {country}
                                     </div>
@@ -500,9 +456,9 @@ const GeneralInfoPage = () => {
                 </div>
             </section>
             {/* ⭐ Testimonials Marquee Section - آراء العملاء بتصميم متحرك */}
-            <section className="py-24 bg-white overflow-hidden" dir="rtl">
+            <section className="py-24 bg-white overflow-hidden">
                 <div className="max-w-7xl mx-auto px-6 mb-16 text-center space-y-4">
-                    <h2 className="text-3xl md:text-5xl font-black text-slate-900">ماذا يقول عملاؤنا؟</h2>
+                    <h2 className="text-3xl md:text-5xl font-black text-slate-900">{t('what_customers_say', 'ماذا يقول عملاؤنا؟')}</h2>
                     <div className="w-24 h-2 bg-[#FF9800] mx-auto rounded-full"></div>
                 </div>
 
@@ -510,10 +466,10 @@ const GeneralInfoPage = () => {
                     {/* Row 1: Drivers - صف السائقين */}
                     <TestimonialMarquee
                         testimonials={[
-                            { name: "محمد", text: "لقد كنت أعمل كسائق شاحنة منذ عشر سنوات، ولكن منذ أن تعرفت على تطبيق SAS، أصبحت تكاليفي أقل وأصبحت قادرًا على إدارة ساعات عملي بالطريقة التي أريده." },
-                            { name: "خالد", text: "لقد أزال SAS جميع الصعوبات التي كنت أواجهها في العثور على شحنات مناسبة. كلما أردت تحميل شحنة، أفتح هذا التطبيق وأتفق مع صاحب الشحنة في وقت قصير." },
-                            { name: "صالح", text: "عمل سائق الشاحنة مليء بالصعوبات. نضطر لقضاء أيام وليالي طويلة على الطرق، لكن مع الطريقة الجديدة التي تقدمها SAS، نحن الآن نقضي وقتًا أقل على الطريق ويمكننا قضاء وقت أكثر مع عائلاتنا." },
-                            { name: "احمد", text: "لقد عملت في صناعة النقل لمدة ثلاثين عامًا، كنت سائقًا، وكان لدي شركة نقل، وأيضًا كنت منتجًا للبضائع، لكنني لم أرَ أبدًا حلاً يناسب كل من السائق وصاحب الشحنة. SAS استطاع أن يفعل ذلك." }
+                            { name: t('name_mohammad', 'محمد'), text: t('quote_mohammad', 'لقد كنت أعمل كسائق شاحنة منذ عشر سنوات، ولكن منذ أن تعرفت على تطبيق SAS، أصبحت تكاليفي أقل وأصبحت قادرًا على إدارة ساعات عملي بالطريقة التي أريده.') },
+                            { name: t('name_khaled', 'خالد'), text: t('quote_khaled', 'لقد أزال SAS جميع الصعوبات التي كنت أواجهها في العثور على شحنات مناسبة. كلما أردت تحميل شحنة، أفتح هذا التطبيق وأتفق مع صاحب الشحنة في وقت قصير.') },
+                            { name: t('name_saleh', 'صالح'), text: t('quote_saleh', 'عمل سائق الشاحنة مليء بالصعوبات. نضطر لقضاء أيام وليالي طويلة على الطرق، لكن مع الطريقة الجديدة التي تقدمها SAS، نحن الآن نقضي وقتًا أقل على الطريق ويمكننا قضاء وقت أكثر مع عائلاتنا.') },
+                            { name: t('name_ahmad', 'احمد'), text: t('quote_ahmad', 'لقد عملت في صناعة النقل لمدة ثلاثين عامًا، كنت سائقًا، وكان لدي شركة نقل، وأيضًا كنت منتجًا للبضائع، لكنني لم أرَ أبدًا حلاً يناسب كل من السائق وصاحب الشحنة. SAS استطاع أن يفعل ذلك.') }
                         ]}
                     />
 
@@ -521,12 +477,12 @@ const GeneralInfoPage = () => {
                     <TestimonialMarquee
                         reverse
                         testimonials={[
-                            { name: "عبدالله", text: "نشحن إلى عدة دول عربية وكان تنسيق المسارات دائمًا تحديًا. SAS بسطت العملية وأصبحت اليوم أدير الشحن بكل سهولة." },
-                            { name: "عبدالرحمن", text: "تطبيق SAS متوفر باللغات العربية والأردو والإنجليزية، مما يسهل استخدامه على جميع أعضاء الفريق حتى من لا يجيدون العربية." },
-                            { name: "سلمان", text: "إمكانية نشر الإعلانات دون تكلفة وإدارة شحناتي مجانًا أمر رائع بالنسبة لي، ولم أعد بحاجة إلى الوسطاء أو التكاليف الإضافية." },
-                            { name: "ماجد", text: "بضائعي متنوعة، وكان العثور على الشاحنة المناسبة دائمًا تحديًا. مع SAS، أجد السائق المناسب لكل نوع شحنة في أقل وقت ممكن." },
-                            { name: "فهد", text: "قبل SAS، كان تنسيق المسارات بين المدن والدول تحديًا كبيرًا. اليوم، أصبح بإمكاني إرسال شحناتي بسهولة في السعودية ودول الشرق الأوسط." },
-                            { name: "عایشه", text: "مع SAS، أجد سائقا لشحناتي دائمًا. فعدد السائقين النشطين كبير جدًا، ولم أعد أقلق بشأن العثور على الشاحنة المناسبة." }
+                            { name: t('name_abdullah', 'عبدالله'), text: t('quote_abdullah', 'نشحن إلى عدة دول عربية وكان تنسيق المسارات دائمًا تحديًا. SAS بسطت العملية وأصبحت اليوم أدير الشحن بكل سهولة.') },
+                            { name: t('name_abdulrahman', 'عبدالرحمن'), text: t('quote_abdulrahman', 'تطبيق SAS متوفر باللغات العربية والأردو والإنجليزية، مما يسهل استخدامه على جميع أعضاء الفريق حتى من لا يجيدون العربية.') },
+                            { name: t('name_salman', 'سلمان'), text: t('quote_salman', 'إمكانية نشر الإعلانات دون تكلفة وإدارة شحناتي مجانًا أمر رائع بالنسبة لي، ولم أعد بحاجة إلى الوسطاء أو التكاليف الإضافية.') },
+                            { name: t('name_majed', 'ماجد'), text: t('quote_majed', 'بضائعي متنوعة، وكان العثور على الشاحنة المناسبة دائمًا تحديًا. مع SAS، أجد السائق المناسب لكل نوع شحنة في أقل وقت ممكن.') },
+                            { name: t('name_fahad', 'فهد'), text: t('quote_fahad', 'قبل SAS، كان تنسيق المسارات بين المدن والدول تحديًا كبيرًا. اليوم، أصبح بإمكاني إرسال شحناتي بسهولة في السعودية ودول الشرق الأوسط.') },
+                            { name: t('name_ayesha', 'عایشه'), text: t('quote_ayesha', 'مع SAS، أجد سائقا لشحناتي دائمًا. فعدد السائقين النشطين كبير جدًا، ولم أعد أقلق بشأن العثور على الشاحنة المناسبة.') }
                         ]}
                     />
                 </div>
@@ -534,57 +490,63 @@ const GeneralInfoPage = () => {
 
             {/* ❓ FAQ Section - الأسئلة الشائعة */}
             <section className="py-24 bg-slate-900 relative rounded-[4rem] mx-4 md:mx-8 my-10 overflow-hidden">
-                <div className="max-w-4xl mx-auto px-6 relative z-10 text-right" dir="rtl">
-                    <h2 className="text-3xl md:text-5xl font-black text-white text-center mb-16">الأسئلة الشائعة</h2>
+                <div className="max-w-4xl mx-auto px-6 relative z-10">
+                    <h2 className="text-3xl md:text-5xl font-black text-white text-center mb-16">{t('faq_title', 'الأسئلة الشائعة')}</h2>
 
                     <div className="space-y-4">
                         {[
-                            { q: "أين يقع مقر الشركة؟", a: "يقع مكتب SAS في دبي، لكن نطاق عملنا يشمل جميع الدول العربية." },
-                            { q: "هل تمتلكون أسطول شاحنات خاص بكم؟", a: "لا. نحن وسيط بين العميل وشركات التوصيل الموثوقة. نوفر لك أفضل خيارات التوصيل بناءً على احتياجاتك من خلال منصتنا الرقمية." },
+                            { q: t('hq_location_q', "أين يقع مقر الشركة؟"), a: t('hq_location_a', "يقع مكتب SAS في دبي، لكن نطاق عملنا يشمل جميع الدول العربية.") },
+                            { q: t('fleet_ownership_q', "هل تمتلكون أسطول شاحنات خاص بكم؟"), a: t('fleet_ownership_a', "لا. نحن وسيط بين العميل وشركات التوصيل الموثوقة. نوفر لك أفضل خيارات التوصيل بناءً على احتياجاتك من خلال منصتنا الرقمية.") },
                             {
-                                q: "من أين انزل تطبيق SAS؟",
+                                q: t('download_app_q', "من أين انزل تطبيق SAS؟"),
                                 a: (
                                     <div className="space-y-4">
                                         <div>
-                                            <p className="mb-2">إذا كنت سائقًا، استخدم الروابط التالية (غير مفعلة حالياً):</p>
-                                            <div className="flex gap-4 opacity-50">
-                                                <span className="text-slate-400">Android app</span>
-                                                <span className="text-slate-400">IOS app</span>
+                                            <p className={`mb-2 font-bold text-slate-200 ${i18n.language === 'en' ? 'text-left' : 'text-right'}`}>{t('driver_download_desc', 'إذا كنت سائقًا، يمكنك تحميل التطبيق الآن:')}</p>
+                                            <div className="flex gap-4">
+                                                <Button variant="outline" className={`bg-white/10 border-white/20 text-white hover:bg-white hover:text-slate-900 rounded-xl font-bold flex items-center gap-2 ${i18n.language === 'en' ? 'flex-row' : 'flex-row-reverse'}`}>
+                                                    {t('android_download', 'تحميل أندرويد')} <Download size={16} />
+                                                </Button>
+                                                <Button variant="outline" className={`bg-white/10 border-white/20 text-white hover:bg-white hover:text-slate-900 rounded-xl font-bold flex items-center gap-2 ${i18n.language === 'en' ? 'flex-row' : 'flex-row-reverse'}`}>
+                                                    {t('ios_download', 'تحميل iOS')} <Download size={16} />
+                                                </Button>
                                             </div>
                                         </div>
                                         <div>
-                                            <p className="mb-2">إذا كنت عميلاً، استخدم الرابط التالي (غير مفعل حالياً):</p>
-                                            <span className="text-slate-400">Android app</span>
+                                            <p className={`mb-2 font-bold text-slate-200 ${i18n.language === 'en' ? 'text-left' : 'text-right'}`}>{t('shipper_download_desc', 'إذا كنت عميلاً، يمكنك تحميل التطبيق الآن:')}</p>
+                                            <Button variant="outline" className={`bg-white/10 border-white/20 text-white hover:bg-white hover:text-slate-900 rounded-xl font-bold flex items-center gap-2 ${i18n.language === 'en' ? 'flex-row' : 'flex-row-reverse'}`}>
+                                                {t('download_app', 'تحميل التطبيق')} <Download size={16} />
+                                            </Button>
                                         </div>
                                     </div>
                                 )
                             },
                             {
-                                q: "كيف استخدم التطبيق؟",
+                                q: t('how_to_use_q', "كيف استخدم التطبيق؟"),
                                 a: (
                                     <div className="space-y-4">
                                         <div>
-                                            <p className="mb-2">لمشاهدة الفيديو التعليمي الخاص بالسائقين:</p>
-                                            <span className="inline-flex items-center gap-2 px-4 py-2 bg-slate-800 text-slate-500 rounded-lg cursor-not-allowed">
-                                                مشاهدة فيديو السائقين (قريباً)
-                                            </span>
+                                            <p className={`mb-2 ${i18n.language === 'en' ? 'text-left' : 'text-right'}`}>{t('driver_video_desc', 'لمشاهدة الفيديو التعليمي الخاص بالسائقين:')}</p>
+                                            <Button variant="outline" className="bg-blue-600/20 border-blue-500/30 text-blue-400 hover:bg-blue-600 hover:text-white rounded-xl font-bold">
+                                                {t('watch_driver_video', 'مشاهدة فيديو السائقين')}
+                                            </Button>
                                         </div>
                                         <div>
-                                            <p className="mb-2">لمشاهدة الفيديو التعليمي الخاص بالعملاء:</p>
-                                            <span className="inline-flex items-center gap-2 px-4 py-2 bg-slate-800 text-slate-500 rounded-lg cursor-not-allowed">
-                                                مشاهدة فيديو العملاء (قريباً)
-                                            </span>
+                                            <p className={`mb-2 ${i18n.language === 'en' ? 'text-left' : 'text-right'}`}>{t('shipper_video_desc', 'لمشاهدة الفيديو التعليمي الخاص بالعملاء:')}</p>
+                                            <Button variant="outline" className="bg-blue-600/20 border-blue-500/30 text-blue-400 hover:bg-blue-600 hover:text-white rounded-xl font-bold">
+                                                {t('watch_shipper_video', 'مشاهدة فيديو العملاء')}
+                                            </Button>
                                         </div>
                                     </div>
                                 )
                             },
-                            { q: "هل استخدام تطبيق SAS يتطلب دفع رسوم؟", a: "لا، استخدام تطبيق SAS مجاني للسائقين و للعملاء." },
+                            { q: t('fees_q', "هل استخدام تطبيق SAS يتطلب دفع رسوم؟"), a: t('fees_a', "لا، استخدام تطبيق SAS مجاني للسائقين و للعملاء.") },
                             {
-                                q: "كيف يمكنني التواصل مع الدعم؟",
+                                q: t('contact_support_q', "كيف يمكنني التواصل مع الدعم؟"),
                                 a: (
-                                    <p>
-                                        يمكنك التواصل مع الدعم عبر واتساب على الرقم:
-                                        <span className="text-slate-400 mr-2">0971502390201</span>
+                                    <p className={i18n.language === 'en' ? 'text-left' : 'text-right'}>
+                                        {t('contact_support_a', 'يمكنك التواصل مع الدعم عبر واتساب على الرقم:')}
+                                        <span className={`text-slate-400 ${i18n.language === 'en' ? 'ml-2' : 'mr-2'}`} dir="ltr">+966 55 025 8358</span>
                                     </p>
                                 )
                             }
@@ -595,40 +557,7 @@ const GeneralInfoPage = () => {
                 </div>
             </section>
 
-
-
-            {/* 🏢 Footer الاحترافي */}
-            <footer className="bg-slate-900 text-white py-16 px-6 mt-10 rounded-t-[4rem]">
-                <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-12" dir="rtl">
-                    <div className="flex flex-col gap-2">
-                        <img src="/logo.png" alt="Logo" className="h-12 w-auto brightness-0 invert opacity-100 object-contain drop-shadow-md cursor-pointer" onClick={() => navigate('/')} />
-                        <p className="text-slate-400 text-xs font-bold text-right pt-2">شريكك الموثوق في كل طريق</p>
-                    </div>
-
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-16 w-full text-sm font-bold text-slate-300">
-                        <div className="flex flex-col gap-4">
-                            <button onClick={() => navigate('/drivers')} className="text-right hover:text-white transition-colors flex items-center gap-2 flex-row-reverse"><Truck size={14} /> صفحة السائقين</button>
-                            <button onClick={() => navigate('/customers')} className="text-right hover:text-white transition-colors flex items-center gap-2 flex-row-reverse"><User size={14} /> صفحة العملاء</button>
-                            <button onClick={() => navigate('/terms')} className="text-right hover:text-white transition-colors flex items-center gap-2 flex-row-reverse"><FileText size={14} /> الشروط والأحكام</button>
-                            <button onClick={() => navigate('/privacy')} className="text-right hover:text-white transition-colors flex items-center gap-2 flex-row-reverse"><CheckCircle2 size={14} /> سياسة الخصوصية</button>
-                        </div>
-                        <div className="flex flex-col gap-4">
-                            <a href="#" className="hover:text-white transition-colors flex items-center gap-2"><Instagram size={16} /> إنستغرام</a>
-                            <a href="#" className="hover:text-white transition-colors flex items-center gap-2"><HelpCircle size={16} /> الدعم</a>
-                        </div>
-                        <div className="flex flex-col gap-4">
-                            <button className="text-right hover:text-white transition-colors text-[#005274]">تطبيق SAS للعملاء</button>
-                            <button className="text-right hover:text-white transition-colors text-[#FF9800]">تطبيق SAS للسائقين</button>
-                        </div>
-                        <div className="flex flex-col gap-4">
-                            <button className="text-right hover:text-white transition-colors">Manage consent</button>
-                        </div>
-                    </div>
-                </div>
-                <div className="max-w-7xl mx-auto mt-12 pt-8 border-t border-white/5 text-center text-slate-500 text-xs font-bold">
-                    <p>© {new Date().getFullYear()} SAS Transport. جميع الحقوق محفوظة.</p>
-                </div>
-            </footer>
+            <Footer />
         </div>
     );
 };
