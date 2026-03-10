@@ -170,7 +170,7 @@ export default function WelcomePage() {
   };
 
   return (
-    <div className="min-h-screen relative overflow-x-hidden bg-white font-['Cairo'] flex flex-col" dir="rtl">
+    <div className="min-h-screen relative overflow-x-hidden bg-white font-['Cairo'] flex flex-col" dir={i18n.language === 'ar' ? 'rtl' : 'ltr'}>
 
 
       <Navbar />
@@ -221,7 +221,7 @@ export default function WelcomePage() {
               <Input
                 value={searchID}
                 onChange={(e) => setSearchID(e.target.value)}
-                placeholder={t('tracking_placeholder', 'أدخل رقم الشحنة للتتبع المباشر...')}
+                placeholder={t('tracking_placeholder_welcome', 'أدخل رقم الشحنة للتتبع المباشر...')}
                 className="h-10 md:h-12 px-6 bg-transparent border-none text-sm font-black focus-visible:ring-0 placeholder:text-slate-300"
               />
               <Button
@@ -261,14 +261,14 @@ export default function WelcomePage() {
         <div className="container mx-auto px-6 relative z-10">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
             <motion.div
-              initial={{ x: 50, opacity: 0 }}
+              initial={{ x: i18n.language === 'ar' ? 50 : -50, opacity: 0 }}
               whileInView={{ x: 0, opacity: 1 }}
               viewport={{ once: true }}
               className="space-y-8"
             >
               <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-100 text-blue-700 rounded-xl font-black text-sm">
                 <Info size={18} />
-                {t('about_us', 'من نحن')}
+                {t('about_us_nav', 'من نحن')}
               </div>
               <h2 className="text-2xl md:text-3xl font-black text-slate-900 leading-tight">
                 {t('logistic_pioneers', 'رواد الحلول اللوجستية')} <br />
@@ -283,7 +283,7 @@ export default function WelcomePage() {
               </Button>
             </motion.div>
             <motion.div
-              initial={{ x: -100, opacity: 0 }}
+              initial={{ x: i18n.language === 'ar' ? -100 : 100, opacity: 0 }}
               whileInView={{ x: 0, opacity: 1 }}
               viewport={{ once: true }}
               className="relative"
@@ -308,7 +308,7 @@ export default function WelcomePage() {
                   </div>
                 </div>
               </div>
-              <div className="absolute -bottom-10 -right-10 w-48 h-48 bg-white/80 backdrop-blur-xl p-8 rounded-[2rem] shadow-xl border border-white flex flex-col items-center justify-center text-center">
+              <div className={`absolute -bottom-10 ${i18n.language === 'ar' ? '-right-10' : '-left-10'} w-48 h-48 bg-white/80 backdrop-blur-xl p-8 rounded-[2rem] shadow-xl border border-white flex flex-col items-center justify-center text-center`}>
                 <p className="text-4xl font-black text-primary mb-1">100%</p>
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">{t('smart_management', 'إدارة ذكية')}</p>
               </div>
@@ -321,7 +321,7 @@ export default function WelcomePage() {
       <section id="contact-us" className="py-20 bg-white">
         <div className="container mx-auto px-6">
           <div className="text-center max-w-2xl mx-auto mb-16 space-y-4">
-            <h2 className="text-2xl md:text-3xl font-black text-slate-900">{t('contact_us', 'تواصل معنا')}</h2>
+            <h2 className="text-2xl md:text-3xl font-black text-slate-900">{t('contact_us_nav', 'تواصل معنا')}</h2>
             <p className="text-slate-500 font-bold text-base leading-relaxed">{t('contact_desc', 'فريقنا جاهز للرد على استفساراتكم على مدار الساعة')}</p>
           </div>
 
@@ -330,12 +330,12 @@ export default function WelcomePage() {
 
               {/* 📝 نموذج المراسلة (Left Side) */}
               <motion.div
-                initial={{ opacity: 0, x: -50 }}
+                initial={{ opacity: 0, x: i18n.language === 'ar' ? -50 : 50 }}
                 whileInView={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.8 }}
                 className="lg:w-2/3 bg-white p-8 md:p-12 rounded-[3.5rem] shadow-2xl shadow-slate-200/50 border border-slate-50 relative overflow-hidden"
               >
-                <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+                <div className={`absolute top-0 ${i18n.language === 'ar' ? 'right-0' : 'left-0'} w-32 h-32 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 ${i18n.language === 'ar' ? 'translate-x-1/2' : '-translate-x-1/2'}`} />
 
                 <div className="relative z-10 space-y-8">
                   <div>
@@ -423,14 +423,14 @@ export default function WelcomePage() {
 
               {/* 📋 معلومات التواصل (Right Side) */}
               <motion.div
-                initial={{ opacity: 0, x: 50 }}
+                initial={{ opacity: 0, x: i18n.language === 'ar' ? 50 : -50 }}
                 whileInView={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.8 }}
                 className="lg:w-1/3 space-y-6"
               >
                 {/* بطاقة الاتصال */}
                 <div className="p-8 bg-slate-900 rounded-[3rem] text-white space-y-8 relative overflow-hidden group">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-primary/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:bg-primary/30 transition-all" />
+                  <div className={`absolute top-0 ${i18n.language === 'ar' ? 'right-0' : 'left-0'} w-32 h-32 bg-primary/20 rounded-full blur-3xl -translate-y-1/2 ${i18n.language === 'ar' ? 'translate-x-1/2' : '-translate-x-1/2'} group-hover:bg-primary/30 transition-all`} />
 
                   <h3 className="text-2xl font-black relative z-10">{t('contact_info', 'معلومات التواصل')}</h3>
 

@@ -22,7 +22,7 @@ export const Navbar = () => {
 
     return (
         <>
-            <nav className="fixed top-0 left-0 right-0 z-[100] bg-white/95 backdrop-blur-md border-b border-slate-100 py-3 px-6 md:px-12 flex items-center justify-between shadow-sm">
+            <nav className="fixed top-0 left-0 right-0 z-[100] bg-white/95 backdrop-blur-md border-b border-slate-100 py-3 px-6 md:px-12 flex items-center justify-between shadow-sm" dir={i18n.language === 'ar' ? 'rtl' : 'ltr'}>
                 <div className="flex items-center gap-4">
                     <div className="flex items-center gap-2">
                         <Button
@@ -81,7 +81,7 @@ export const Navbar = () => {
                         onClick={() => navigate('/')}
                         className={`font-bold text-sm flex items-center gap-2 transition-colors ${isActive('/') ? 'text-primary border-b-2 border-primary pb-1' : 'text-slate-600 hover:text-primary'}`}
                     >
-                        {t('home', 'الصفحة الرئيسية')} <Home size={18} />
+                        {t('home_nav', 'الصفحة الرئيسية')} <Home size={18} />
                     </button>
                 </div>
 
@@ -91,9 +91,9 @@ export const Navbar = () => {
             </nav>
 
             {isMobileMenuOpen && (
-                <div className="fixed inset-0 z-[99] bg-white pt-24 px-8 flex flex-col md:hidden">
+                <div className="fixed inset-0 z-[99] bg-white pt-24 px-8 flex flex-col md:hidden" dir={i18n.language === 'ar' ? 'rtl' : 'ltr'}>
                     <button onClick={() => { navigate('/'); setIsMobileMenuOpen(false); }} className={`py-4 text-xl font-black border-b border-slate-50 text-right flex items-center justify-end gap-3 ${isActive('/') ? 'text-primary' : 'text-slate-800'}`}>
-                        {t('home', 'الصفحة الرئيسية')} <Home size={22} />
+                        {t('home_nav', 'الصفحة الرئيسية')} <Home size={22} />
                     </button>
                     <button onClick={() => { navigate('/drivers'); setIsMobileMenuOpen(false); }} className={`py-4 text-xl font-black border-b border-slate-50 text-right flex items-center justify-end gap-3 ${isActive('/drivers') ? 'text-primary' : 'text-slate-800'}`}>
                         {t('drivers', 'السائقين')} <Truck size={22} />

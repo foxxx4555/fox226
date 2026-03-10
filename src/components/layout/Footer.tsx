@@ -5,14 +5,14 @@ import { MessageCircle } from 'lucide-react';
 
 export const Footer = () => {
     const navigate = useNavigate();
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
 
     const handleWhatsAppClick = () => {
         window.open('https://wa.me/966550258358', '_blank');
     };
 
     return (
-        <footer className="py-16 px-6 border-t border-slate-100 bg-white mt-auto">
+        <footer className="py-16 px-6 border-t border-slate-100 bg-white mt-auto" dir={i18n.language === 'ar' ? 'rtl' : 'ltr'}>
             <div className="max-w-7xl mx-auto flex flex-col items-center gap-12">
                 <img src="/logo.png" alt="SAS Footer Logo" className="max-w-[200px] md:max-w-[300px] w-full h-auto mb-4 cursor-pointer" onClick={() => navigate('/')} />
 

@@ -204,6 +204,8 @@ export const ar = {
   all_rights_reserved: 'جميع الحقوق محفوظة.',
   home_nav: 'الصفحة الرئيسية',
   general_info: 'معلومات عامة',
+  drivers: 'السائقين',
+  customers: 'العملاء',
   terms_conditions: 'الشروط والأحكام',
   privacy_policy: 'سياسة الخصوصية',
   instagram: 'إنستغرام',

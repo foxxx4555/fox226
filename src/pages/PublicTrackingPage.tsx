@@ -143,9 +143,9 @@ export default function PublicTrackingPage() {
 
                 {/* روابط التنقل - متناسقة مع الرئيسية */}
                 <div className="hidden xl:flex items-center gap-6">
-                    <button onClick={() => navigate('/')} className="font-black text-slate-400 hover:text-primary transition-all text-[9px] whitespace-nowrap uppercase tracking-tighter">{t('home')}</button>
-                    <button onClick={() => navigate('/#about-us')} className="font-black text-slate-400 hover:text-primary transition-all text-[9px] whitespace-nowrap uppercase tracking-tighter">{t('about_us')}</button>
-                    <button onClick={() => navigate('/#contact-us')} className="font-black text-slate-400 hover:text-primary transition-all text-[9px] whitespace-nowrap uppercase tracking-tighter">{t('contact_us')}</button>
+                    <button onClick={() => navigate('/')} className="font-black text-slate-400 hover:text-primary transition-all text-[9px] whitespace-nowrap uppercase tracking-tighter">{t('home_nav')}</button>
+                    <button onClick={() => navigate('/#about-us')} className="font-black text-slate-400 hover:text-primary transition-all text-[9px] whitespace-nowrap uppercase tracking-tighter">{t('about_us_nav')}</button>
+                    <button onClick={() => navigate('/#contact-us')} className="font-black text-slate-400 hover:text-primary transition-all text-[9px] whitespace-nowrap uppercase tracking-tighter">{t('contact_us_nav')}</button>
                     <Button
                         variant="ghost"
                         onClick={() => { window.scrollTo({ top: 0, behavior: 'smooth' }); setIsMobileMenuOpen(false); }}
@@ -176,19 +176,19 @@ export default function PublicTrackingPage() {
                                 onClick={() => { navigate('/'); setIsMobileMenuOpen(false); }}
                                 className={cn("w-full text-xl font-black text-slate-800 py-4 border-b border-slate-50 flex items-center gap-3", i18n.language === 'ar' ? "text-right justify-end" : "text-left justify-start")}
                             >
-                                {t('home')}
+                                {t('home_nav')}
                             </button>
                             <button
                                 onClick={() => { navigate('/#about-us'); setIsMobileMenuOpen(false); }}
                                 className={cn("w-full text-xl font-black text-slate-800 py-4 border-b border-slate-50 flex items-center gap-3", i18n.language === 'ar' ? "text-right justify-end" : "text-left justify-start")}
                             >
-                                {t('about_us')}
+                                {t('about_us_nav')}
                             </button>
                             <button
                                 onClick={() => { navigate('/#contact-us'); setIsMobileMenuOpen(false); }}
                                 className={cn("w-full text-xl font-black text-slate-800 py-4 border-b border-slate-50 flex items-center gap-3", i18n.language === 'ar' ? "text-right justify-end" : "text-left justify-start")}
                             >
-                                {t('contact_us')}
+                                {t('contact_us_nav')}
                             </button>
                             <button
                                 onClick={() => { window.scrollTo({ top: 0, behavior: 'smooth' }); setIsMobileMenuOpen(false); }}
