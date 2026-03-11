@@ -39,6 +39,8 @@ import WalletCard from '@/components/finance/WalletCard';
 import TransactionList from '@/components/finance/TransactionList';
 import InvoiceTemplate from '@/components/finance/InvoiceTemplate';
 import { toast } from 'sonner';
+import { formatShortId } from '@/lib/formatters';
+import { generateReceiptPdf } from '@/lib/receipts';
 
 function PaymentLoadDetails({ linkedLoad, payment }: { linkedLoad: any, payment: any }) {
     const [showDetails, setShowDetails] = useState(false);
@@ -134,10 +136,11 @@ export default function ShipperStatement() {
     const [selectedReceipt, setSelectedReceipt] = useState<string | null>(null);
     const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
     const [userLoads, setUserLoads] = useState<any[]>([]);
-    const [selectedLoadId, setSelectedLoadId] = useState<string>('general');
+    const [selectedLoadId, setSelectedLoadId] = useState<string>('');
     const [isResetting, setIsResetting] = useState(false);
     const [invoices, setInvoices] = useState<any[]>([]);
     const [activeTab, setActiveTab] = useState('activity');
+    const [loadBalances, setLoadBalances] = useState<Record<string, { total: number, paid: number, remaining: number }>>({});
 
     const handleResetAccount = async () => {
         if (!confirm("تنبيه: سيتم حذف كافة الشحنات والعمليات بصفة نهائية. هل أنت متأكد؟")) return;
@@ -160,7 +163,7 @@ export default function ShipperStatement() {
         try {
             const [walletData, txHistory, payments, loads, invoiceData] = await Promise.all([
                 api.getWalletBalance(userProfile.id, 'shipper'),
-                api.getTransactionHistory(userProfile.id),
+                api.getTransactionHistory(userProfile.id, 'shipper'),
                 api.getShipperPayments(userProfile.id),
                 api.getUserLoads(userProfile.id),
                 api.getInvoices(userProfile.id)
@@ -171,14 +174,54 @@ export default function ShipperStatement() {
             setUserLoads(loads?.filter((l: any) => l.owner_id === userProfile.id) || []);
             setInvoices(invoiceData || []);
 
-            const mappedTransactions = txHistory?.map((t: any) => {
-                const amount = Math.abs(Number(t.amount) || 0);
-                const type = (t.type === 'debit' || t.transaction_type === 'usage') ? 'expense' : 'income';
+            // حساب الأرصدة لكل شحنة بناءً على الفواتير والمدفوعات الفعلية
+            const balances: Record<string, any> = {};
+            (invoiceData || []).forEach((inv: any) => {
+                if (inv.shipment_id) {
+                    balances[inv.shipment_id] = {
+                        total: Number(inv.total_amount),
+                        paid: Number(inv.amount_paid || 0),
+                        remaining: Number(inv.balance || (inv.total_amount - (inv.amount_paid || 0)))
+                    };
+                }
+            });
 
-                // تعريب متقدم للوصف وتنسيقه
+            // تحديث الأرصدة بالمدفوعات الفعلية المعتمدة (shipper_payments مصدر الحقيقة)
+            (payments || []).filter((p: any) => p.status === 'approved').forEach((p: any) => {
+                if (p.shipment_id) {
+                    if (balances[p.shipment_id]) {
+                        // تراكم المدفوعات المعتمدة
+                        const paid = (payments || [])
+                            .filter((pp: any) => pp.shipment_id === p.shipment_id && pp.status === 'approved')
+                            .reduce((sum: number, pp: any) => sum + Number(pp.amount), 0);
+                        balances[p.shipment_id].paid = paid;
+                        balances[p.shipment_id].remaining = balances[p.shipment_id].total - paid;
+                    }
+                }
+            });
+
+            setLoadBalances(balances);
+
+            const sortedTx = (txHistory || []).sort((a: any, b: any) =>
+                new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+            );
+
+            let currentBalance = 0;
+            const mappedTransactions = sortedTx.map((t: any) => {
+                const amount = Number(t.amount) || 0;
+                const isDebit = t.type === 'debit' || t.transaction_type === 'usage' || t.transaction_type === 'debt';
+                const type = isDebit ? 'expense' : 'income';
+
+                // في منطق المديونية:
+                // Debit (دين) -> ينقص الرصيد (يجعله سالباً أكثر)
+                // Credit (سداد) -> يزيد الرصيد (يقربه من الصفر أو يجعله موجباً)
+                if (isDebit) {
+                    currentBalance -= amount;
+                } else {
+                    currentBalance += amount;
+                }
+
                 let rawDesc = t.description || 'عملية مالية';
-
-                // الاعتماد على shipment_id الثابت بدلاً من البحث في النص
                 const resolvedShipmentId = t.loads?.id || t.shipment_id;
                 if (resolvedShipmentId && (rawDesc.includes('DEBT:') || rawDesc.includes('Outstanding') || rawDesc.includes('سداد'))) {
                     rawDesc = `سداد مستحقات شحنة #${resolvedShipmentId.substring(0, 8)}`;
@@ -193,10 +236,11 @@ export default function ShipperStatement() {
                     description: rawDesc,
                     amount,
                     type,
+                    running_balance: currentBalance,
                     status: t.status || 'completed',
                     shipment_id: resolvedShipmentId
                 };
-            }) || [];
+            }).reverse();
 
             setTransactions(mappedTransactions);
         } catch (err) {
@@ -226,9 +270,47 @@ export default function ShipperStatement() {
                 )
                 .subscribe();
 
-            return () => { supabase.removeChannel(walletChannel); };
+            // 🔔 مستمع حي لتحديث حالة مدفوعات الشحنات (عند اعتماد الأدمن لدفعتك)
+            const paymentsChannel = supabase
+                .channel('shipper-payments-updates')
+                .on(
+                    'postgres_changes',
+                    { event: '*', schema: 'public', table: 'shipper_payments', filter: `shipper_id=eq.${userProfile.id}` },
+                    (payload: any) => {
+                        if (payload.new?.status === 'approved') {
+                            toast.success(`✅ تم اعتماد دفعتك! المبلغ ${Number(payload.new.amount).toLocaleString()} ر.س خصم من مديونيتك.`, { duration: 6000 });
+                        } else if (payload.new?.status === 'pending') {
+                            toast.info(`📥 تم استلام دفعتك وهي قيد المراجعة.`);
+                        }
+                        loadFinancialData();
+                    }
+                )
+                .subscribe();
+
+            return () => {
+                supabase.removeChannel(walletChannel);
+                supabase.removeChannel(paymentsChannel);
+            };
         }
     }, [userProfile?.id]);
+
+    // تحديث المبلغ تلقائياً عند اختيار شحنة - تم إيقافه لضمان كتابة المبلغ الفعلي من قبل المستخدم
+    /*
+    useEffect(() => {
+        if (selectedLoadId && selectedLoadId !== 'general') {
+            const balance = loadBalances[selectedLoadId];
+            if (balance) {
+                setPaymentAmount(String(balance.remaining));
+            } else {
+                // إذا لم توجد فاتورة بعد، المبلغ هو سعر الشحنة
+                const load = userLoads.find(l => l.id === selectedLoadId);
+                if (load) {
+                    setPaymentAmount(String(load.price || 0));
+                }
+            }
+        }
+    }, [selectedLoadId, loadBalances, userLoads]);
+    */
 
     const handleTopUp = async () => {
         const amount = window.prompt("أدخل المبلغ المراد شحنه (ر.س):");
@@ -261,35 +343,48 @@ export default function ShipperStatement() {
             .filter(t => t.type === 'income')
             .reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
 
-        // حساب الديون الحقيقية بناءً على الشحنات المكتملة فقط + الديون العامة
-        const completedShipmentExpenses = transactions
+        // حساب الديون الحقيقية بناءً على الشحنات النشطة (غير الملغاة)
+        const allPendingExpenses = transactions
             .filter(t => t.type === 'expense')
             .filter(t => {
                 const idToCheck = t.shipment_id;
 
                 if (idToCheck) {
                     return userLoads.some(l =>
-                        l.id === idToCheck &&
-                        (l.status === 'completed' || l.status === 'delivered')
+                        l.id === idToCheck && l.status !== 'cancelled'
                     );
-                }
-
-                if (t.description?.includes('شحنة') || t.description?.includes('DEBT:')) {
-                    return false;
                 }
 
                 return true;
             })
             .reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
 
-        // إجمالي الدين = المصروفات المستحقة - ما تم دفعه
-        const calculatedDebt = Math.max(0, completedShipmentExpenses - earned);
-
         return {
-            debt: calculatedDebt,
+            debt: allPendingExpenses,
             paid: earned
         };
     }, [transactions, userLoads]);
+
+    const pendingAmountTotal = useMemo(() => {
+        return shipperPayments
+            .filter(p => p.status === 'pending')
+            .reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
+    }, [shipperPayments]);
+
+    // ✅ الأرقام الحقيقية من جدول المدفوعات مباشرة (لا نعتمد على wallet.balance)
+    const realTotalPaid = useMemo(() =>
+        shipperPayments
+            .filter(p => p.status === 'approved')
+            .reduce((sum, p) => sum + Number(p.amount || 0), 0),
+    [shipperPayments]);
+
+    const realTotalDebt = useMemo(() =>
+        userLoads
+            .filter(l => ['completed', 'delivered', 'in_progress'].includes(l.status))
+            .reduce((sum, l) => sum + Number(l.price || 0), 0),
+    [userLoads]);
+
+    const realRemainingDebt = Math.max(0, realTotalDebt - realTotalPaid);
 
     const chartData = useMemo(() => {
         const last7Days = Array.from({ length: 7 }, (_, i) => {
@@ -301,19 +396,13 @@ export default function ShipperStatement() {
         return last7Days.map(date => {
             const dayName = new Date(date).toLocaleDateString('ar-SA', { weekday: 'short' });
             const dayAmount = transactions
-                .filter(t => (t.created_at || t.date).startsWith(date) && t.type === 'expense')
+                .filter(t => t.date && t.date.startsWith(date) && t.type === 'expense')
                 .filter(t => {
                     const idToCheck = t.shipment_id;
-
                     if (idToCheck) {
                         return userLoads.some(l =>
-                            l.id === idToCheck &&
-                            (l.status === 'completed' || l.status === 'delivered')
+                            l.id === idToCheck && l.status !== 'cancelled'
                         );
-                    }
-
-                    if (t.description?.includes('شحنة') || t.description?.includes('DEBT:')) {
-                        return false;
                     }
 
                     return true;
@@ -324,6 +413,11 @@ export default function ShipperStatement() {
     }, [transactions, userLoads]);
 
     const handlePayDebt = async () => {
+        if (!selectedLoadId || selectedLoadId === 'general') {
+            toast.error("يرجى اختيار الشحنة المراد سدادها");
+            return;
+        }
+
         if (!paymentAmount || Number(paymentAmount) <= 0 || !paymentImage) {
             toast.error("يرجى إكمال البيانات المطلوبة");
             return;
@@ -452,7 +546,7 @@ export default function ShipperStatement() {
                     <div className="lg:col-span-1">
                         <div className={`transition-all duration-500 rounded-[2.5rem] ${isGlow ? 'ring-4 ring-emerald-400 ring-offset-4 shadow-[0_0_30px_rgba(52,211,153,0.5)]' : ''}`}>
                             <WalletCard
-                                balance={-stats.debt}
+                                balance={-realRemainingDebt}
                                 currency={wallet?.currency || 'SAR'}
                                 type="shipper"
                                 onRefresh={loadFinancialData}
@@ -460,20 +554,27 @@ export default function ShipperStatement() {
                             />
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4 mt-6">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
                             <Card className="rounded-[2rem] border-none shadow-xl bg-white p-6">
                                 <div className="w-10 h-10 rounded-xl bg-orange-50 text-orange-500 flex items-center justify-center mb-4">
                                     <ArrowUpRight size={20} />
                                 </div>
                                 <p className="text-slate-400 font-bold text-xs uppercase tracking-wider">المديونية الحالية</p>
-                                <h4 className="text-2xl font-black text-slate-800 mt-1">{formatCurrency(stats.debt)} <span className="text-xs text-slate-400">ر.س</span></h4>
+                                <h4 className="text-2xl font-black text-slate-800 mt-1">{formatCurrency(realRemainingDebt)} <span className="text-xs text-slate-400">ر.س</span></h4>
+                            </Card>
+                            <Card className="rounded-[2rem] border-none shadow-xl bg-white p-6">
+                                <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-500 flex items-center justify-center mb-4">
+                                    <Clock size={20} />
+                                </div>
+                                <p className="text-slate-400 font-bold text-xs uppercase tracking-wider">قيد المراجعة</p>
+                                <h4 className="text-2xl font-black text-slate-800 mt-1">{formatCurrency(pendingAmountTotal)} <span className="text-xs text-slate-400">ر.س</span></h4>
                             </Card>
                             <Card className="rounded-[2rem] border-none shadow-xl bg-white p-6">
                                 <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-500 flex items-center justify-center mb-4">
                                     <ArrowDownRight size={20} />
                                 </div>
                                 <p className="text-slate-400 font-bold text-xs uppercase tracking-wider">تم سداده</p>
-                                <h4 className="text-2xl font-black text-slate-800 mt-1">{formatCurrency(stats.paid)} <span className="text-xs text-slate-400">ر.س</span></h4>
+                                <h4 className="text-2xl font-black text-slate-800 mt-1">{formatCurrency(realTotalPaid)} <span className="text-xs text-slate-400">ر.س</span></h4>
                             </Card>
                         </div>
                     </div>
@@ -570,10 +671,32 @@ export default function ShipperStatement() {
                                         {payment.shipment_id && (
                                             (() => {
                                                 const linkedLoad = userLoads.find(l => l.id === payment.shipment_id);
-                                                return linkedLoad ? (
-                                                    <PaymentLoadDetails linkedLoad={linkedLoad} payment={payment} />
-                                                ) : (
-                                                    <Badge variant="outline" className="bg-slate-50 border-slate-200 text-slate-400">شحنة #{payment.shipment_id.substring(0, 8)}</Badge>
+                                                return (
+                                                    <div className="flex flex-col gap-2">
+                                                        {linkedLoad ? (
+                                                            <PaymentLoadDetails linkedLoad={linkedLoad} payment={payment} />
+                                                        ) : (
+                                                            <Badge variant="outline" className="bg-slate-50 border-slate-200 text-slate-400 font-bold whitespace-nowrap">شحنة {formatShortId(payment.shipment_id, 'SH')}</Badge>
+                                                        )}
+                                                        
+                                                        {payment.status === 'approved' && (
+                                                            <Button
+                                                                size="sm"
+                                                                variant="outline"
+                                                                className="w-full h-10 rounded-xl font-bold border-emerald-200 text-emerald-600 bg-emerald-50 hover:bg-emerald-100 shadow-sm"
+                                                                onClick={() => generateReceiptPdf({
+                                                                    invoice_id: payment.id, // Using payment ID as unique reference
+                                                                    shipment_id: payment.shipment_id,
+                                                                    shipper_name: userProfile?.full_name || 'Shipper',
+                                                                    amount: Number(payment.amount),
+                                                                    date: payment.created_at
+                                                                })}
+                                                            >
+                                                                <Download size={16} className="ml-2" />
+                                                                تحميل السند (PDF)
+                                                            </Button>
+                                                        )}
+                                                    </div>
                                                 );
                                             })()
                                         )}
@@ -641,63 +764,139 @@ export default function ShipperStatement() {
                     <TabsContent value="invoices">
                         <Card className="rounded-[3rem] border-none shadow-2xl bg-white overflow-hidden p-6 md:p-10">
                             <div className="flex items-center justify-between mb-8 border-b pb-4">
-                                <h3 className="text-xl font-black flex items-center gap-2">
-                                    <FileText className="text-blue-500" /> الفواتير الصادرة
+                                <h3 className="text-2xl font-black flex items-center gap-2">
+                                    <FileText className="text-blue-500" /> جدول الفواتير — Invoice Payments
                                 </h3>
-                                <div className="text-xs font-bold text-slate-400">إجمالي الفواتير: {invoices.length}</div>
+                                <div className="text-xs font-bold text-slate-400">إجمالي الفواتير الصادرة: {invoices.length}</div>
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                {invoices.length === 0 ? (
-                                    <div className="col-span-full text-center py-20 bg-slate-50 rounded-[2rem] border-2 border-dashed border-slate-200">
-                                        <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm">
-                                            <FileText size={40} className="text-slate-200" />
-                                        </div>
-                                        <p className="font-black text-slate-400 text-lg">لا توجد فواتير صادرة حالياً</p>
-                                        <p className="text-sm text-slate-300 font-bold mt-2">يتم إصدار الفواتير تلقائياً عند تأكيد سداد الشحنات</p>
-                                    </div>
-                                ) : (
-                                    invoices.map(invoice => (
-                                        <div key={invoice.id} className="p-6 rounded-[2rem] bg-slate-50 border border-slate-100 hover:border-blue-200 transition-all group overflow-hidden relative">
-                                            <div className="absolute top-0 left-0 w-2 h-full bg-blue-500 opacity-0 group-hover:opacity-100 transition-all"></div>
+                            <div className="overflow-x-auto border border-slate-100 rounded-[2rem] bg-white">
+                                <table className="w-full text-right border-collapse">
+                                    <thead>
+                                        <tr className="bg-slate-50 border-b border-slate-100">
+                                            <th className="px-6 py-4 font-black text-slate-500 text-sm">رقم الشحنة</th>
+                                            <th className="px-6 py-4 font-black text-slate-500 text-sm">الشاحن</th>
+                                            <th className="px-6 py-4 font-black text-slate-500 text-sm">المبلغ لم يتم سداده</th>
+                                            <th className="px-6 py-4 font-black text-slate-500 text-sm">المبلغ تم سداده</th>
+                                            <th className="px-6 py-4 font-black text-slate-500 text-sm">قيمة الشحنة</th>
+                                            <th className="px-6 py-4 font-black text-slate-500 text-sm text-center">الحالة</th>
+                                            <th className="px-6 py-4 font-black text-slate-500 text-sm text-center">إجراء</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-50">
+                                        {invoices.length === 0 ? (
+                                            <tr>
+                                                <td colSpan={7} className="px-6 py-20 text-center text-slate-400 font-bold">لا توجد فواتير صادرة حالياً</td>
+                                            </tr>
+                                        ) : invoices.map((invoice) => {
+                                            const unpaidAmount = Number(invoice.balance || (invoice.total_amount - (invoice.amount_paid || 0)));
+                                            const isFullyPaid = unpaidAmount <= 0;
+                                            const invoicePendingPayments = shipperPayments.filter(p => p.shipment_id === invoice.shipment_id && p.status === 'pending');
+                                            const pendingAmountForInvoice = invoicePendingPayments.reduce((acc, curr) => acc + Number(curr.amount), 0);
+                                            const hasPendingPayment = pendingAmountForInvoice > 0;
+                                            
+                                            // Determine Status and Styling
+                                            let statusText = '';
+                                            let rowStyle = '';
+                                            let statusBadgeStyle = '';
 
-                                            <div className="flex justify-between items-start mb-4">
-                                                <div>
-                                                    <p className="font-black text-lg text-slate-800">فاتورة #{invoice.invoice_number}</p>
-                                                    <p className="text-xs text-slate-400 font-bold">بتاريخ {new Date(invoice.created_at).toLocaleDateString('ar-SA')}</p>
-                                                </div>
-                                                <Badge className={`${invoice.status === 'paid' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'} border-none font-black px-3 py-1`}>
-                                                    {invoice.status === 'paid' ? 'مدفوعة' : 'معلقة'}
-                                                </Badge>
-                                            </div>
+                                            if (isFullyPaid) {
+                                                statusText = 'تم الدفع';
+                                                rowStyle = 'bg-emerald-50/10 hover:bg-emerald-50/40 transition-colors';
+                                                statusBadgeStyle = 'bg-emerald-500 text-white font-black px-4 py-1.5 rounded-full text-xs shadow-sm w-full inline-block min-w-[120px]';
+                                            } else if (hasPendingPayment) {
+                                                if (pendingAmountForInvoice >= unpaidAmount) {
+                                                    statusText = 'قيد المراجعة';
+                                                } else {
+                                                    statusText = 'سداد جزئي قيد المراجعة';
+                                                }
+                                                rowStyle = 'bg-amber-50/10 hover:bg-amber-50/40 transition-colors';
+                                                statusBadgeStyle = 'bg-amber-500 text-white font-black px-4 py-1.5 rounded-full text-xs shadow-sm w-full inline-block min-w-[120px] leading-tight';
+                                            } else if (Number(invoice.amount_paid) > 0) {
+                                                statusText = 'سديد جزئي';
+                                                rowStyle = 'bg-blue-50/10 hover:bg-blue-50/40 transition-colors';
+                                                statusBadgeStyle = 'bg-blue-500 text-white font-black px-4 py-1.5 rounded-full text-xs shadow-sm w-full inline-block min-w-[120px]';
+                                            } else {
+                                                statusText = 'المبلغ لم يتم سداده';
+                                                rowStyle = 'bg-rose-50/10 hover:bg-rose-50/40 transition-colors';
+                                                statusBadgeStyle = 'bg-rose-500 text-white font-black px-4 py-1.5 rounded-full text-xs shadow-sm w-full inline-block min-w-[120px]';
+                                            }
 
-                                            <div className="bg-white rounded-2xl p-4 border border-slate-100 mb-4">
-                                                <div className="flex justify-between text-sm mb-2">
-                                                    <span className="text-slate-400 font-bold">المبلغ الخاضع للضريبة:</span>
-                                                    <span className="font-black text-slate-700">{invoice.subtotal.toLocaleString()} ر.س</span>
-                                                </div>
-                                                <div className="flex justify-between text-sm mb-2">
-                                                    <span className="text-slate-400 font-bold">ضريبة القيمة المضافة (15%):</span>
-                                                    <span className="font-black text-slate-700">{invoice.tax_total.toLocaleString()} ر.س</span>
-                                                </div>
-                                                <div className="h-px bg-slate-100 my-2"></div>
-                                                <div className="flex justify-between text-lg">
-                                                    <span className="text-slate-800 font-black">الإجمالي:</span>
-                                                    <span className="font-black text-blue-600">{invoice.total_amount.toLocaleString()} ر.س</span>
-                                                </div>
-                                            </div>
+                                            return (
+                                            <tr key={invoice.invoice_id} className={`border-b border-slate-100/50 ${rowStyle} group`}>
+                                                <td className="px-6 py-5 font-black text-slate-700">
+                                                    <a href={`/loads/${invoice.shipment_id || ''}`} target="_blank" rel="noreferrer" className="hover:text-blue-600 transition-colors block">
+                                                        {invoice.shipment_id ? formatShortId(invoice.shipment_id, 'SH') : formatShortId(invoice.invoice_id, 'INV')}
+                                                    </a>
+                                                </td>
+                                                <td className="px-6 py-5">
+                                                    <span className="font-bold text-slate-800 tracking-tight block">{userProfile?.full_name}</span>
+                                                </td>
+                                                <td className="px-6 py-5 font-black text-rose-600">{unpaidAmount.toLocaleString()} ر.س</td>
+                                                <td className="px-6 py-5 font-black text-slate-900">{Number(invoice.amount_paid || 0).toLocaleString()} ر.س</td>
+                                                <td className="px-6 py-5 font-black text-slate-900">{Number(invoice.total_amount).toLocaleString()} ر.س</td>
+                                                <td className="px-6 py-5 text-center align-middle">
+                                                    <div className={statusBadgeStyle}>
+                                                        {statusText}
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-5 text-center">
+                                                    {(!isFullyPaid && !hasPendingPayment) ? (
+                                                        <Button
+                                                            size="sm"
+                                                            className="h-9 rounded-xl bg-blue-600 hover:bg-blue-700 font-black text-xs px-4 w-full cursor-pointer z-10 relative"
+                                                            onClick={(e) => {
+                                                                e.preventDefault();
+                                                                if (invoice.shipment_id) {
+                                                                    setSelectedLoadId(invoice.shipment_id);
+                                                                    setPaymentAmount(''); // اترك المبلغ فارغاً للكتابة اليدوية
+                                                                } else {
+                                                                    setSelectedLoadId('general');
+                                                                    setPaymentAmount('');
+                                                                }
+                                                                setPaymentNotes(`سداد شحنة رقم ${formatShortId(invoice.shipment_id || invoice.invoice_id, 'SH')}`);
+                                                                setIsPaymentModalOpen(true);
+                                                            }}
+                                                        >
+                                                            إرفاق إيصال الدفع
+                                                        </Button>
+                                                    ) : (
+                                                        <div className="flex items-center justify-center gap-2">
+                                                            {Number(invoice.amount_paid || 0) > 0 && (
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="outline"
+                                                                    className="h-9 rounded-xl border-emerald-200 text-emerald-600 hover:bg-emerald-50 font-black text-xs px-3 cursor-pointer"
+                                                                    onClick={() => generateReceiptPdf({
+                                                                        invoice_id: invoice.invoice_id,
+                                                                        shipment_id: invoice.shipment_id,
+                                                                        shipper_name: userProfile?.full_name || 'Shipper',
+                                                                        amount: Number(invoice.amount_paid),
+                                                                        date: new Date().toISOString()
+                                                                    })}
+                                                                >
+                                                                    <Download size={14} className="ml-1" /> تحميل السند
+                                                                </Button>
+                                                            )}
+                                                            <span className="text-slate-300 font-bold text-xs">-</span>
+                                                        </div>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        )})}
+                                    </tbody>
+                                </table>
+                            </div>
 
-                                            <div className="flex gap-2">
-                                                <Button className="flex-1 rounded-xl bg-slate-900 text-white font-black h-12" onClick={() => handlePrintInvoice(invoice)}>
-                                                    <Printer size={16} className="ml-2" /> طباعة
-                                                </Button>
-                                                <Button variant="outline" className="flex-1 rounded-xl border-slate-200 font-black h-12">
-                                                    <Download size={16} className="ml-2" /> تحميل PDF
-                                                </Button>
-                                            </div>
-                                        </div>
-                                    ))
-                                )}
+                            <div className="mt-10 pt-6 border-t border-slate-100 space-y-3">
+                                <div className="flex items-start gap-2 text-sm text-slate-500 font-bold">
+                                    <span className="text-blue-600 font-black">•</span>
+                                    <span>الشاحن لا يرى أي معلومات مالية تخص الناقلين أو أي شاحن آخر.</span>
+                                </div>
+                                <div className="flex items-start gap-2 text-sm text-slate-500 font-bold">
+                                    <span className="text-blue-600 font-black">•</span>
+                                    <span>الدفع يرسل إشعاراً للإدارة لتأكيد القبض.</span>
+                                </div>
                             </div>
                         </Card>
                     </TabsContent>
@@ -720,7 +919,7 @@ export default function ShipperStatement() {
                         </div>
                     </div>
 
-                    <div className="p-6 space-y-6 bg-slate-100/30 overflow-y-auto max-h-[60vh] custom-scrollbar">
+                    <div className="p-6 space-y-6 bg-slate-50/50 backdrop-blur-sm overflow-y-auto max-h-[80vh] md:max-h-[70vh] custom-scrollbar">
                         <div className="space-y-3">
                             <Label className="text-sm font-black text-slate-700">المبلغ المحول (ر.س) *</Label>
                             <Input
@@ -733,20 +932,38 @@ export default function ShipperStatement() {
                         </div>
 
                         <div className="space-y-3">
-                            <Label className="text-sm font-black text-slate-700">ربط السداد بشحنة محددة (اختياري)</Label>
+                            <Label className="text-sm font-black text-slate-700">ربط السداد بشحنة محددة *</Label>
                             <Select value={selectedLoadId} onValueChange={setSelectedLoadId}>
                                 <SelectTrigger className="h-14 rounded-2xl border-slate-200 font-bold bg-white">
                                     <SelectValue placeholder="اختر الشحنة" />
                                 </SelectTrigger>
                                 <SelectContent className="bg-white rounded-xl border-slate-200 shadow-xl">
-                                    <SelectItem value="general" className="font-bold">سداد عام للمديونية</SelectItem>
-                                    {userLoads.filter(l => l.status === 'completed' || l.status === 'delivered').map((load) => (
+                                    {userLoads.filter(l => l.status === 'completed' || l.status === 'delivered' || l.status === 'in_progress').map((load) => (
                                         <SelectItem key={load.id} value={load.id} className="font-bold">
-                                            شحنة #{load.id.substring(0, 8)} ({load.origin} ➔ {load.destination}) - {load.price} ر.س
+                                            شحنة #{load.id.substring(0, 8)} ({load.origin} ➔ {load.destination})
                                         </SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>
+
+                            {selectedLoadId !== 'general' && loadBalances[selectedLoadId] && (
+                                <div className="p-4 bg-blue-50/50 rounded-2xl border border-blue-100 mt-2">
+                                    <div className="grid grid-cols-3 gap-2 text-center">
+                                        <div>
+                                            <p className="text-[10px] text-slate-400 font-bold mb-1">إجمالي الشحنة</p>
+                                            <p className="font-black text-sm text-slate-800">{loadBalances[selectedLoadId].total} <span className="text-[8px]">ر.س</span></p>
+                                        </div>
+                                        <div>
+                                            <p className="text-[10px] text-slate-400 font-bold mb-1">المدفوع</p>
+                                            <p className="font-black text-sm text-blue-600">{loadBalances[selectedLoadId].paid} <span className="text-[8px]">ر.س</span></p>
+                                        </div>
+                                        <div>
+                                            <p className="text-[10px] text-slate-400 font-bold mb-1">المتبقي</p>
+                                            <p className="font-black text-sm text-rose-600">{loadBalances[selectedLoadId].remaining} <span className="text-[8px]">ر.س</span></p>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         <div className="space-y-3">

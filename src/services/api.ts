@@ -141,6 +141,22 @@ export const api = {
     }
   },
 
+  /**
+   * Admin: Complete a withdrawal request with bank details (Payout Receipt)
+   */
+  async completeWithdrawalRequest(requestId: string, bankName: string, reference: string, proofUrl?: string) {
+    const { error } = await (supabase as any).from('withdrawal_requests').update({
+        status: 'approved',
+        bank_name_used: bankName,
+        transaction_reference: reference,
+        proof_image_url: proofUrl,
+        updated_at: new Date().toISOString()
+    }).eq('id', requestId);
+    
+    if (error) throw error;
+    return true;
+  },
+
   // ✅ دالة تحديث بيانات البروفايل
   async updateProfile(userId: string, updates: { full_name?: string; phone?: string; email?: string; company_name?: string; commercial_register?: string; tax_number?: string; id_number?: string; plate_number?: string; avatar_url?: string; driving_license_url?: string; id_document_url?: string; vehicle_insurance_url?: string; }) {
     try {
@@ -246,13 +262,14 @@ export const api = {
       .update({ ...updates, updated_at: new Date().toISOString() })
       .eq('id', loadId)
       .select()
-      .single();
+      .maybeSingle(); // Changed single to maybeSingle to avoid errors if 0 rows
     if (error) throw error;
     return data;
   },
 
   async completeLoad(loadId: string) {
-    await supabase.from('loads').update({ status: 'completed', updated_at: new Date().toISOString() }).eq('id', loadId);
+    const { error } = await supabase.from('loads').update({ status: 'completed', updated_at: new Date().toISOString() }).eq('id', loadId);
+    if (error) throw error;
     return true;
   },
 
@@ -588,6 +605,24 @@ export const api = {
     return true;
   },
 
+  async getFinancialLedger() {
+    const { data, error } = await supabase
+      .from('financial_ledger' as any)
+      .select('*')
+      .order('last_payment_date', { ascending: false, nullsFirst: false });
+    if (error) throw error;
+    return data || [];
+  },
+
+  async getCarrierEarningsLedger() {
+    const { data, error } = await supabase
+      .from('carrier_earnings_ledger' as any)
+      .select('*')
+      .order('recorded_at', { ascending: false });
+    if (error) throw error;
+    return data || [];
+  },
+
   async deleteUserEntirely(userId: string) {
     const { error } = await supabase.rpc('delete_user_entirely', {
       p_target_user_id: userId
@@ -628,10 +663,13 @@ export const api = {
         .eq('shipper_id', userId)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error("❌ getShipperPayments RLS/DB error:", error.message, error.details, error.hint);
+        return [];
+      }
       return data || [];
-    } catch (e) {
-      console.warn("Error fetching shipper payments:", e);
+    } catch (e: any) {
+      console.error("❌ getShipperPayments exception:", e?.message || e);
       return [];
     }
   },
@@ -673,9 +711,19 @@ export const api = {
     return await financeApi.getWallet(userId, type === 'driver' ? 'carrier' : 'shipper');
   },
 
-  async getTransactionHistory(userId: string) {
+  async getTransactionHistory(userId: string, userType: 'shipper' | 'carrier' = 'carrier') {
     const { financeApi } = await import('@/lib/finances');
-    return await financeApi.getTransactions(userId, 'carrier');
+    return await financeApi.getTransactions(userId, userType);
+  },
+
+  async masterReset() {
+    const { financeApi } = await import('@/lib/finances');
+    return await financeApi.masterReset();
+  },
+
+  async getPendingEarnings(userId: string) {
+    const { financeApi } = await import('@/lib/finances');
+    return await financeApi.getPendingEarnings(userId);
   },
 
   async getUserWithdrawals(userId: string) {
@@ -768,7 +816,7 @@ export const api = {
         await financeApi.createPayoutReceipt({
           user_id: data.user_id,
           amount: Math.abs(Number(data.amount)),
-          transaction_id: trx.id,
+          transaction_id: trx.transaction_id || trx.id,
           payment_method: 'bank_transfer',
           reference_number: adminNotes
         });
@@ -802,7 +850,8 @@ export const api = {
         .from('shipper_payments')
         .select(`
           *,
-          shipper:profiles!shipper_id(full_name, phone, email)
+          shipper:profiles!shipper_id(full_name, phone, email),
+          auditor:profiles!processed_by(full_name)
         `)
         .order('created_at', { ascending: false });
 
@@ -817,19 +866,132 @@ export const api = {
   // Admin: Process shipper payment request (approve/reject)
   async processShipperPayment(paymentId: string, status: 'approved' | 'rejected', adminNotes?: string) {
     try {
-      // Use the RPC for atomic processing (handles transaction and wallet balance)
-      const { error } = await (supabase as any).rpc('handle_shipper_payment_approval', {
-        p_payment_id: paymentId,
-        p_status: status,
-        p_admin_notes: adminNotes
-      });
+      // 1. Get payment details first
+      const { data: payment, error: fetchError } = await (supabase as any)
+        .from('shipper_payments')
+        .select('*')
+        .eq('id', paymentId)
+        .single();
 
-      if (error) throw error;
+      if (fetchError || !payment) throw fetchError || new Error('Payment not found');
+
+      // 2. Update payment status directly
+      const { error: updateError } = await (supabase as any)
+        .from('shipper_payments')
+        .update({
+          status,
+          admin_notes: adminNotes || null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', paymentId);
+
+      if (updateError) throw updateError;
+
+      // 3. If approved -> update wallet balance
+      if (status === 'approved') {
+        // Get shipper wallet
+        let { data: wallet } = await (supabase as any)
+          .from('wallets')
+          .select('wallet_id, balance')
+          .eq('user_id', payment.shipper_id)
+          .eq('user_type', 'shipper')
+          .maybeSingle();
+
+        if (!wallet) {
+          // Create wallet if missing
+          const { data: newWallet } = await (supabase as any)
+            .from('wallets')
+            .insert({ user_id: payment.shipper_id, user_type: 'shipper', balance: 0 })
+            .select()
+            .single();
+          wallet = newWallet;
+        }
+
+        if (wallet) {
+          // Compute total approved payments for this shipper
+          const { data: approvedPayments } = await (supabase as any)
+            .from('shipper_payments')
+            .select('amount')
+            .eq('shipper_id', payment.shipper_id)
+            .eq('status', 'approved');
+
+          const totalApproved = (approvedPayments || [])
+            .reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
+
+          // Compute total debt (completed loads)
+          const { data: shipper_loads } = await (supabase as any)
+            .from('loads')
+            .select('price')
+            .eq('owner_id', payment.shipper_id)
+            .in('status', ['completed', 'delivered', 'in_progress']);
+
+          const totalDebt = (shipper_loads || [])
+            .reduce((sum: number, l: any) => sum + Number(l.price || 0), 0);
+
+          // New balance = paid - debt (negative = still owes)
+          const newBalance = totalApproved - totalDebt;
+
+          await (supabase as any)
+            .from('wallets')
+            .update({ balance: newBalance })
+            .eq('wallet_id', wallet.wallet_id);
+
+          // Optional: try to record a financial transaction
+          try {
+            const txPayload: Record<string, any> = {
+              wallet_id: wallet.wallet_id,
+              amount: Number(payment.amount),
+              type: 'credit',
+              transaction_type: 'payment',
+              description: (adminNotes || 'اعتماد دفعة') + ' - شحنة #' + String(payment.shipment_id || '').slice(0, 8)
+            };
+            // Only add shipment_id if it's a valid value
+            if (payment.shipment_id && payment.shipment_id !== 'null') {
+              txPayload.shipment_id = payment.shipment_id;
+            }
+            await (supabase as any).from('financial_transactions').insert(txPayload);
+          } catch (_) {
+            // Non-fatal: wallet already updated above
+          }
+        }
+      }
+
       return true;
     } catch (e) {
       console.error("Error processing shipper payment:", e);
       throw e;
     }
+  },
+
+  // Admin/Finance: Approve frozen earnings for a driver (Phase 1/3)
+  async approveShipmentEarnings(shipmentId: string) {
+    const { error } = await (supabase as any).rpc('approve_carrier_earnings', {
+      p_shipment_id: shipmentId
+    });
+    if (error) throw error;
+    return true;
+  },
+
+  async getFinancialSettings() {
+    const { data, error } = await supabase
+      .from('financial_settings' as any)
+      .select('*');
+    if (error) throw error;
+    return data || [];
+  },
+
+  // Upload image to Supabase Storage and return public URL
+  async uploadImage(file: File, bucket: string = 'receipts'): Promise<string> {
+    const ext = file.name.split('.').pop() || 'jpg';
+    const filename = `${Date.now()}_${Math.random().toString(36).substring(2)}.${ext}`;
+    const { error: uploadError } = await supabase.storage.from(bucket).upload(filename, file, {
+      cacheControl: '3600',
+      upsert: false,
+      contentType: file.type
+    });
+    if (uploadError) throw uploadError;
+    const { data } = supabase.storage.from(bucket).getPublicUrl(filename);
+    return data.publicUrl;
   },
 
   async addSubDriver(driverData: any, ownerId: string) {
@@ -949,8 +1111,25 @@ export const api = {
 
   // --- New Integrated Financial Methods ---
   async getInvoices(shipperId?: string) {
-    const { financeApi } = await import('@/lib/finances');
-    return await financeApi.getInvoices(shipperId);
+    let query = (supabase as any).from('invoices').select(`
+      *,
+      shipper:profiles(full_name, phone),
+      shipment:loads(id, origin, destination, price)
+    `);
+
+    if (shipperId) {
+      query = query.eq('shipper_id', shipperId);
+    }
+
+    const { data, error } = await query.order('created_at', { ascending: false });
+    if (error) throw error;
+
+    // حساب عدد الشحنات لكل فاتورة بشكل ديناميكي إذا لزم الأمر
+    return data?.map((inv: any) => ({
+      ...inv,
+      shipments_count: inv.invoice_items?.length || 0,
+      total_shipment_amount: inv.invoice_items?.reduce((sum: number, item: any) => sum + (Number(item.amount) || 0), 0) || inv.total_amount
+    })) || [];
   },
 
   async getAuditLogs(limit = 100) {

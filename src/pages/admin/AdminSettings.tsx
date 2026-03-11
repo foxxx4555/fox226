@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import {
-  Settings, Bell, Globe, Save, Loader2, Mail, Info
+  Settings, Bell, Globe, Save, Loader2, Mail, Info, Trash2
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -151,6 +151,9 @@ export default function AdminSettings() {
             <TabsTrigger value="pages" className="rounded-xl font-bold data-[state=active]:bg-blue-600 data-[state=active]:text-white transition-all text-slate-500">
               <Globe size={18} className="me-2" /> الصفحات والمحتوى
             </TabsTrigger>
+            <TabsTrigger value="nuclear" className="rounded-xl font-bold data-[state=active]:bg-rose-600 data-[state=active]:text-white transition-all text-slate-500">
+              <Trash2 size={18} className="me-2 text-rose-500 group-data-[state=active]:text-white" /> تصفية النظام ☢️
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="notifications">
@@ -238,6 +241,69 @@ export default function AdminSettings() {
               {loading ? <Loader2 className="animate-spin me-2" /> : <Save size={20} className="me-2" />}
               حفظ كافة تحديثات المحتوى
             </Button>
+          </TabsContent>
+
+          <TabsContent value="nuclear">
+            <Card className="rounded-[2.5rem] border-2 border-rose-100 shadow-xl bg-white p-10 mt-4 overflow-hidden relative">
+               <div className="absolute top-0 right-0 w-32 h-32 bg-rose-50 rounded-full -mr-16 -mt-16 opacity-50"></div>
+               <div className="relative z-10">
+                  <div className="flex items-center gap-4 mb-8">
+                    <div className="p-4 bg-rose-600 text-white rounded-2xl shadow-lg shadow-rose-200">
+                      <Trash2 size={32} />
+                    </div>
+                    <div>
+                      <h3 className="text-3xl font-black text-rose-600">منطقة الخطر القصوى (Nuclear Zone)</h3>
+                      <p className="text-slate-500 font-bold text-lg mt-1">تستخدم فقط لتنظيف النظام بالكامل وبدء دورة اختبار جديدة</p>
+                    </div>
+                  </div>
+
+                  <div className="bg-rose-50 border border-rose-100 p-8 rounded-3xl mb-10">
+                    <h4 className="text-xl font-black text-rose-800 mb-4 flex items-center gap-2">
+                       <Info size={20} /> ماذا سيحدث عند الضغط على الزر؟
+                    </h4>
+                    <ul className="space-y-3 text-rose-700 font-bold">
+                      <li className="flex items-center gap-2">• سيتم حذف كافة الشحنات (Shipments) نهائياً.</li>
+                      <li className="flex items-center gap-2">• سيتم تصفير كافة الفواتير (Invoices) والسجلات المالية.</li>
+                      <li className="flex items-center gap-2">• سيتم حذف سجل العمليات (Transactions) بالكامل.</li>
+                      <li className="flex items-center gap-2">• سيتم تصفير موازنة المحافظ (Wallets) لكل المستخدمين لـ 0.00.</li>
+                      <li className="flex items-center gap-2 text-rose-600 font-black underline">• ملحوظة: لن يتم حذف حسابات المستخدمين (Profiles).</li>
+                    </ul>
+                  </div>
+
+                  <div className="flex flex-col md:flex-row items-center justify-between gap-8 p-8 bg-slate-50 rounded-3xl border border-slate-100">
+                    <div className="flex-1">
+                       <p className="text-slate-600 font-bold leading-relaxed">
+                          هذا الإجراء غير قابل للتراجع. يرجى التأكد من رغبتك في مسح كافة البيانات من قاعدة البيانات للبدء من جديد بأرقام نظيفة.
+                       </p>
+                    </div>
+                    <Button 
+                      variant="destructive"
+                      size="lg"
+                      onClick={async () => {
+                        const confirmMsg = "تنبيه نووي ☢️: سيتم تصفية كافة البيانات المالية، الشحنات، الفواتير، وموازنة المحافظ في النظام بالكامل. هل أنت متأكد بنسبة 100%؟";
+                        if (!window.confirm(confirmMsg)) return;
+                        
+                        setLoading(true);
+                        try {
+                          const { api } = await import('@/services/api');
+                          await api.masterReset();
+                          toast.success('تم تنظيف النظام بالكامل بنجاح 🧼');
+                          window.location.reload();
+                        } catch (err: any) {
+                          toast.error('حدث خطأ أثناء التصفية: ' + err.message);
+                        } finally {
+                          setLoading(false);
+                        }
+                      }}
+                      disabled={loading}
+                      className="h-20 px-12 rounded-[2rem] bg-rose-600 hover:bg-rose-700 text-2xl font-black shadow-2xl shadow-rose-200 transition-all active:scale-95 flex items-center gap-4"
+                    >
+                      {loading ? <Loader2 className="animate-spin" /> : <Trash2 size={28} />}
+                      تصفية كافة بيانات النظام
+                    </Button>
+                  </div>
+               </div>
+            </Card>
           </TabsContent>
         </Tabs>
       </div>

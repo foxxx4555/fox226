@@ -38,12 +38,12 @@ const TransactionTable: React.FC<{
     <div className="overflow-x-auto">
         <table className="w-full text-right border-collapse">
             <thead>
-                <tr className="bg-slate-50/80 text-slate-400 text-[11px] uppercase font-black tracking-wider">
-                    <th className="p-4 pr-8">التاريخ</th>
-                    <th className="p-4">رقم العملية</th>
-                    <th className="p-4 text-center">نوع المعاملة</th>
-                    <th className="p-4">الوصف</th>
-                    <th className="p-4 text-left pl-8">المبلغ</th>
+                <tr className="bg-slate-50/80 text-slate-400 text-[10px] md:text-[11px] uppercase font-black tracking-wider">
+                    <th className="p-3 md:p-4 pr-6 md:pr-8">رقم العملية</th>
+                    <th className="p-3 md:p-4 text-center">سحب / سداد (-)</th>
+                    <th className="p-3 md:p-4 text-center">إيداع / إيراد (+)</th>
+                    <th className="p-3 md:p-4 text-center">الرصيد</th>
+                    <th className="p-4 text-left pl-8">التاريخ</th>
                 </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
@@ -54,62 +54,32 @@ const TransactionTable: React.FC<{
                         className="hover:bg-blue-50/50 transition-colors group cursor-pointer"
                     >
                         <td className="p-4 pr-8">
-                            <div className="flex flex-col">
-                                <span className="font-bold text-slate-700 text-xs">
-                                    {new Date(t.created_at).toLocaleDateString('ar-SA')}
-                                </span>
-                                <span className="text-[10px] text-slate-400 font-bold">
-                                    {new Date(t.created_at).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })}
-                                </span>
-                            </div>
-                        </td>
-                        <td className="p-4">
                             <code className="bg-slate-100 text-slate-600 px-2 py-1 rounded-lg text-[10px] font-bold">
-                                #{(t.transaction_id || t.id).substring(0, 8)}
+                                {t.receipt_number || (t.transaction_id || t.id).substring(0, 8).toUpperCase()}
                             </code>
+                            <p className="text-[10px] text-slate-400 font-bold mt-1 truncate max-w-[150px]">{t.description}</p>
                         </td>
                         <td className="p-4 text-center">
-                            <Badge className={`border-none font-bold text-[10px] px-2 py-0.5 rounded-full ${t.type === 'debit' ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}`}>
-                                {t.type === 'debit' ? 'خصم' : 'إيداع'}
-                            </Badge>
+                            <span className={`font-black text-sm ${t.type === 'expense' || t.type === 'debit' ? 'text-rose-600' : 'text-slate-300'}`}>
+                                {t.type === 'expense' || t.type === 'debit' ? t.amount.toLocaleString() : '--'}
+                            </span>
                         </td>
-                        <td className="p-4">
-                            <div className="flex items-center gap-3">
-                                <div className="flex-1">
-                                    <p className="font-bold text-slate-700 text-sm max-w-[300px] truncate group-hover:text-blue-600 transition-colors">
-                                        {t.description}
-                                    </p>
-                                    <div className="flex items-center gap-2 mt-1">
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={(e) => handleDispute(e, t)}
-                                            className="h-5 px-1.5 text-[9px] text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md font-bold transition-colors opacity-0 group-hover:opacity-100"
-                                        >
-                                            <AlertCircle size={10} className="ml-1" /> اعتراض
-                                        </Button>
-
-                                        {t.shipment_id && (
-                                            <Badge
-                                                variant="outline"
-                                                className="bg-white border-slate-200 text-slate-500 text-[9px] px-2 py-0 cursor-pointer hover:bg-slate-50 hover:text-blue-600 transition-colors"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    window.open(`/loads/${t.shipment_id}`, '_blank');
-                                                }}
-                                            >
-                                                شحنة #{t.shipment_id.substring(0, 8)} <ExternalLink size={10} className="mr-1 inline-block" />
-                                            </Badge>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
+                        <td className="p-4 text-center">
+                            <span className={`font-black text-sm ${t.type === 'income' || t.type === 'credit' ? 'text-emerald-600' : 'text-slate-300'}`}>
+                                {t.type === 'income' || t.type === 'credit' ? t.amount.toLocaleString() : '--'}
+                            </span>
+                        </td>
+                        <td className="p-4 text-center">
+                            <span className="font-black text-sm text-slate-700">
+                                {Number(t.running_balance || 0).toLocaleString()}
+                            </span>
                         </td>
                         <td className="p-4 text-left pl-8">
-                            <p className={`font-black text-base ${t.type === 'debit' ? 'text-rose-600' : 'text-emerald-600'}`} dir="ltr">
-                                {t.type === 'debit' ? '-' : '+'}{t.amount.toLocaleString()}
-                                <span className="text-[10px] ml-1">ر.س</span>
-                            </p>
+                            <div className="flex flex-col items-end">
+                                <span className="font-bold text-slate-700 text-xs">
+                                    {new Date(t.created_at || t.date).toLocaleDateString('ar-SA')}
+                                </span>
+                            </div>
                         </td>
                     </tr>
                 ))}
@@ -244,8 +214,8 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, loading
     };
 
     return (
-        <Card className="rounded-[2.5rem] shadow-xl border-none bg-white flex flex-col overflow-hidden">
-            <CardHeader className="px-8 pt-8 pb-4">
+        <Card className="rounded-[2rem] md:rounded-[2.5rem] shadow-xl border-none bg-white flex flex-col overflow-hidden">
+            <CardHeader className="px-4 md:px-8 pt-6 md:pt-8 pb-4">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <CardTitle className="text-xl font-black text-slate-800 flex items-center gap-2">
                         <FileText className="text-blue-500" size={24} />

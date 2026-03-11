@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Search, Download, TrendingUp, DollarSign, CreditCard, ArrowUpRight, ArrowDownRight, FileText, CheckCircle2, Clock, Loader2, Pencil, Settings, History, ShieldCheck } from 'lucide-react';
+import { Search, Download, TrendingUp, DollarSign, CreditCard, ArrowUpRight, ArrowDownRight, FileText, CheckCircle2, Clock, Loader2, Pencil, Settings, History, ShieldCheck, Package } from 'lucide-react';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { api } from '@/services/api';
 import { supabase } from '@/integrations/supabase/client';
@@ -17,6 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from '@/components/ui/label';
 import { useRef } from 'react';
+import { formatShortId } from '@/lib/formatters';
 // بيانات تاريخية لتمثيل المخطط البياني (يمكن ربطها مستقبلاً بقاعدة البيانات)
 const revenueData = [
     { name: '1 أكتوبر', revenue: 15400, expected: 12000 },
@@ -63,6 +64,20 @@ export default function AdminFinance() {
     const [financialSettings, setFinancialSettings] = useState<any[]>([]);
     const [isSavingSetting, setIsSavingSetting] = useState(false);
 
+    const [isApprovingSettlement, setIsApprovingSettlement] = useState(false);
+    
+    // Financial Ledger State
+    const [financialLedger, setFinancialLedger] = useState<any[]>([]);
+    const [carrierEarningsLedger, setCarrierEarningsLedger] = useState<any[]>([]);
+    const [isAddingPayment, setIsAddingPayment] = useState(false);
+    const [paymentForm, setPaymentForm] = useState({ shipmentId: '', amount: '', notes: '', method: 'bank_transfer' });
+    const [manualPaymentImage, setManualPaymentImage] = useState<File | null>(null);
+    const manualPaymentFileRef = useRef<HTMLInputElement>(null);
+
+    // Payout Receipt details
+    const [bankName, setBankName] = useState('');
+    const [trxNumber, setTrxNumber] = useState('');
+
     // دالة إنشاء وإصدار تقرير الـ PDF باستخدام التقاط واجهة المستخدم
     const generatePDF = async () => {
         const input = document.getElementById('finance-report-content');
@@ -98,35 +113,39 @@ export default function AdminFinance() {
         }
     };
 
-    useEffect(() => {
-        const fetchFinanceData = async () => {
-            try {
-                const [trxData, statsData, chartRawData, withdrawalsData, shipperPaymentsData, invoicesData, auditLogsData, settingsData] = await Promise.all([
-                    api.getAllTransactions(),
-                    api.getAdminStats(),
-                    api.getFinancialChartData(),
-                    api.getWithdrawalRequests(),
-                    api.getPendingShipperPayments(),
-                    api.getInvoices(),
-                    api.getAuditLogs(50),
-                    api.getFinancialSettings()
-                ]);
-                setTransactions(trxData || []);
-                setStats(statsData);
-                setChartData(chartRawData);
-                setWithdrawals(withdrawalsData || []);
-                setShipperPayments(shipperPaymentsData || []);
-                setInvoices(invoicesData || []);
-                setAuditLogs(auditLogsData || []);
-                setFinancialSettings(settingsData || []);
-            } catch (error) {
-                console.error("Error fetching finance data:", error);
-                toast.error("فشل في تحميل البيانات المالية");
-            } finally {
-                setLoading(false);
-            }
-        };
+    const fetchFinanceData = async () => {
+        try {
+            const [trxData, statsData, chartRawData, withdrawalsData, shipperPaymentsData, invoicesData, auditLogsData, settingsData, ledgerData, carrierLedgerData] = await Promise.all([
+                api.getAllTransactions(),
+                api.getAdminStats(),
+                api.getFinancialChartData(),
+                api.getWithdrawalRequests(),
+                api.getPendingShipperPayments(),
+                api.getInvoices(),
+                api.getAuditLogs(50),
+                api.getFinancialSettings(),
+                api.getFinancialLedger(),
+                api.getCarrierEarningsLedger()
+            ]);
+            setTransactions(trxData || []);
+            setStats(statsData);
+            setChartData(chartRawData);
+            setWithdrawals(withdrawalsData || []);
+            setShipperPayments(shipperPaymentsData || []);
+            setInvoices(invoicesData || []);
+            setAuditLogs(auditLogsData || []);
+            setFinancialSettings(settingsData || []);
+            setFinancialLedger(ledgerData || []);
+            setCarrierEarningsLedger(carrierLedgerData || []);
+        } catch (error) {
+            console.error("Error fetching finance data:", error);
+            toast.error("فشل في تحميل البيانات المالية");
+        } finally {
+            setLoading(false);
+        }
+    };
 
+    useEffect(() => {
         fetchFinanceData();
 
         // مستمع الـ Realtime لإصدار صوت الـ Ka-ching للأرباح الجديدة
@@ -175,32 +194,55 @@ export default function AdminFinance() {
     const pendingShipperPayments = shipperPayments.filter(p => p.status === 'pending');
 
     const handleApproveWithdrawal = async () => {
-        if (!selectedWithdrawal || !proofImage) {
-            toast.error("يرجى إرفاق صورة إيصال التحويل");
+        if (!selectedWithdrawal) return;
+        if (!bankName || !trxNumber) {
+            toast.error("يرجى إدخال اسم البنك ورقم العملية (TRX)");
             return;
         }
 
         setProcessingWithdrawal(true);
         try {
-            // Upload proof image
-            const proofUrl = await api.uploadImage(proofImage, 'receipts');
+            let proofUrl = undefined;
+            if (proofImage) {
+                proofUrl = await api.uploadImage(proofImage, 'receipts');
+            }
 
-            // Process the request
-            await api.processWithdrawalRequest(selectedWithdrawal.id, 'approved', proofUrl, adminNotes);
+            // Process the request with bank details (Phase 3)
+            await api.completeWithdrawalRequest(selectedWithdrawal.id, bankName, trxNumber, proofUrl);
 
-            toast.success("تم اعتماد طلب السحب بنجاح ✅");
+            toast.success("تم اعتماد الصرف واحتسابه في كشف حساب الناقل ✅");
             setIsApproveModalOpen(false);
             setProofImage(null);
+            setBankName('');
+            setTrxNumber('');
             setAdminNotes('');
 
-            // Refresh Data
-            const updatedWithdrawals = await api.getWithdrawalRequests();
-            setWithdrawals(updatedWithdrawals || []);
+            // Fresh data refresh
+            fetchFinanceData();
         } catch (error) {
             console.error("Error processing withdrawal:", error);
-            toast.error("حدث خطأ أثناء معالجة الطلب");
+            toast.error("حدث خطأ أثناء معالجة الصرف");
         } finally {
             setProcessingWithdrawal(false);
+        }
+    };
+
+    const handleApproveSettlement = async (shipmentId: string) => {
+        const row = carrierEarningsLedger.find(r => r.shipment_id === shipmentId);
+        if (row && row.shipper_payment_status !== 'paid') {
+            const confirm = window.confirm(`⚠️ تحذير: الشاحن لم يكمل سداد هذه الشحنة (الحالة: ${row.shipper_payment_status === 'unpaid' ? 'لم يدفع' : 'سداد جزئي'}). هل تريد اعتماد أرباح السواق على أي حال؟`);
+            if (!confirm) return;
+        }
+
+        setIsApprovingSettlement(true);
+        try {
+            await api.approveShipmentEarnings(shipmentId);
+            toast.success("تم اعتماد أرباح الناقل وتحويلها للرصيد المتاح 💰");
+            fetchFinanceData();
+        } catch (error) {
+            toast.error("فشل اعتماد الأرباح");
+        } finally {
+            setIsApprovingSettlement(false);
         }
     };
 
@@ -210,8 +252,7 @@ export default function AdminFinance() {
         try {
             await api.processWithdrawalRequest(requestId.toString(), 'rejected', undefined, 'مرفوض من قبل الإدارة');
             toast.success("تم رفض طلب السحب");
-            const updatedWithdrawals = await api.getWithdrawalRequests();
-            setWithdrawals(updatedWithdrawals || []);
+            fetchFinanceData();
         } catch (error) {
             toast.error("حدث خطأ أثناء رفض الطلب");
         }
@@ -245,9 +286,7 @@ export default function AdminFinance() {
 
             toast.success("تم تحديث المعاملة بنجاح");
             setIsEditTransactionModalOpen(false);
-
-            const trxData = await api.getAllTransactions();
-            setTransactions(trxData || []);
+            fetchFinanceData();
         } catch (error) {
             console.error("Error updating transaction:", error);
             toast.error("فشل في تحديث البيانات");
@@ -261,25 +300,54 @@ export default function AdminFinance() {
 
         setProcessingPayment(true);
         try {
-            // Ensure ID is passed as string for the RPC
-            await api.processShipperPayment(selectedShipperPayment.id.toString(), 'approved', paymentAdminNotes);
+            const payment = selectedShipperPayment;
 
-            toast.success("تم اعتماد سداد التاجر بنجاح وتحويل المبلغ لمحفظته ✅");
+            // 1. Approve the payment (updates wallet balance via RPC)
+            await api.processShipperPayment(payment.id.toString(), 'approved', paymentAdminNotes);
+
+            // 2. Generate a tax invoice record for this approved payment
+            const invoiceNumber = `INV-${Date.now().toString().slice(-8)}`;
+            void (supabase as any).from('invoices').insert([{
+                shipment_id: payment.shipment_id,
+                shipper_id: payment.shipper_id,
+                amount: Number(payment.amount),
+                total_amount: Number(payment.amount),
+                payment_status: 'paid',
+                created_at: new Date().toISOString()
+            }]);
+
+            // 3. Notify shipper with debt reduction info
+            const shipperLedger = financialLedger.find(l => l.shipment_id === payment.shipment_id);
+            const newRemaining = shipperLedger
+                ? Math.max(0, Number(shipperLedger.remaining_amount) - Number(payment.amount))
+                : null;
+
+            api.createNotification(
+                payment.shipper_id,
+                `✅ تمت الموافقة على دفعتك ${Number(payment.amount).toLocaleString()} ر.س`,
+                `تمت الموافقة على دفعتك لشحنة ${formatShortId(payment.shipment_id)}.${newRemaining !== null ? ` رصيدك المتبقي: ${newRemaining.toLocaleString()} ر.س.` : ''} رقم الفاتورة: ${invoiceNumber}`,
+                'system'
+            );
+
+            // 4. Admin audit log
+            await supabase.from('admin_logs' as any).insert([{
+                admin_id: userProfile?.id,
+                action: 'payment_approved',
+                target_user_id: payment.shipper_id,
+                details: JSON.stringify({
+                    payment_id: payment.id,
+                    entity_type: 'shipper_payment',
+                    amount: Number(payment.amount),
+                    shipment_id: payment.shipment_id,
+                    invoice_number: invoiceNumber,
+                    admin_name: userProfile?.full_name
+                })
+            }]).then(() => {}, () => {});
+
+            toast.success("تم اعتماد الدفعة وإصدار الفاتورة الضريبية ✅");
             setIsApprovePaymentModalOpen(false);
             setPaymentAdminNotes('');
-
-            // Refresh ALL financial data to update charts/stats
-            const [trxData, statsData, chartRawData, updatedPayments] = await Promise.all([
-                api.getAllTransactions(),
-                api.getAdminStats(),
-                api.getFinancialChartData(),
-                api.getPendingShipperPayments()
-            ]);
-
-            setTransactions(trxData || []);
-            setStats(statsData);
-            setChartData(chartRawData);
-            setShipperPayments(updatedPayments || []);
+            fetchFinanceData();
         } catch (error) {
             console.error("Error processing shipper payment:", error);
             toast.error("حدث خطأ أثناء معالجة الاعتماد");
@@ -295,11 +363,124 @@ export default function AdminFinance() {
         try {
             await api.processShipperPayment(paymentId.toString(), 'rejected', adminReason);
             toast.success("تم رفض إيصال السداد وإبلاغ التاجر");
-            const updatedPayments = await api.getPendingShipperPayments();
-            setShipperPayments(updatedPayments || []);
+            fetchFinanceData();
         } catch (error) {
             console.error("Error rejecting payment:", error);
             toast.error("حدث خطأ أثناء الرفض");
+        }
+    };
+
+    const handleAddManualPayment = async () => {
+        if (!paymentForm.shipmentId || !paymentForm.amount) {
+            toast.error("يرجى اختيار الشحنة وإدخال المبلغ");
+            return;
+        }
+
+        if (!manualPaymentImage) {
+            toast.error("يرجى إرفاق صورة الوصل أو الإيصال (إلزامي)");
+            return;
+        }
+
+        const confirmText = `
+⚠️ تأكيد العملية المالية:
+- الشحنة: ${formatShortId(paymentForm.shipmentId)}
+- المبلغ: ${paymentForm.amount} ر.س
+- الطريقة: ${paymentForm.method === 'cash' ? 'نقدي (كاش)' : paymentForm.method === 'bank_transfer' ? 'تحويل بنكي' : 'شيك'}
+- الموظف المسؤول: ${userProfile?.full_name || 'Admin'}
+
+هل أنت متأكد من استلام المبلغ؟ سيتم تسجيل البصمة الرقمية للعملية باسمك.
+        `;
+
+        if (!window.confirm(confirmText)) return;
+
+        setIsAddingPayment(false);
+        const loadingToast = toast.loading("يتم الآن تسجيل العملية وتدقيق البيانات...");
+
+        try {
+            // 1. Upload proof image
+            const imageUrl = await api.uploadImage(manualPaymentImage, 'receipts');
+
+            // 2. Insert payment with audit data (pending - needs second approval)
+            const { data: newPayment, error: insertError } = await (supabase as any)
+                .from('shipper_payments')
+                .insert([{
+                    shipment_id: paymentForm.shipmentId,
+                    shipper_id: financialLedger.find(l => l.shipment_id === paymentForm.shipmentId)?.shipper_id,
+                    amount: Number(paymentForm.amount),
+                    status: 'pending',
+                    proof_image_url: imageUrl,
+                    payment_method: paymentForm.method,
+                    processed_by: userProfile?.id,
+                    shipper_notes: 'دفع يدوي: ' + paymentForm.notes,
+                    admin_notes: `تمت الإضافة يدوياً بواسطة ${userProfile?.full_name}`
+                }])
+                .select()
+                .single();
+
+            if (insertError) throw insertError;
+
+            // 3. Write admin audit log
+            await supabase.from('admin_logs' as any).insert([{
+                admin_id: userProfile?.id,
+                action: 'manual_payment_recorded',
+                target_user_id: financialLedger.find(l => l.shipment_id === paymentForm.shipmentId)?.shipper_id,
+                details: JSON.stringify({
+                    payment_id: newPayment.id,
+                    entity_type: 'shipper_payment',
+                    shipment_id: paymentForm.shipmentId,
+                    amount: Number(paymentForm.amount),
+                    method: paymentForm.method,
+                    admin_name: userProfile?.full_name,
+                    timestamp: new Date().toISOString()
+                })
+            }]); // non-blocking
+
+            toast.success("تم تسجيل الدفعة بنجاح وهي بانتظار اعتماد المدير ✅", { id: loadingToast });
+            setManualPaymentImage(null);
+            setPaymentForm({ shipmentId: '', amount: '', notes: '', method: 'bank_transfer' });
+            fetchFinanceData();
+
+            // Notify Shipper - يظهر في سجل النشاط فوراً
+            const shipperId = financialLedger.find(l => l.shipment_id === paymentForm.shipmentId)?.shipper_id;
+            const methodLabel = paymentForm.method === 'cash' ? 'نقدي (كاش)' : paymentForm.method === 'check' ? 'شيك' : 'تحويل بنكي';
+            if (shipperId) {
+                api.createNotification(
+                    shipperId, 
+                    `💰 تم استلام دفعة ${Number(paymentForm.amount).toLocaleString()} ر.س`, 
+                    `تم تسجيل استلام مبلغ ${Number(paymentForm.amount).toLocaleString()} ر.س عبر ${methodLabel} لشحنة رقم ${formatShortId(paymentForm.shipmentId)}. الدفعة قيد مراجعة المدير المالي للاعتماد النهائي.`, 
+                    'system'
+                );
+            }
+        } catch (error) {
+            console.error("Error adding manual payment:", error);
+            toast.error("فشل في تسجيل العملية، يرجى المحاولة لاحقاً", { id: loadingToast });
+        }
+    };
+
+    const getStatusBadge = (status: string) => {
+        switch (status) {
+            case 'paid': return <Badge className="bg-emerald-100 text-emerald-600 border-none font-bold">🟢 تم الدفع</Badge>;
+            case 'partial': return <Badge className="bg-blue-100 text-blue-600 border-none font-bold">🔵 سداد جزئي</Badge>;
+            case 'pending_approval': return <Badge className="bg-amber-100 text-amber-600 border-none font-bold">🟡 بانتظار الاعتماد</Badge>;
+            default: return <Badge className="bg-rose-100 text-rose-600 border-none font-bold">🔴 لم يتم السداد</Badge>;
+        }
+    };
+
+    const getCarrierStatusBadge = (status: string) => {
+        switch (status) {
+            case 'paid': return <Badge className="bg-emerald-100 text-emerald-600 border-none font-bold">✅ تم الصرف</Badge>;
+            case 'withdrawal_pending': return <Badge className="bg-blue-100 text-blue-600 border-none font-bold">🔵 قيد التحويل</Badge>;
+            case 'available': return <Badge className="bg-emerald-50 text-emerald-500 border-none font-bold">🟢 متاح للسحب</Badge>;
+            default: return <Badge className="bg-amber-100 text-amber-600 border-none font-bold">🟠 بانتظار الاعتماد</Badge>;
+        }
+    };
+
+    const getShipperStatusBadge = (status: string) => {
+        switch (status) {
+            case 'paid': return <Badge className="bg-emerald-100 text-emerald-600 border-none font-bold text-[10px]">🟢 مدفوع</Badge>;
+            case 'partial': return <Badge className="bg-blue-100 text-blue-600 border-none font-bold text-[10px]">🔵 جزئي</Badge>;
+            case 'pending_approval': return <Badge className="bg-amber-100 text-amber-600 border-none font-bold text-[10px]">🟡 مراجعة</Badge>;
+            default: return <Badge className="bg-rose-100 text-rose-600 border-none font-bold text-[10px]">🔴 لم يدفع</Badge>;
         }
     };
 
@@ -311,10 +492,9 @@ export default function AdminFinance() {
 
             // Log the action
             const oldSetting = financialSettings.find(s => s.setting_key === key);
-            await api.getAuditLogs(); // Refresh logs
-
             const settingsData = await api.getFinancialSettings();
             setFinancialSettings(settingsData || []);
+            fetchFinanceData(); // Refresh logs and other related data
         } catch (error) {
             toast.error("فشل في حفظ الإعدادات");
         } finally {
@@ -362,10 +542,13 @@ export default function AdminFinance() {
                 <div id="finance-report-content" className="space-y-8 bg-slate-50 p-4 rounded-3xl">
 
                     <Tabs defaultValue="overview" className="w-full">
-                        <TabsList className="grid w-full grid-cols-2 lg:grid-cols-5 bg-slate-100 rounded-2xl h-14 mb-8 p-1">
+                        <TabsList className="flex flex-wrap md:grid md:grid-cols-3 lg:grid-cols-6 h-auto min-h-[3.5rem] bg-slate-100/80 backdrop-blur-sm rounded-2xl mb-8 p-1 gap-1">
                             <TabsTrigger value="overview" className="rounded-xl font-bold text-slate-600 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm">المركز المالي</TabsTrigger>
                             <TabsTrigger value="withdrawals" className="rounded-xl font-bold text-slate-600 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm">
                                 طلبات السحب <Badge variant="secondary" className="ml-2 bg-rose-100 text-rose-600 border-none">{pendingWithdrawals.length}</Badge>
+                            </TabsTrigger>
+                            <TabsTrigger value="settlements" className="rounded-xl font-bold text-slate-600 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm">
+                                اعتماد الأرباح <Badge variant="secondary" className="ml-2 bg-amber-100 text-amber-600 border-none">{carrierEarningsLedger.filter(r => r.display_status === 'pending_approval').length}</Badge>
                             </TabsTrigger>
                             <TabsTrigger value="payments" className="rounded-xl font-bold text-slate-600 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm">
                                 إيصالات السداد <Badge variant="secondary" className="ml-2 bg-emerald-100 text-emerald-600 border-none">{pendingShipperPayments.length}</Badge>
@@ -376,8 +559,8 @@ export default function AdminFinance() {
 
                         <TabsContent value="overview" className="space-y-8 mt-0 border-none p-0 outline-none">
                             {/* Financial KPI Cards */}
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                <Card className="rounded-[2rem] border-none shadow-xl bg-gradient-to-br from-blue-600 to-blue-800 text-white overflow-hidden relative">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                                <Card className="rounded-[1.5rem] md:rounded-[2rem] border-none shadow-xl bg-gradient-to-br from-blue-600 to-blue-800 text-white overflow-hidden relative">
                                     <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
                                     <CardContent className="p-8 relative z-10">
                                         <div className="flex justify-between items-start">
@@ -428,6 +611,25 @@ export default function AdminFinance() {
                                         </div>
                                         <div className="mt-6 flex items-center gap-2 text-sm font-bold text-rose-500">
                                             <span>{withdrawals.filter(w => w.status === 'pending').length} طلبات سحب بانتظار الاعتماد</span>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+
+                                <Card className="rounded-[2rem] border-none shadow-xl bg-white">
+                                    <CardContent className="p-8">
+                                        <div className="flex justify-between items-start">
+                                            <div>
+                                                <p className="font-bold text-slate-400 mb-2">صافي ربح المنصة (عمولات)</p>
+                                                <h3 className="text-3xl font-black text-emerald-600 tracking-tight">
+                                                    {carrierEarningsLedger.filter(l => l.settlement_status === 'settled').reduce((sum, l) => sum + Number(l.commission_amount), 0).toLocaleString()} <span className="text-lg font-bold text-slate-400">ر.س</span>
+                                                </h3>
+                                            </div>
+                                            <div className="p-3 bg-emerald-50 rounded-2xl border border-emerald-100">
+                                                <ShieldCheck size={24} className="text-emerald-500" />
+                                            </div>
+                                        </div>
+                                        <div className="mt-6 flex items-center gap-2 text-sm font-bold text-emerald-600">
+                                            <span>أرباح من {carrierEarningsLedger.filter(l => l.settlement_status === 'settled').length} شحنة معتمدة</span>
                                         </div>
                                     </CardContent>
                                 </Card>
@@ -631,92 +833,209 @@ export default function AdminFinance() {
                             </Card>
                         </TabsContent>
 
+                        {/* Earnings Approval Tab (Phase 1) */}
+                        <TabsContent value="settlements" className="space-y-6 mt-0 border-none p-0 outline-none">
+                            <Card className="rounded-[2.5rem] shadow-xl border-none p-2 bg-white">
+                                <CardHeader className="px-6 pt-6 pb-4 border-b border-slate-50 flex flex-row justify-between items-center">
+                                    <div>
+                                        <CardTitle className="text-xl font-black text-slate-800 flex items-center gap-2">
+                                            <TrendingUp className="text-amber-500" /> دفتر صرف الناقلين (Carrier Ledger)
+                                        </CardTitle>
+                                        <CardDescription className="font-bold text-slate-500">
+                                            متابعة أرباح السائقين، العمولات المستقطعة، وحالة تسوية الشحنات المكتملة.
+                                        </CardDescription>
+                                    </div>
+                                </CardHeader>
+                                <CardContent className="p-0">
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-right border-collapse">
+                                            <thead>
+                                                <tr className="bg-slate-50 border-b border-slate-100">
+                                                    <th className="p-4 font-black text-slate-400 text-sm">رقم الشحنة</th>
+                                                    <th className="p-4 font-black text-slate-400 text-sm">الناقل</th>
+                                                    <th className="p-4 font-black text-slate-400 text-sm">مبلغ الشحنة</th>
+                                                    <th className="p-4 font-black text-slate-400 text-sm">المستحق (نور)</th>
+                                                    <th className="p-4 font-black text-slate-400 text-sm">سداد الشاحن</th>
+                                                    <th className="p-4 font-black text-slate-400 text-sm">حالة الصرف</th>
+                                                    <th className="p-4 font-black text-slate-400 text-sm">الإجراءات</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {carrierEarningsLedger.map((row) => (
+                                                    <tr key={row.shipment_id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
+                                                        <td className="p-4 font-bold text-blue-600">SH-{row.shipment_id.substring(0, 8).toUpperCase()}</td>
+                                                        <td className="p-4 font-bold text-slate-700">{row.carrier_name}</td>
+                                                        <td className="p-4 font-black">{Number(row.total_amount).toLocaleString()} ر.س</td>
+                                                        <td className="p-4 font-bold text-emerald-600">{Number(row.net_amount).toLocaleString()} ر.س</td>
+                                                        <td className="p-4">{getShipperStatusBadge(row.shipper_payment_status)}</td>
+                                                        <td className="p-4">{getCarrierStatusBadge(row.display_status)}</td>
+                                                        <td className="p-4">
+                                                            {row.display_status === 'pending_approval' ? (
+                                                                <Button 
+                                                                    size="sm" 
+                                                                    className="bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-lg"
+                                                                    onClick={() => handleApproveSettlement(row.shipment_id)}
+                                                                >
+                                                                    اعتماد الربح
+                                                                </Button>
+                                                            ) : row.display_status === 'available' ? (
+                                                                <Button 
+                                                                    size="sm" 
+                                                                    variant="outline" 
+                                                                    className="text-emerald-600 border-emerald-200 hover:bg-emerald-50 font-bold"
+                                                                    disabled
+                                                                >
+                                                                    متاح للسحب
+                                                                </Button>
+                                                            ) : row.display_status === 'withdrawal_pending' ? (
+                                                                <Button 
+                                                                    size="sm" 
+                                                                    className="bg-blue-600 text-white font-bold rounded-lg"
+                                                                    onClick={() => {
+                                                                        const req = withdrawals.find(w => w.user_id === row.carrier_id && w.status === 'pending');
+                                                                        if (req) {
+                                                                            setSelectedWithdrawal(req);
+                                                                            setIsApproveModalOpen(true);
+                                                                        }
+                                                                    }}
+                                                                >
+                                                                    صرف الآن
+                                                                </Button>
+                                                            ) : (
+                                                                <Button size="sm" variant="ghost" className="text-slate-400 font-bold" disabled>إتمام الصرف</Button>
+                                                            )}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+
+                                    <div className="p-6 border-t border-slate-100">
+                                        <h4 className="font-black text-slate-800 mb-4 flex items-center gap-2">
+                                            <TrendingUp size={18} className="text-amber-500" /> أرباح بانتظار الاعتماد ({carrierEarningsLedger.filter(r => r.display_status === 'pending_approval').length})
+                                        </h4>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                            {carrierEarningsLedger.filter(r => r.display_status === 'pending_approval').map(row => (
+                                                <div key={row.shipment_id} className="p-4 rounded-2xl bg-slate-50 border border-slate-100 flex flex-col gap-3">
+                                                    <div className="flex justify-between items-start">
+                                                        <span className="font-black text-slate-800">{row.carrier_name}</span>
+                                                        <Badge className="bg-amber-100 text-amber-600 border-none text-[10px]">بانتظار المراجعة</Badge>
+                                                    </div>
+                                                    <div className="flex justify-between items-center text-sm font-bold">
+                                                        <span className="text-slate-400">المستحق:</span>
+                                                        <span className="text-emerald-600 font-black">{Number(row.net_amount).toLocaleString()} ر.س</span>
+                                                    </div>
+                                                    <div className="flex justify-between items-center text-sm font-bold">
+                                                        <span className="text-slate-400">سداد الشاحن:</span>
+                                                        {getShipperStatusBadge(row.shipper_payment_status)}
+                                                    </div>
+                                                    <Button 
+                                                        size="sm" 
+                                                        className={`w-full font-black rounded-xl ${row.shipper_payment_status !== 'paid' ? 'bg-slate-200 text-slate-400' : 'bg-amber-500 hover:bg-amber-600 text-white'}`}
+                                                        onClick={() => handleApproveSettlement(row.shipment_id)}
+                                                    >
+                                                        اعتماد وصرف للمحفظة
+                                                    </Button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </TabsContent>
+
                         {/* Shipper Payments Tab */}
                         <TabsContent value="payments" className="space-y-6 mt-0 border-none p-0 outline-none">
                             <Card className="rounded-[2.5rem] shadow-xl border-none p-2 bg-white">
-                                <CardHeader className="px-6 pt-6 pb-4 border-b border-slate-50">
-                                    <CardTitle className="text-xl font-black text-slate-800 flex items-center gap-2">
-                                        <FileText className="text-emerald-500" /> إيصالات السداد (مديونيات الشاحنين)
-                                    </CardTitle>
-                                    <CardDescription className="font-bold text-slate-500">
-                                        يتم عرض إيصالات سداد المديونيات المرفوعة من قبل الشاحنين. يجب مراجعة الإيصال ومطابقته مع الحساب البنكي للتطبيق قبل الاعتماد.
-                                    </CardDescription>
+                                <CardHeader className="px-6 pt-6 pb-4 border-b border-slate-50 flex flex-row justify-between items-center">
+                                    <div>
+                                        <CardTitle className="text-xl font-black text-slate-800 flex items-center gap-2">
+                                            <FileText className="text-emerald-500" /> دفتر الحسابات المالي (Financial Ledger)
+                                        </CardTitle>
+                                        <CardDescription className="font-bold text-slate-500">
+                                            متابعة حالة مديونيات الشحنات، المدفوعات الجزئية، والمبالغ المتبقية لكل شحنة.
+                                        </CardDescription>
+                                    </div>
+                                    <Button 
+                                        onClick={() => setIsAddingPayment(true)}
+                                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl"
+                                    >
+                                        إضافة دفعة يدوية
+                                    </Button>
                                 </CardHeader>
-                                <CardContent className="p-6">
-                                    {pendingShipperPayments.length === 0 ? (
-                                        <div className="text-center py-20 bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200">
-                                            <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                                                <CheckCircle2 size={40} className="text-slate-300" />
-                                            </div>
-                                            <h3 className="text-xl font-black text-slate-700 mb-2">لا توجد إيصالات سداد معلقة</h3>
-                                            <p className="text-slate-500 font-bold">كل المديونيات مسددة أو بانتظار الشاحنين.</p>
-                                        </div>
-                                    ) : (
+                                <CardContent className="p-0">
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-right border-collapse">
+                                            <thead>
+                                                <tr className="bg-slate-50 border-b border-slate-100">
+                                                    <th className="p-4 font-black text-slate-400 text-sm">رقم الشحنة</th>
+                                                    <th className="p-4 font-black text-slate-400 text-sm">الشاحن</th>
+                                                    <th className="p-4 font-black text-slate-400 text-sm">القيمة</th>
+                                                    <th className="p-4 font-black text-slate-400 text-sm">المسدد</th>
+                                                    <th className="p-4 font-black text-slate-400 text-sm">المتبقي</th>
+                                                    <th className="p-4 font-black text-slate-400 text-sm">الحالة</th>
+                                                    <th className="p-4 font-black text-slate-400 text-sm">الإجراءات</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {financialLedger.map((row) => (
+                                                    <tr key={row.shipment_id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
+                                                        <td className="p-4 font-bold text-blue-600">SH-{row.shipment_id.substring(0, 8).toUpperCase()}</td>
+                                                        <td className="p-4 font-bold text-slate-700">{row.shipper_name}</td>
+                                                        <td className="p-4 font-black">{Number(row.total_amount).toLocaleString()} ر.س</td>
+                                                        <td className="p-4 font-bold text-emerald-600">{Number(row.paid_amount).toLocaleString()} ر.س</td>
+                                                        <td className="p-4 font-bold text-rose-600">{Number(row.remaining_amount).toLocaleString()} ر.س</td>
+                                                        <td className="p-4">{getStatusBadge(row.financial_status)}</td>
+                                                        <td className="p-4">
+                                                            <Button 
+                                                                size="sm" 
+                                                                variant="ghost" 
+                                                                onClick={() => {
+                                                                    setManualPaymentImage(null);
+                                                                    setPaymentForm({ shipmentId: row.shipment_id, amount: '', notes: '', method: 'bank_transfer' });
+                                                                    setIsAddingPayment(true);
+                                                                }}
+                                                                className="text-blue-600 hover:bg-blue-50 font-bold"
+                                                            >
+                                                                {row.financial_status === 'pending_approval' ? 'مراجعة' : 'إضافة دفعة'}
+                                                            </Button>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+
+                                    {/* التنبيهات المعلقة (الإيصالات) */}
+                                    <div className="p-6 border-t border-slate-100">
+                                        <h4 className="font-black text-slate-800 mb-4 flex items-center gap-2">
+                                            <Clock size={18} className="text-amber-500" /> إيصالات بانتظار المراجعة ({pendingShipperPayments.length})
+                                        </h4>
                                         <div className="space-y-4">
                                             {pendingShipperPayments.map(payment => (
-                                                <div key={payment.id} className="p-6 rounded-3xl bg-slate-50 border border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 hover:shadow-md transition-shadow">
-
-                                                    {/* Shipper Info */}
-                                                    <div className="flex items-start gap-4 flex-1">
-                                                        <div className="w-14 h-14 rounded-2xl bg-white border shadow-sm flex items-center justify-center text-emerald-500 flex-shrink-0">
-                                                            <ArrowDownRight size={28} />
-                                                        </div>
+                                                <div key={payment.id} className="p-4 rounded-2xl bg-amber-50/50 border border-amber-100 flex justify-between items-center">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="p-2 bg-white rounded-xl shadow-sm"><FileText size={20} className="text-amber-500" /></div>
                                                         <div>
-                                                            <h4 className="font-black text-lg text-slate-800">{payment.shipper?.full_name || 'شاحن غير معروف'}</h4>
-                                                            <p className="text-sm font-bold text-slate-500 mb-3">{payment.shipper?.phone}</p>
-
-                                                            {/* User Notes Box */}
-                                                            {payment.shipper_notes && (
-                                                                <div className="p-4 bg-white rounded-2xl border border-slate-200">
-                                                                    <span className="text-slate-400 block text-xs uppercase mb-1">ملاحظة التاجر</span>
-                                                                    <span className="font-bold text-sm text-slate-800">{payment.shipper_notes}</span>
-                                                                </div>
+                                                            <p className="font-bold text-slate-800">{payment.shipper?.full_name}</p>
+                                                            <p className="text-xs font-bold text-slate-500">مبلغ: {payment.amount} ر.س | شحنة: #{payment.shipment_id?.substring(0,8)}</p>
+                                                            {payment.auditor?.full_name && (
+                                                                <p className="text-xs font-bold text-blue-500 mt-0.5">🛡️ سجله: {payment.auditor.full_name} | {payment.payment_method === 'cash' ? 'نقدي' : payment.payment_method === 'check' ? 'شيك' : 'تحويل'}</p>
                                                             )}
-
-                                                            <div className="mt-3">
-                                                                <Button
-                                                                    variant="outline"
-                                                                    onClick={() => window.open(payment.proof_image_url, '_blank')}
-                                                                    className="h-10 rounded-xl font-bold border-blue-200 text-blue-600 bg-blue-50 hover:bg-blue-100 shadow-sm"
-                                                                >
-                                                                    عرض الإيصال
-                                                                </Button>
-                                                            </div>
                                                         </div>
                                                     </div>
-
-                                                    {/* Action Box */}
-                                                    <div className="bg-white p-5 rounded-3xl border shadow-sm text-center md:text-right min-w-[250px] space-y-4">
-                                                        <div>
-                                                            <p className="text-sm font-bold text-slate-500 mb-1">المبلغ المحول</p>
-                                                            <h3 className="text-4xl font-black text-slate-900 tracking-tight">{Number(payment.amount).toLocaleString()} <span className="text-lg text-slate-500">ر.س</span></h3>
-                                                            <div className="mt-2 text-xs font-bold text-slate-400 flex items-center justify-center md:justify-end gap-1">
-                                                                <Clock size={12} /> {(new Date(payment.created_at)).toLocaleDateString('ar-SA')}
-                                                            </div>
-                                                        </div>
-                                                        <div className="flex gap-2">
-                                                            <Button
-                                                                variant="outline"
-                                                                onClick={() => handleRejectShipperPayment(payment.id)}
-                                                                className="flex-1 rounded-xl font-bold bg-rose-50 text-rose-600 border-none hover:bg-rose-100"
-                                                            >
-                                                                رفض
-                                                            </Button>
-                                                            <Button
-                                                                onClick={() => {
-                                                                    setSelectedShipperPayment(payment);
-                                                                    setIsApprovePaymentModalOpen(true);
-                                                                }}
-                                                                className="flex-[2] rounded-xl font-black bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/20"
-                                                            >
-                                                                تأكيد واعتماد الحوالة
-                                                            </Button>
-                                                        </div>
+                                                    <div className="flex gap-2">
+                                                        {payment.proof_image_url && <Button size="sm" variant="ghost" className="text-blue-600 font-bold" onClick={() => window.open(payment.proof_image_url, '_blank')}>عرض</Button>}
+                                                        <Button size="sm" className="bg-emerald-600 text-white font-bold rounded-lg" onClick={() => {
+                                                            setSelectedShipperPayment(payment);
+                                                            setIsApprovePaymentModalOpen(true);
+                                                        }}>اعتماد</Button>
                                                     </div>
                                                 </div>
                                             ))}
                                         </div>
-                                    )}
+                                    </div>
                                 </CardContent>
                             </Card>
                         </TabsContent>
@@ -742,12 +1061,12 @@ export default function AdminFinance() {
                                         <table className="w-full text-right border-collapse">
                                             <thead>
                                                 <tr className="bg-slate-50 border-b border-slate-100">
-                                                    <th className="px-6 py-4 font-black text-slate-500 text-sm">رقم الفاتورة</th>
+                                                    <th className="px-6 py-4 font-black text-slate-500 text-sm">رقم الشحنة</th>
                                                     <th className="px-6 py-4 font-black text-slate-500 text-sm">الشاحن</th>
-                                                    <th className="px-6 py-4 font-black text-slate-500 text-sm">المبلغ الإجمالي</th>
-                                                    <th className="px-6 py-4 font-black text-slate-500 text-sm">التاريخ</th>
-                                                    <th className="px-6 py-4 font-black text-slate-500 text-sm">الحالة</th>
-                                                    <th className="px-6 py-4 font-black text-slate-500 text-sm">الإجراءات</th>
+                                                    <th className="px-6 py-4 font-black text-slate-500 text-sm">المبلغ لم يتم سداده</th>
+                                                    <th className="px-6 py-4 font-black text-slate-500 text-sm">المبلغ تم سداده</th>
+                                                    <th className="px-6 py-4 font-black text-slate-500 text-sm">قيمة الشحنة</th>
+                                                    <th className="px-6 py-4 font-black text-slate-500 text-sm text-center">الحالة</th>
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-slate-50">
@@ -755,27 +1074,61 @@ export default function AdminFinance() {
                                                     <tr>
                                                         <td colSpan={6} className="px-6 py-20 text-center text-slate-400 font-bold">لا توجد فواتير صادرة حالياً</td>
                                                     </tr>
-                                                ) : invoices.map((invoice) => (
-                                                    <tr key={invoice.invoice_id} className="hover:bg-slate-50/50 transition-colors">
-                                                        <td className="px-6 py-4 font-black text-blue-600" dir="ltr">INV-{invoice.invoice_number}</td>
+                                                ) : invoices.map((invoice) => {
+                                                    const unpaidAmount = Number(invoice.balance || (invoice.total_amount - (invoice.amount_paid || 0)));
+                                                    const isFullyPaid = unpaidAmount <= 0;
+                                                    const invoicePendingPayments = shipperPayments.filter(p => p.shipment_id === invoice.shipment_id && p.status === 'pending');
+                                                    const pendingAmountForInvoice = invoicePendingPayments.reduce((acc, curr) => acc + Number(curr.amount), 0);
+                                                    const hasPendingPayment = pendingAmountForInvoice > 0;
+                                                    
+                                                    // Determine Status and Styling
+                                                    let statusText = '';
+                                                    let rowStyle = '';
+                                                    let statusBadgeStyle = '';
+
+                                                    if (isFullyPaid) {
+                                                        statusText = 'تم الدفع';
+                                                        rowStyle = 'bg-emerald-50/10 hover:bg-emerald-50/40 transition-colors';
+                                                        statusBadgeStyle = 'bg-emerald-500 text-white font-black px-4 py-1.5 rounded-full text-xs shadow-sm w-full inline-block min-w-[120px]';
+                                                    } else if (hasPendingPayment) {
+                                                        if (pendingAmountForInvoice >= unpaidAmount) {
+                                                            statusText = 'قيد المراجعة';
+                                                        } else {
+                                                            statusText = 'سداد جزئي قيد المراجعة';
+                                                        }
+                                                        rowStyle = 'bg-amber-50/10 hover:bg-amber-50/40 transition-colors';
+                                                        statusBadgeStyle = 'bg-amber-500 text-white font-black px-4 py-1.5 rounded-full text-xs shadow-sm w-full inline-block min-w-[120px] leading-tight';
+                                                    } else if (Number(invoice.amount_paid) > 0) {
+                                                        statusText = 'سداد جزئي';
+                                                        rowStyle = 'bg-blue-50/10 hover:bg-blue-50/40 transition-colors';
+                                                        statusBadgeStyle = 'bg-blue-500 text-white font-black px-4 py-1.5 rounded-full text-xs shadow-sm w-full inline-block min-w-[120px]';
+                                                    } else {
+                                                        statusText = 'المبلغ لم يتم سداده';
+                                                        rowStyle = 'bg-rose-50/10 hover:bg-rose-50/40 transition-colors';
+                                                        statusBadgeStyle = 'bg-rose-500 text-white font-black px-4 py-1.5 rounded-full text-xs shadow-sm w-full inline-block min-w-[120px]';
+                                                    }
+
+                                                    return (
+                                                    <tr key={invoice.invoice_id} className={`border-b border-slate-100/50 ${rowStyle}`}>
+                                                        <td className="px-6 py-4 font-black text-slate-700">
+                                                            <a href={`/admin/loads?search=${invoice.shipment_id || ''}`} target="_blank" rel="noreferrer" className="hover:text-blue-600 transition-colors block">
+                                                                {invoice.shipment_id ? formatShortId(invoice.shipment_id, 'SH') : formatShortId(invoice.invoice_id, 'INV')}
+                                                            </a>
+                                                        </td>
                                                         <td className="px-6 py-4">
-                                                            <span className="font-bold text-slate-700">{invoice.shipper?.full_name}</span>
+                                                            <span className="font-bold text-slate-800 tracking-tight block">{invoice.shipper?.full_name}</span>
                                                             <span className="block text-xs text-slate-400 font-bold">{invoice.shipper?.phone}</span>
                                                         </td>
+                                                        <td className="px-6 py-4 font-black text-rose-600">{unpaidAmount.toLocaleString()} ر.س</td>
+                                                        <td className="px-6 py-4 font-black text-slate-900">{Number(invoice.amount_paid || 0).toLocaleString()} ر.س</td>
                                                         <td className="px-6 py-4 font-black text-slate-900">{Number(invoice.total_amount).toLocaleString()} ر.س</td>
-                                                        <td className="px-6 py-4 text-slate-500 font-bold">{new Date(invoice.created_at).toLocaleDateString('ar-SA')}</td>
-                                                        <td className="px-6 py-4">
-                                                            <Badge className={invoice.payment_status === 'paid' ? 'bg-emerald-100 text-emerald-600 border-none px-3' : 'bg-amber-100 text-amber-600 border-none px-3'}>
-                                                                {invoice.payment_status === 'paid' ? 'مدفوعة' : 'بانتظار الدفع'}
-                                                            </Badge>
-                                                        </td>
-                                                        <td className="px-6 py-4">
-                                                            <Button variant="ghost" size="icon" className="text-slate-400 hover:text-blue-600">
-                                                                <Download size={18} />
-                                                            </Button>
+                                                        <td className="px-6 py-4 text-center align-middle">
+                                                            <div className={statusBadgeStyle}>
+                                                                {statusText}
+                                                            </div>
                                                         </td>
                                                     </tr>
-                                                ))}
+                                                )})}
                                             </tbody>
                                         </table>
                                     </div>
@@ -883,10 +1236,10 @@ export default function AdminFinance() {
                         </TabsContent>
                     </Tabs>
                 </div>
-            </div >
+            </div>
 
             {/* Modal: Process Withdrawal / Upload Proof */}
-            < Dialog open={isApproveModalOpen} onOpenChange={setIsApproveModalOpen} >
+            <Dialog open={isApproveModalOpen} onOpenChange={setIsApproveModalOpen}>
                 <DialogContent className="sm:max-w-md bg-white rounded-[2rem] p-0 overflow-hidden border-none text-right" dir="rtl">
                     <div className="bg-slate-50 p-6 border-b border-slate-100 flex items-center gap-4">
                         <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center">
@@ -901,9 +1254,40 @@ export default function AdminFinance() {
                     <div className="p-6 space-y-6">
                         <div className="space-y-4">
                             <Label className="font-black text-slate-700">إيصال التحويل البنكي (مطلوب)</Label>
+                        </div>
 
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-3">
+                                <Label className="font-black text-slate-700">المبلغ</Label>
+                                <div className="h-12 flex items-center px-4 bg-slate-100 rounded-xl font-black text-slate-900 border border-slate-200">
+                                    {selectedWithdrawal?.amount?.toLocaleString()} ر.س
+                                </div>
+                            </div>
+                            <div className="space-y-3">
+                                <Label className="font-black text-slate-700 text-right block">اسم البنك المحول منه</Label>
+                                <Input
+                                    value={bankName}
+                                    onChange={(e) => setBankName(e.target.value)}
+                                    className="h-12 rounded-xl bg-slate-50 border-slate-200 font-bold"
+                                    placeholder="مثل: الراجحي، الأهلي..."
+                                />
+                            </div>
+                        </div>
+
+                        <div className="space-y-3">
+                            <Label className="font-black text-slate-700 text-right block">رقم العملية البنكية (Reference/TRX)</Label>
+                            <Input
+                                value={trxNumber}
+                                onChange={(e) => setTrxNumber(e.target.value)}
+                                className="h-12 rounded-xl bg-slate-50 border-slate-200 font-bold tracking-wider"
+                                placeholder="أدخل رقم الحوالة أو المرجع البنكي"
+                            />
+                        </div>
+
+                        <div className="space-y-3">
+                            <Label className="font-black text-slate-700">إرفاق إيصال التحويل (اختياري)</Label>
                             <div
-                                className={`w-full h-40 rounded-2xl border-2 border-dashed ${proofImage ? 'border-emerald-300 bg-emerald-50' : 'border-slate-300 bg-slate-50 hover:bg-slate-100'} flex flex-col items-center justify-center cursor-pointer transition-colors relative overflow-hidden`}
+                                className={`w-full h-32 rounded-2xl border-2 border-dashed ${proofImage ? 'border-emerald-300 bg-emerald-50' : 'border-slate-300 bg-slate-50 hover:bg-slate-100'} flex flex-col items-center justify-center cursor-pointer transition-colors relative overflow-hidden`}
                                 onClick={() => fileInputRef.current?.click()}
                             >
                                 <input
@@ -922,31 +1306,17 @@ export default function AdminFinance() {
                                     <>
                                         <div className="absolute inset-0 bg-white/50 backdrop-blur-sm z-0"></div>
                                         <div className="relative z-10 flex flex-col items-center gap-2">
-                                            <CheckCircle2 size={40} className="text-emerald-500" />
-                                            <span className="font-black text-emerald-700">{proofImage.name}</span>
-                                            <span className="text-xs font-bold text-emerald-600 bg-emerald-100 px-3 py-1 rounded-full border border-emerald-200 shadow-sm cursor-pointer hover:bg-emerald-200">تغيير الملف</span>
+                                            <CheckCircle2 size={32} className="text-emerald-500" />
+                                            <span className="font-black text-xs text-emerald-700">{proofImage.name}</span>
                                         </div>
                                     </>
                                 ) : (
                                     <>
-                                        <div className="w-14 h-14 bg-white rounded-2xl shadow-sm border flex items-center justify-center text-slate-400 mb-3">
-                                            <ArrowUpRight size={24} />
-                                        </div>
-                                        <span className="font-black text-slate-600">اضغط لرفع صورة إيصال الدفع</span>
-                                        <span className="text-xs font-bold text-slate-400 mt-1">PNG, JPG, PDF (بحد أقصى 5MB)</span>
+                                        <ArrowUpRight size={20} className="text-slate-400 mb-2" />
+                                        <span className="font-black text-sm text-slate-600">اضغط لرفع الإيصال</span>
                                     </>
                                 )}
                             </div>
-                        </div>
-
-                        <div className="space-y-3">
-                            <Label className="font-black text-slate-700">ملاحظات الإدارة (اختياري)</Label>
-                            <Input
-                                value={adminNotes}
-                                onChange={(e) => setAdminNotes(e.target.value)}
-                                className="h-12 rounded-xl bg-slate-50 border-slate-200 font-bold px-4"
-                                placeholder="رقم العملية المرجعي، تفاصيل إضافية..."
-                            />
                         </div>
                     </div>
 
@@ -1090,6 +1460,103 @@ export default function AdminFinance() {
                             className="h-14 rounded-2xl font-bold bg-white text-slate-600 mx-0 border-slate-200"
                         >
                             إلغاء
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+            {/* Modal: Add Manual Payment */}
+            <Dialog open={isAddingPayment} onOpenChange={setIsAddingPayment}>
+                <DialogContent className="sm:max-w-md bg-white rounded-[2rem] p-0 overflow-hidden border-none text-right" dir="rtl">
+                    <div className="bg-slate-50 p-6 border-b border-slate-100 flex items-center gap-4">
+                        <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center">
+                            <DollarSign size={24} />
+                        </div>
+                        <div>
+                            <DialogTitle className="text-xl font-black">إضافة دفعة سداد يدوية</DialogTitle>
+                            <DialogDescription className="font-bold text-slate-500 mt-1">تسجيل تحصيل مبلغ نقداً أو بتحويل بنكي مباشر للشحنة</DialogDescription>
+                        </div>
+                    </div>
+
+                    <div className="p-6 space-y-4">
+                        <div className="space-y-2">
+                            <Label className="font-black text-slate-700">رقم الشحنة (تلقائي)</Label>
+                            <div className="h-12 flex items-center px-4 bg-slate-100 rounded-xl font-black text-slate-900 border border-slate-200">
+                                {paymentForm.shipmentId ? `SH-${paymentForm.shipmentId.substring(0, 8).toUpperCase()}` : 'يرجى الاختيار من الجدول'}
+                            </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label className="font-black text-slate-700">المبلغ المحصل (ر.س)</Label>
+                            <Input
+                                type="number"
+                                value={paymentForm.amount}
+                                onChange={(e) => setPaymentForm({ ...paymentForm, amount: e.target.value })}
+                                className="h-12 rounded-xl bg-slate-50 border-slate-200 font-bold"
+                                placeholder="أدخل المبلغ المسدد"
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label className="font-black text-slate-700">طريقة التحصيل</Label>
+                                <select 
+                                    value={paymentForm.method}
+                                    onChange={(e) => setPaymentForm({ ...paymentForm, method: e.target.value })}
+                                    className="w-full h-12 px-4 rounded-xl bg-slate-50 border border-slate-200 font-bold focus:ring-2 focus:ring-blue-500 outline-none appearance-none"
+                                >
+                                    <option value="bank_transfer">تحويل بنكي</option>
+                                    <option value="cash">نقدي (كاش)</option>
+                                    <option value="check">شيك</option>
+                                </select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label className="font-black text-slate-700">إرفاق إيصال (إلزامي)</Label>
+                                <div 
+                                    onClick={() => manualPaymentFileRef.current?.click()}
+                                    className={`h-12 border-2 border-dashed rounded-xl flex items-center justify-center cursor-pointer transition-all ${manualPaymentImage ? 'border-emerald-500 bg-emerald-50 text-emerald-600' : 'border-slate-200 bg-slate-50 text-slate-400 hover:border-blue-400'}`}
+                                >
+                                    {manualPaymentImage ? <CheckCircle2 size={20} /> : <FileText size={20} />}
+                                    <span className="mr-2 text-xs font-bold">{manualPaymentImage ? 'تم اختيار الملف' : 'رفع صورة الوصل'}</span>
+                                    <input 
+                                        type="file" 
+                                        ref={manualPaymentFileRef}
+                                        onChange={(e) => setManualPaymentImage(e.target.files?.[0] || null)}
+                                        className="hidden" 
+                                        accept="image/*"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label className="font-black text-slate-700">ملاحظات إضافية</Label>
+                            <Input
+                                value={paymentForm.notes}
+                                onChange={(e) => setPaymentForm({ ...paymentForm, notes: e.target.value })}
+                                className="h-12 rounded-xl bg-slate-50 border-slate-200 font-bold"
+                                placeholder="مثال: رقم الحوالة، اسم المودع..."
+                            />
+                        </div>
+                    </div>
+
+                    <DialogFooter className="bg-slate-50 p-6 border-t border-slate-100 sm:justify-start gap-3">
+                        <Button
+                            onClick={handleAddManualPayment}
+                            disabled={!manualPaymentImage || !paymentForm.amount || !paymentForm.shipmentId}
+                            className={`flex-1 h-14 rounded-2xl font-black text-lg shadow-xl text-white transition-all ${
+                                manualPaymentImage && paymentForm.amount && paymentForm.shipmentId
+                                    ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/20' 
+                                    : 'bg-slate-300 cursor-not-allowed shadow-none'
+                            }`}
+                        >
+                            {!manualPaymentImage ? '⚠️ إرفاق الوصل أولاً' : 'تسجيل العمليـة'}
+                        </Button>
+                        <Button
+                            variant="outline"
+                            onClick={() => setIsAddingPayment(false)}
+                            className="h-14 rounded-2xl font-bold bg-white text-slate-600 border-slate-200"
+                        >
+                            تجاهل
                         </Button>
                     </DialogFooter>
                 </DialogContent>

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import AdminLayout from '@/components/AdminLayout';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2, Search, MapPin, Package, Clock, Truck, ShieldAlert, FileText, CheckCircle2, FileSignature, Edit } from 'lucide-react';
@@ -29,9 +30,14 @@ const statusTranslations: Record<string, string> = {
 };
 
 export default function AdminLoads() {
+  const [searchParams] = useSearchParams();
+  const initialSearch = searchParams.get('search') || '';
+  const initialStatus = searchParams.get('status') || '';
+
   const [loads, setLoads] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(initialSearch);
+  const [statusFilter, setStatusFilter] = useState(initialStatus);
   const [showLoadDetails, setShowLoadDetails] = useState(false);
   const [selectedLoad, setSelectedLoad] = useState<any>(null);
   const [adminNotes, setAdminNotes] = useState('');
@@ -156,12 +162,16 @@ export default function AdminLoads() {
     }
   };
 
-  const filteredLoads = loads.filter(load =>
-    load.id.includes(searchQuery) ||
-    load.origin.includes(searchQuery) ||
-    load.destination.includes(searchQuery) ||
-    (load.shipper?.full_name || '').includes(searchQuery)
-  );
+  const filteredLoads = loads.filter(load => {
+    const matchesSearch = load.id.includes(searchQuery) ||
+      load.origin.includes(searchQuery) ||
+      load.destination.includes(searchQuery) ||
+      (load.shipper?.full_name || '').includes(searchQuery);
+    
+    const matchesStatus = statusFilter ? load.status === statusFilter : true;
+    
+    return matchesSearch && matchesStatus;
+  });
 
   const getStatusBadge = (status: string) => {
     switch (status) {

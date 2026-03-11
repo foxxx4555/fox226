@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 
 interface WalletCardProps {
     balance: number;
+    frozenBalance?: number;
     currency: string;
     type: 'shipper' | 'carrier' | 'platform';
     onRefresh?: () => void;
@@ -14,6 +15,7 @@ interface WalletCardProps {
 
 const WalletCard: React.FC<WalletCardProps> = ({
     balance,
+    frozenBalance = 0,
     currency = 'SAR',
     type,
     onRefresh,
@@ -55,14 +57,26 @@ const WalletCard: React.FC<WalletCardProps> = ({
             </CardHeader>
             <CardContent>
                 <div className="space-y-6 relative z-10">
-                    <div>
-                        <p className="text-white/60 text-sm font-medium mb-1">
-                            {type === 'shipper' ? 'إجمالي المديونية الحالية' : 'الرصيد المتاح'}
-                        </p>
-                        <h2 className="text-4xl font-black tracking-tight">
-                            {type === 'shipper' ? Math.abs(balance).toLocaleString(undefined, { minimumFractionDigits: 2 }) : balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                            <span className="text-xl font-bold text-white/40 ms-2">{currency}</span>
-                        </h2>
+                    <div className="flex justify-between items-end">
+                        <div>
+                            <p className="text-white/60 text-sm font-medium mb-1">
+                                {type === 'shipper' ? 'إجمالي المديونية الحالية' : 'الرصيد المتاح للسحب'}
+                            </p>
+                            <h2 className="text-4xl font-black tracking-tight">
+                                {type === 'shipper' ? Math.abs(balance).toLocaleString(undefined, { minimumFractionDigits: 2 }) : balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                <span className="text-xl font-bold text-white/40 ms-2">{currency}</span>
+                            </h2>
+                        </div>
+                        
+                        {type === 'carrier' && (
+                            <div className="text-right">
+                                <p className="text-white/60 text-xs font-bold mb-1">الأرباح المجمدة</p>
+                                <div className="bg-white/10 px-3 py-1 rounded-lg border border-white/10">
+                                    <span className="text-lg font-black">{frozenBalance.toLocaleString()}</span>
+                                    <span className="text-[10px] font-bold text-white/40 ms-1">{currency}</span>
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     <div className="flex gap-3">

@@ -283,5 +283,31 @@ export const financeApi = {
         const { data, error } = await query.order('created_at', { ascending: false });
         if (error) throw error;
         return data;
+    },
+    /**
+     * Get pending (frozen) earnings for a carrier
+     */
+    async getPendingEarnings(carrierId: string) {
+        const { data, error } = await (supabase as any)
+            .from('shipment_finances')
+            .select(`
+                *,
+                shipment:loads(id, origin, destination, package_type, price)
+            `)
+            .eq('carrier_id', carrierId)
+            .eq('settlement_status', 'held')
+            .order('shipment_id', { ascending: false });
+
+        if (error) throw error;
+        return data;
+    },
+
+    /**
+     * MASTER RESET: Nuclear option to clear all shipments and finance data
+     */
+    async masterReset() {
+        const { error } = await (supabase as any).rpc('master_reset_financial_data');
+        if (error) throw error;
+        return true;
     }
 };

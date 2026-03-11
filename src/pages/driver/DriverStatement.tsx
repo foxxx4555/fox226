@@ -32,6 +32,7 @@ export default function DriverStatement() {
     const [transactions, setTransactions] = useState<any[]>([]);
     const [withdrawals, setWithdrawals] = useState<any[]>([]);
     const [receipts, setReceipts] = useState<any[]>([]);
+    const [pendingEarnings, setPendingEarnings] = useState<any[]>([]);
     const [activeTab, setActiveTab] = useState('activity');
 
     // UI States
@@ -44,16 +45,18 @@ export default function DriverStatement() {
         if (!userProfile?.id) return;
         setLoading(true);
         try {
-            const [walletData, txHistory, userWithdrawals, userReceipts] = await Promise.all([
+            const [walletData, txHistory, userWithdrawals, userReceipts, pendingEarningsData] = await Promise.all([
                 api.getWalletBalance(userProfile.id, 'driver'),
                 api.getTransactionHistory(userProfile.id),
                 api.getUserWithdrawals(userProfile.id),
-                api.getPayoutReceipts(userProfile.id)
+                api.getPayoutReceipts(userProfile.id),
+                api.getPendingEarnings(userProfile.id)
             ]);
 
             setWallet(walletData);
             setWithdrawals(userWithdrawals || []);
             setReceipts(userReceipts || []);
+            setPendingEarnings(pendingEarningsData || []);
 
             const mappedTransactions = txHistory.map((t: any) => ({
                 ...t,
@@ -179,18 +182,26 @@ export default function DriverStatement() {
                     <div className="space-y-6">
                         <WalletCard
                             balance={wallet?.balance || 0}
+                            frozenBalance={wallet?.frozen_balance || 0}
                             currency="SAR"
                             type="carrier"
                             onRefresh={loadFinancialData}
                             onWithdraw={handleWithdraw}
                         />
 
-                        {stats.pending > 0 && (
+                        {(wallet?.frozen_balance > 0 || stats.pending > 0) && (
                             <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-amber-50 border border-amber-200 rounded-[2rem] p-6 text-center shadow-sm relative overflow-hidden">
                                 <div className="absolute top-0 right-0 p-2 opacity-10"><Clock size={80} /></div>
                                 <Clock className="mx-auto text-amber-500 mb-2 relative z-10" size={24} />
-                                <h4 className="font-black text-amber-800 relative z-10">مستحقات بانتظار التحويل</h4>
-                                <p className="text-3xl font-black text-amber-600 mt-1 relative z-10">{stats.pending.toLocaleString()} ر.س</p>
+                                <h4 className="font-black text-amber-800 relative z-10">
+                                    {wallet?.frozen_balance > 0 ? "أرباح بانتظار الاعتماد" : "مستحقات بانتظار التحويل"}
+                                </h4>
+                                <p className="text-3xl font-black text-amber-600 mt-1 relative z-10">
+                                    {(wallet?.frozen_balance + stats.pending).toLocaleString()} ر.س
+                                </p>
+                                <p className="text-[10px] font-bold text-amber-700 mt-3 relative z-10 bg-white/50 py-1 rounded-full">
+                                    أرباح الرحلات المكتملة تظهر هنا حتى يعتمدها المحاسب
+                                </p>
                             </motion.div>
                         )}
                     </div>
@@ -200,7 +211,7 @@ export default function DriverStatement() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <Card className="rounded-[2.5rem] border-none shadow-xl bg-white p-8 border-r-8 border-emerald-500">
                                 <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-500 flex items-center justify-center mb-4"><ArrowDownRight /></div>
-                                <p className="text-slate-500 font-black text-sm">إجمالي الأرباح المستلمة</p>
+                                <p className="text-slate-500 font-black text-sm">إجمالي الأرباح المحققة</p>
                                 <h2 className="text-3xl font-black mt-1 text-slate-900">{stats.earned.toLocaleString()} <span className="text-lg">ر.س</span></h2>
                             </Card>
                             <Card className="rounded-[2.5rem] border-none shadow-xl bg-white p-8 border-r-8 border-rose-500">
@@ -212,10 +223,51 @@ export default function DriverStatement() {
 
                         {/* Withdrawals List with Tabs */}
                         <Tabs defaultValue="activity" className="w-full" onValueChange={setActiveTab}>
-                            <TabsList className="grid w-full grid-cols-2 h-14 bg-slate-100 p-1.5 rounded-2xl mb-6">
+                            <TabsList className="grid w-full grid-cols-3 h-14 bg-slate-100 p-1.5 rounded-2xl mb-6">
                                 <TabsTrigger value="activity" className="rounded-xl font-black data-[state=active]:bg-white data-[state=active]:shadow-sm">طلبات السحب</TabsTrigger>
+                                <TabsTrigger value="pending" className="rounded-xl font-black data-[state=active]:bg-white data-[state=active]:shadow-sm">أرباح بانتظار الاعتماد</TabsTrigger>
                                 <TabsTrigger value="receipts" className="rounded-xl font-black data-[state=active]:bg-white data-[state=active]:shadow-sm">إيصالات الصرف</TabsTrigger>
                             </TabsList>
+
+                            <TabsContent value="pending">
+                                <Card className="rounded-[3rem] border-none shadow-2xl bg-white overflow-hidden p-6 md:p-8">
+                                    <div className="flex items-center justify-between mb-8 border-b pb-4">
+                                        <h3 className="text-xl font-black flex items-center gap-2">
+                                            <Clock className="text-amber-500" /> أرباح الرحلات المكتملة
+                                        </h3>
+                                        <Badge className="bg-amber-50 text-amber-600 border-none font-bold">بانتظار مراجعة الإدارة</Badge>
+                                    </div>
+                                    <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                                        {pendingEarnings.length === 0 ? (
+                                            <div className="text-center py-12 opacity-50 font-bold bg-slate-50 rounded-3xl border-2 border-dashed">لا توجد أرباح معلقة حالياً</div>
+                                        ) : (
+                                            pendingEarnings.map(item => (
+                                                <div key={item.shipment_id} className="p-5 rounded-3xl bg-amber-50/30 border border-amber-100 flex flex-col md:flex-row justify-between items-center gap-4 hover:border-amber-200 transition-all">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="p-3 rounded-2xl bg-amber-500 text-white shadow-lg shadow-amber-500/20">
+                                                            <Clock size={24} />
+                                                        </div>
+                                                        <div>
+                                                            <p className="font-black text-slate-800">شحنة رقم SH-{item.shipment_id?.substring(0, 4).toUpperCase()}</p>
+                                                            <p className="text-xs text-slate-400 font-bold">{item.shipment?.origin} ➔ {item.shipment?.destination}</p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="text-left py-2 px-4 bg-white rounded-2xl border border-amber-100 shadow-sm">
+                                                        <p className="text-[10px] font-bold text-amber-600 mb-0.5 text-center">صافي الربح</p>
+                                                        <p className="font-black text-2xl text-slate-800">{Number(item.carrier_amount).toLocaleString()} <span className="text-xs">ر.س</span></p>
+                                                    </div>
+                                                </div>
+                                            ))
+                                        )}
+                                    </div>
+                                    <div className="mt-6 p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-start gap-3">
+                                        <Info size={18} className="text-blue-500 mt-0.5" />
+                                        <p className="text-xs font-bold text-slate-500 leading-relaxed">
+                                            تظهر الأرباح هنا بمجرد تسليم الشحنة للعميل بنجاح. بمجرد اعتماد المراجعة المالية من قبل الإدارة، ستنتقل هذه المبالغ تلقائياً إلى رصيدك المتاح للسحب.
+                                        </p>
+                                    </div>
+                                </Card>
+                            </TabsContent>
 
                             <TabsContent value="activity">
                                 <Card className="rounded-[3rem] border-none shadow-2xl bg-white overflow-hidden p-6 md:p-8">
