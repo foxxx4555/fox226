@@ -620,61 +620,6 @@ export const api = {
   // 💰 المحفظة والبيانات المالية
   // =========================
 
-  async getWalletBalance(userId: string, userType: string = 'carrier') {
-    const { data } = await (supabase as any)
-      .from('wallets')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('user_type', userType)
-      .maybeSingle();
-    return data || { balance: 0, currency: 'SAR' };
-  },
-
-  async getTransactionHistory(userId: string) {
-    try {
-      // First get all wallets for this user to get their IDs
-      const { data: userWallets } = await (supabase as any)
-        .from('wallets')
-        .select('wallet_id')
-        .eq('user_id', userId);
-
-      if (!userWallets || userWallets.length === 0) return [];
-
-      const walletIds = userWallets.map((w: any) => w.wallet_id);
-
-      const { data, error } = await (supabase as any)
-        .from('financial_transactions')
-        .select(`
-          *,
-          loads(id, origin, destination)
-        `)
-        .in('wallet_id', walletIds)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      return data || [];
-    } catch (e) {
-      console.warn("Error fetching transaction history:", e);
-      return [];
-    }
-  },
-
-  async getUserWithdrawals(userId: string) {
-    try {
-      const { data, error } = await (supabase as any)
-        .from('withdrawal_requests')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      return data || [];
-    } catch (e) {
-      console.warn("Error fetching user withdrawals:", e);
-      return [];
-    }
-  },
-
   async getShipperPayments(userId: string) {
     try {
       const { data, error } = await (supabase as any)

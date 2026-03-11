@@ -5,7 +5,7 @@
 -- 1. جدول سجل العمليات (Audit Logs)
 CREATE TABLE IF NOT EXISTS public.audit_logs (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    user_id UUID REFERENCES public.profiles(id), -- من قام بالعملية
+    user_id UUID REFERENCES pسشublic.profiles(id), -- من قام بالعملية
     action VARCHAR(100) NOT NULL, -- وصف العملية (e.g., 'approve_payment', 'process_payout')
     entity_id UUID, -- المعرف المرتبط (e.g., shipment_id, payment_id)
     old_values JSONB, -- القيم السابقة
