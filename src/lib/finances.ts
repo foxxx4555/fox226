@@ -145,27 +145,143 @@ export const financeApi = {
     },
 
     /**
-     * Create a stripe checkout session for wallet top-up
+     * Get all invoices for a shipper or admin
      */
-    async createTopUpSession(userId: string, amount: number) {
-        const { data: wallet } = await (supabase as any)
-            .from('wallets')
-            .select('wallet_id')
-            .eq('user_id', userId)
-            .maybeSingle();
+    async getInvoices(shipperId?: string) {
+        let query = (supabase as any).from('invoices').select(`
+            *,
+            shipper:profiles!invoices_shipper_id_fkey(full_name, phone),
+            shipment:loads(id, origin, destination, package_type)
+        `);
 
-        // This would typically call an Edge Function or Backend
-        const response = await fetch('/api/pay/create-checkout', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                wallet_id: wallet?.wallet_id,
-                amount: amount,
-                user_id: userId
-            })
-        });
+        if (shipperId) {
+            query = query.eq('shipper_id', shipperId);
+        }
 
-        const session = await response.json();
-        return session;
+        const { data, error } = await query.order('created_at', { ascending: false });
+        if (error) throw error;
+        return data;
+    },
+
+    /**
+     * Create a manual invoice (or batch)
+     */
+    async createInvoice(data: {
+        shipment_id: string;
+        shipper_id: string;
+        amount: number;
+        vat: number;
+        total_amount: number;
+    }) {
+        const { data: result, error } = await (supabase as any)
+            .from('invoices')
+            .insert([data])
+            .select()
+            .single();
+
+        if (error) throw error;
+        return result;
+    },
+
+    /**
+     * Get system financial settings
+     */
+    async getSettings() {
+        const { data, error } = await (supabase as any)
+            .from('financial_settings')
+            .select('*');
+
+        if (error) throw error;
+        return data;
+    },
+
+    /**
+     * Update system financial setting
+     */
+    async updateSetting(key: string, value: number) {
+        const { error } = await (supabase as any)
+            .from('financial_settings')
+            .update({ setting_value: value, updated_at: new Date().toISOString() })
+            .eq('setting_key', key);
+
+        if (error) throw error;
+        return true;
+    },
+
+    /**
+     * Create an audit log entry
+     */
+    async createAuditLog(data: {
+        action: string;
+        entity_id?: string;
+        old_values?: any;
+        new_values?: any;
+        user_id?: string;
+    }) {
+        const { error } = await (supabase as any)
+            .from('audit_logs')
+            .insert([{
+                ...data,
+                user_id: data.user_id || (await supabase.auth.getUser()).data.user?.id
+            }]);
+
+        if (error) {
+            console.error('Failed to create audit log:', error);
+        }
+    },
+
+    /**
+     * Get audit logs (Admin only)
+     */
+    async getAuditLogs(limit = 100) {
+        const { data, error } = await (supabase as any)
+            .from('audit_logs')
+            .select(`
+                *,
+                user:profiles(full_name)
+            `)
+            .order('created_at', { ascending: false })
+            .limit(limit);
+
+        if (error) throw error;
+        return data;
+    },
+
+    /**
+     * Create a payout receipt
+     */
+    async createPayoutReceipt(data: {
+        user_id: string;
+        amount: number;
+        transaction_id: string;
+        payment_method: string;
+        reference_number?: string;
+    }) {
+        const { data: result, error } = await (supabase as any)
+            .from('payout_receipts')
+            .insert([data])
+            .select()
+            .single();
+
+        if (error) throw error;
+        return result;
+    },
+
+    /**
+     * Get payout receipts for a carrier or all for admin
+     */
+    async getPayoutReceipts(userId?: string) {
+        let query = (supabase as any).from('payout_receipts').select(`
+            *,
+            user:profiles(full_name, phone)
+        `);
+
+        if (userId) {
+            query = query.eq('user_id', userId);
+        }
+
+        const { data, error } = await query.order('created_at', { ascending: false });
+        if (error) throw error;
+        return data;
     }
 };

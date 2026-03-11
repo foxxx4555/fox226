@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
-  Shield, Zap, Globe, Truck, X, Download, Star,
+  Shield, Zap, Globe, Truck, X, Download, Star, UserCircle2,
   Search, MessageCircle, Phone, Mail, ArrowLeft,
   ChevronRight, Menu, Info, MapPin, Send, CheckCircle
 } from 'lucide-react';
@@ -196,7 +196,7 @@ export default function WelcomePage() {
             <img
               src="/logo.png"
               alt="SAS Logo"
-              className="h-20 md:h-36 w-auto object-contain mx-auto drop-shadow-xl"
+              className="h-32 md:h-52 w-auto object-contain mx-auto drop-shadow-xl"
             />
           </motion.div>
 
@@ -253,6 +253,30 @@ export default function WelcomePage() {
               </motion.div>
             ))}
           </div>
+
+          {/* 🔘 أزرار العمل السريع (Call to Action) */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.8 }}
+            className="flex flex-wrap justify-center gap-4 mt-8"
+          >
+            <Button
+              onClick={() => navigate('/login')}
+              className="h-14 px-8 rounded-2xl bg-slate-900 text-white font-black text-base shadow-xl hover:scale-105 transition-all flex items-center gap-2 group"
+            >
+              <UserCircle2 size={20} className="group-hover:rotate-12 transition-transform" />
+              {t('join_system', 'انضم إلى النظام')}
+            </Button>
+
+            <Button
+              onClick={() => navigate('/register')}
+              className="h-14 px-8 rounded-2xl bg-primary hover:bg-primary/90 text-white font-black text-base shadow-xl shadow-primary/20 hover:scale-105 transition-all flex items-center gap-2 group border-2 border-white/20"
+            >
+              <Zap size={20} className="fill-white group-hover:scale-110 transition-transform" />
+              {t('start_journey_now', 'ابدأ رحلتك الآن')}
+            </Button>
+          </motion.div>
         </motion.div>
       </section>
 

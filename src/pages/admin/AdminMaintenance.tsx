@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import MaintenanceChat from '@/components/MaintenanceChat';
+import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -31,6 +33,7 @@ import { Textarea } from '@/components/ui/textarea';
 import * as XLSX from 'xlsx';
 
 export default function AdminMaintenance() {
+    const { userProfile } = useAuth() as any;
     const [requests, setRequests] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedRequest, setSelectedRequest] = useState<any>(null);
@@ -72,7 +75,7 @@ export default function AdminMaintenance() {
                     *,
                     driver:profiles!driver_id(full_name, phone),
                     load:loads(origin, destination),
-                    truck:trucks(plate_number, brand, model)
+                    truck:trucks(plate_number, brand, model_year)
                 `)
                 .order('created_at', { ascending: false });
 
@@ -108,33 +111,55 @@ export default function AdminMaintenance() {
         return () => { supabase.removeChannel(channel); };
     }, []);
 
-    const handleUpdateStatus = async (id: string, status: 'approved' | 'rejected') => {
+    const handleUpdateStatus = async (id: string, status: string) => {
         try {
-            const { error } = await supabase
+            // محاولة التحديث الكامل بما في ذلك حالة الدفع
+            const { error: fullError } = await supabase
                 .from('maintenance_requests' as any)
                 .update({
                     status,
                     admin_notes: adminNote,
-                    payment_status: status === 'approved' ? 'paid' : 'unpaid'
+                    payment_status: status === 'resolved' ? 'paid' : 'unpaid'
                 } as any)
                 .eq('id', id);
 
-            if (error) throw error;
+            // إذا كان الخطأ بسبب عدم وجود العمود (PGRST204)
+            if (fullError && (fullError as any).code === 'PGRST204') {
+                console.warn("Column payment_status missing, falling back to basic update");
+                const { error: fallbackError } = await supabase
+                    .from('maintenance_requests' as any)
+                    .update({
+                        status,
+                        admin_notes: adminNote
+                    } as any)
+                    .eq('id', id);
 
-            toast.success(status === 'approved' ? "تم اعتماد الطلب بنجاح ✅" : "تم رفض الطلب");
+                if (fallbackError) throw fallbackError;
+            } else if (fullError) {
+                throw fullError;
+            }
+
+            let successMsg = "تم تحديث الحالة";
+            if (status === 'approved') successMsg = "تم اعتماد الطلب بنجاح ✅";
+            if (status === 'rejected') successMsg = "تم رفض الطلب";
+            if (status === 'resolved') successMsg = "تم إغلاق البلاغ نهائياً ✅";
+
+            toast.success(successMsg);
             setSelectedRequest(null);
             setAdminNote('');
             fetchRequests();
         } catch (err: any) {
-            toast.error("فشل التحديث");
+            toast.error("فشل التحديث: " + (err.message || "خطأ غير معروف"));
         }
     };
 
     const getStatusBadge = (status: string) => {
         switch (status) {
-            case 'approved': return <Badge className="bg-emerald-500 text-white gap-1"><CheckCircle2 size={12} /> معتمد</Badge>;
+            case 'approved': return <Badge className="bg-blue-500 text-white gap-1"><Clock size={12} /> معتمد - قيد الإصلاح</Badge>;
+            case 'repaired': return <Badge className="bg-amber-500 text-white gap-1"><AlertCircle size={12} /> بانتظار استلام الإصلاح</Badge>;
+            case 'resolved': return <Badge className="bg-emerald-500 text-white gap-1"><CheckCircle2 size={12} /> تم الإصلاح نهائياً</Badge>;
             case 'rejected': return <Badge className="bg-rose-500 text-white gap-1"><XCircle size={12} /> مرفوض</Badge>;
-            default: return <Badge className="bg-amber-500 text-white gap-1"><Clock size={12} /> قيد الانتظار</Badge>;
+            default: return <Badge className="bg-slate-500 text-white gap-1"><Clock size={12} /> بانتظار الاعتماد</Badge>;
         }
     };
 
@@ -293,6 +318,14 @@ export default function AdminMaintenance() {
                                                     ))}
                                                 </div>
                                             </div>
+
+                                            {/* محادثة الصيانة */}
+                                            <div className="pt-4">
+                                                <MaintenanceChat
+                                                    requestId={selectedRequest.id}
+                                                    currentUserId={userProfile?.id}
+                                                />
+                                            </div>
                                         </div>
 
                                         <div className="space-y-8">
@@ -325,23 +358,40 @@ export default function AdminMaintenance() {
                                             onChange={e => setAdminNote(e.target.value)}
                                         />
 
-                                        {selectedRequest.status === 'pending' && (
-                                            <div className="flex gap-4">
+                                        <div className="flex gap-4">
+                                            {selectedRequest.status === 'pending' && (
+                                                <>
+                                                    <Button
+                                                        className="h-16 flex-1 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-black text-lg gap-2"
+                                                        onClick={() => handleUpdateStatus(selectedRequest.id, 'approved')}
+                                                    >
+                                                        <CheckCircle2 /> اعتماد الطلب (بدء الإصلاح)
+                                                    </Button>
+                                                    <Button
+                                                        variant="outline"
+                                                        className="h-16 flex-1 rounded-2xl border-rose-200 text-rose-600 hover:bg-rose-50 font-black text-lg gap-2"
+                                                        onClick={() => handleUpdateStatus(selectedRequest.id, 'rejected')}
+                                                    >
+                                                        <XCircle /> رفض الطلب
+                                                    </Button>
+                                                </>
+                                            )}
+
+                                            {selectedRequest.status === 'repaired' && (
                                                 <Button
-                                                    className="h-16 flex-1 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-lg gap-2"
-                                                    onClick={() => handleUpdateStatus(selectedRequest.id, 'approved')}
+                                                    className="h-16 w-full rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-lg gap-2 shadow-xl shadow-emerald-100"
+                                                    onClick={() => handleUpdateStatus(selectedRequest.id, 'resolved')}
                                                 >
-                                                    <CheckCircle2 /> اعتماد الفاتورة
+                                                    <CheckCircle2 /> تأكيد استلام الشاحنة وإغلاق البلاغ ✅
                                                 </Button>
-                                                <Button
-                                                    variant="outline"
-                                                    className="h-16 flex-1 rounded-2xl border-rose-200 text-rose-600 hover:bg-rose-50 font-black text-lg gap-2"
-                                                    onClick={() => handleUpdateStatus(selectedRequest.id, 'rejected')}
-                                                >
-                                                    <XCircle /> رفض الطلب
-                                                </Button>
-                                            </div>
-                                        )}
+                                            )}
+
+                                            {(selectedRequest.status === 'resolved' || selectedRequest.status === 'rejected') && (
+                                                <div className={`w-full text-center p-6 rounded-2xl border font-bold ${selectedRequest.status === 'resolved' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-rose-50 border-rose-200 text-rose-700'}`}>
+                                                    {selectedRequest.status === 'resolved' ? 'تم إصلاح هذا العطل وإغلاق الملف بنجاح.' : 'تم رفض هذا الطلب.'}
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                             </div>

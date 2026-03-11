@@ -22,7 +22,7 @@ export const Navbar = () => {
 
     return (
         <>
-            <nav className="fixed top-0 left-0 right-0 z-[100] bg-white/95 backdrop-blur-md border-b border-slate-100 py-3 px-6 md:px-12 flex items-center justify-between shadow-sm" dir={i18n.language === 'ar' ? 'rtl' : 'ltr'}>
+            <nav className="fixed top-0 left-0 right-0 z-[100] bg-white/95 backdrop-blur-md border-b border-slate-100 py-2 px-6 md:px-12 flex items-center justify-between shadow-sm" dir={i18n.language === 'ar' ? 'rtl' : 'ltr'}>
                 <div className="flex items-center gap-4">
                     <div className="flex items-center gap-2">
                         <Button
@@ -86,7 +86,7 @@ export const Navbar = () => {
                 </div>
 
                 <div className="cursor-pointer flex items-center gap-2" onClick={() => navigate('/')}>
-                    <img src="/logo.png" alt="شعار SAS" className="h-[50px] md:h-[60px] w-auto object-contain" />
+                    <img src="/logo.png" alt="شعار SAS" className="h-[55px] md:h-[75px] w-auto object-contain" />
                 </div>
             </nav>
 

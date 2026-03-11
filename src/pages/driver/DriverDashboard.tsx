@@ -4,7 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { api } from '@/services/api';
 import AppLayout from '@/components/AppLayout';
 import StatCard from '@/components/StatCard';
-import { Package, CheckCircle, Star, Truck, ArrowUpRight, TrendingUp, Bell as BellIcon } from 'lucide-react';
+import { Package, CheckCircle, Star, Truck, ArrowUpRight, TrendingUp, Bell as BellIcon, Wallet } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -20,16 +20,19 @@ export default function DriverDashboard() {
   const [stats, setStats] = useState({ activeLoads: 0, completedTrips: 0, rating: 0, bidsCount: 0 });
   const [notifications, setNotifications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [wallet, setWallet] = useState<any>(null);
 
   const fetchDriverData = async () => {
     if (!userProfile?.id) return;
     try {
-      const [s, n] = await Promise.all([
+      const [s, n, w] = await Promise.all([
         api.getDriverStats(userProfile.id),
-        api.getNotifications(userProfile.id)
+        api.getNotifications(userProfile.id),
+        api.getWalletBalance(userProfile.id, 'driver')
       ]);
       setStats(s);
       setNotifications(n.slice(0, 4));
+      setWallet(w);
     } catch (err) {
       console.error(err);
     } finally {
@@ -81,7 +84,7 @@ export default function DriverDashboard() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <StatCard
             title="عدد العروض المقدمة"
             value={stats.bidsCount}
@@ -95,11 +98,27 @@ export default function DriverDashboard() {
             color="primary"
           />
           <StatCard
-            title="إشعارات المرسلين / الإدارة"
+            title="إشعارات المرسلين"
             value={notifications.length}
             icon={<BellIcon size={28} />}
             color="warning"
           />
+
+          <Card className="rounded-[2rem] shadow-xl border-none bg-gradient-to-br from-blue-600 to-blue-800 text-white p-6 relative overflow-hidden group cursor-pointer" onClick={() => navigate('/driver/statement')}>
+            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl group-hover:bg-white/20 transition-all"></div>
+            <div className="flex justify-between items-center relative z-10">
+              <div>
+                <p className="text-blue-100 font-bold text-xs uppercase tracking-widest mb-1">المحفظة / الأرباح</p>
+                <h3 className="text-3xl font-black">{wallet?.balance?.toLocaleString() || 0} <span className="text-sm font-bold opacity-60">ر.س</span></h3>
+              </div>
+              <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center text-white">
+                <Wallet size={24} />
+              </div>
+            </div>
+            <div className="mt-4 flex items-center text-xs font-bold text-blue-100 group-hover:gap-2 transition-all">
+              عرض كشف الحساب والسحب <ArrowUpRight size={14} className="ms-1" />
+            </div>
+          </Card>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { api } from '@/services/api';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -19,6 +19,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { cn } from '@/lib/utils';
 import TypeSelectorGrid from '@/components/TypeSelectorGrid';
 import DetailedTypeSelector from '@/components/DetailedTypeSelector';
+import MaintenanceChat from '@/components/MaintenanceChat';
+import { MessageCircle } from 'lucide-react';
 
 import { useNavigate } from 'react-router-dom';
 
@@ -92,6 +94,19 @@ export default function DriverTrucks() {
 
   useEffect(() => {
     fetchManagementData();
+
+    // إضافة المستمع اللحظي للتحديثات الفورية
+    const channel = supabase
+      .channel('maintenance-realtime')
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'maintenance_requests' },
+        () => fetchManagementData()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [userProfile?.id]);
 
   // Filtered body types based on selected category
@@ -162,9 +177,30 @@ export default function DriverTrucks() {
 
   const handleUpdateMaintenanceStatus = async (requestId: string, currentStatus: string) => {
     try {
-      const newStatus = currentStatus === 'pending' ? 'in_progress' : currentStatus === 'in_progress' ? 'resolved' : 'pending';
-      await api.updateMaintenanceStatus(requestId, newStatus);
-      toast.success("تم تحديث حالة البلاغ بنجاح");
+      if (currentStatus === 'approved') {
+        const { error } = await supabase.from('maintenance_requests' as any).update({ status: 'repaired' }).eq('id', requestId);
+        if (error) throw error;
+
+        // إرسال إشعار للإدارة
+        try {
+          const { data: adminRoles } = await supabase.from('user_roles').select('user_id').in('role', ['admin', 'super_admin', 'operations']);
+          if (adminRoles && adminRoles.length > 0) {
+            const adminIds = Array.from(new Set(adminRoles.map(r => r.user_id)));
+            for (const adminId of adminIds) {
+              await api.createNotification(
+                adminId,
+                "تم الانتهاء من الإصلاح 🔧",
+                `قام السائق ${userProfile?.full_name} بالإبلاغ عن انتهاء إصلاح الشاحنة. يرجى المراجعة والاعتماد النهائي.`,
+                'system'
+              );
+            }
+          }
+        } catch (notifErr) {
+          console.error("Failed to send admin notifications:", notifErr);
+        }
+
+        toast.success("تم إرسال إشعار للإدارة بانتهاء الإصلاح ✅");
+      }
       fetchManagementData();
     } catch (err) {
       toast.error("حدث خطأ أثناء التحديث");
@@ -356,32 +392,64 @@ export default function DriverTrucks() {
               <div className="grid gap-4 md:grid-cols-2">
                 {maintenanceRequests.map(req => (
                   <Card key={req.id} className="rounded-[2rem] border-none shadow-xl bg-white overflow-hidden relative group">
-                    <div className={`absolute top-0 right-0 w-2 h-full ${req.status === 'resolved' ? 'bg-emerald-500' : req.priority === 'critical' ? 'bg-rose-500' : 'bg-amber-500'}`}></div>
+                    <div className={`absolute top-0 right-0 w-2 h-full ${req.status === 'resolved' ? 'bg-emerald-500' : (req.status === 'pending' || req.priority === 'critical') ? 'bg-rose-500' : 'bg-blue-500'}`}></div>
                     <div className="p-6 text-right">
                       <div className="flex justify-between items-start mb-4">
                         <div>
                           <p className="text-xs font-black text-slate-400 mb-1">{new Date(req.created_at).toLocaleDateString('ar-SA')}</p>
                           <h4 className="text-lg font-black text-slate-900">{req.truck?.plate_number}</h4>
                         </div>
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${req.status === 'resolved' ? 'bg-emerald-50 text-emerald-500' : req.priority === 'critical' ? 'bg-rose-50 text-rose-500 animate-pulse' : 'bg-amber-50 text-amber-500'}`}>
-                          {req.priority === 'critical' && req.status !== 'resolved' ? <AlertTriangle size={20} /> : <Wrench size={20} />}
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${req.status === 'resolved' ? 'bg-emerald-50 text-emerald-500' : req.status === 'approved' ? 'bg-blue-50 text-blue-500' : 'bg-rose-50 text-rose-500'}`}>
+                          {req.priority === 'critical' ? <AlertTriangle size={20} /> : <Wrench size={20} />}
                         </div>
                       </div>
                       <p className="text-sm font-bold text-slate-500 mb-2 leading-relaxed">المشكلة: {req.description}</p>
-                      <p className="text-xs font-bold text-slate-400 mb-6 flex items-center gap-1 justify-end"><User size={12} /> {req.driver?.full_name}</p>
 
-                      <div className="border-t pt-4 flex justify-between items-center">
-                        <span className={`text-xs font-black px-3 py-1 rounded-full ${req.status === 'resolved' ? 'bg-emerald-100 text-emerald-700' : req.status === 'in_progress' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>
-                          {req.status === 'resolved' ? 'تم الإصلاح' : req.status === 'in_progress' ? 'جاري الفحص' : 'بانتظار الموافقة'}
+                      <div className="flex items-center justify-between mb-6">
+                        <span className={`text-[10px] font-black px-3 py-1 rounded-full ${req.status === 'resolved' ? 'bg-emerald-100 text-emerald-700' :
+                          req.status === 'approved' ? 'bg-blue-100 text-blue-700 animate-pulse' :
+                            req.status === 'repaired' ? 'bg-amber-100 text-amber-700' :
+                              'bg-slate-100 text-slate-600'
+                          }`}>
+                          {req.status === 'resolved' ? 'تم الإصلاح نهائياً' :
+                            req.status === 'approved' ? 'معتمد - ابدأ الإصلاح' :
+                              req.status === 'repaired' ? 'جاري مراجعة الإصلاح' :
+                                'بانتظار موافقة الإدارة'}
                         </span>
-                        <Button
-                          variant={req.status === 'resolved' ? 'outline' : 'default'}
-                          size="sm"
-                          className={`rounded-xl font-bold ${req.status !== 'resolved' ? 'bg-slate-900 hover:bg-slate-800 text-white' : ''}`}
-                          onClick={() => handleUpdateMaintenanceStatus(req.id, req.status)}
-                        >
-                          {req.status === 'pending' ? 'بدء الإصلاح' : req.status === 'in_progress' ? 'إغلاق البلاغ ✅' : 'إعادة الفتح'}
-                        </Button>
+
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button variant="ghost" size="sm" className="gap-2 font-bold text-blue-600 hover:bg-blue-50 rounded-xl">
+                              <MessageCircle size={16} /> المحادثة
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="rounded-[2.5rem] p-0 overflow-hidden border-none max-w-lg">
+                            <MaintenanceChat requestId={req.id} currentUserId={userProfile?.id || ''} />
+                          </DialogContent>
+                        </Dialog>
+                      </div>
+
+                      <div className="border-t pt-4">
+                        {req.status === 'approved' ? (
+                          <Button
+                            className="w-full h-12 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black shadow-lg"
+                            onClick={() => handleUpdateMaintenanceStatus(req.id, req.status)}
+                          >
+                            <CheckCircle2 className="ml-2" size={18} /> تم الإصلاح ✅
+                          </Button>
+                        ) : req.status === 'pending' ? (
+                          <div className="text-center p-3 bg-slate-50 rounded-xl text-slate-400 font-bold text-xs">
+                            يرجى انتظار موافقة الإدارة لبدء الإصلاح
+                          </div>
+                        ) : req.status === 'repaired' ? (
+                          <div className="text-center p-3 bg-amber-50 rounded-xl text-amber-600 font-bold text-xs flex items-center justify-center gap-2">
+                            🔔 بانتظار تأكيد الإدارة على انتهاء العمل
+                          </div>
+                        ) : (
+                          <div className="text-center p-3 bg-emerald-50 rounded-xl text-emerald-600 font-bold text-xs">
+                            تمت العملية بنجاح. شكراً لك!
+                          </div>
+                        )}
                       </div>
                     </div>
                   </Card>

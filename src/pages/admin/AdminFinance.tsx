@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Search, Download, TrendingUp, DollarSign, CreditCard, ArrowUpRight, ArrowDownRight, FileText, CheckCircle2, Clock, Loader2, Pencil } from 'lucide-react';
+import { Search, Download, TrendingUp, DollarSign, CreditCard, ArrowUpRight, ArrowDownRight, FileText, CheckCircle2, Clock, Loader2, Pencil, Settings, History, ShieldCheck } from 'lucide-react';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { api } from '@/services/api';
 import { supabase } from '@/integrations/supabase/client';
@@ -57,6 +57,12 @@ export default function AdminFinance() {
     const [editForm, setEditForm] = useState({ amount: 0, type: '', status: '' });
     const [isUpdating, setIsUpdating] = useState(false);
 
+    // New State for Integrated Features
+    const [invoices, setInvoices] = useState<any[]>([]);
+    const [auditLogs, setAuditLogs] = useState<any[]>([]);
+    const [financialSettings, setFinancialSettings] = useState<any[]>([]);
+    const [isSavingSetting, setIsSavingSetting] = useState(false);
+
     // دالة إنشاء وإصدار تقرير الـ PDF باستخدام التقاط واجهة المستخدم
     const generatePDF = async () => {
         const input = document.getElementById('finance-report-content');
@@ -95,18 +101,24 @@ export default function AdminFinance() {
     useEffect(() => {
         const fetchFinanceData = async () => {
             try {
-                const [trxData, statsData, chartRawData, withdrawalsData, shipperPaymentsData] = await Promise.all([
+                const [trxData, statsData, chartRawData, withdrawalsData, shipperPaymentsData, invoicesData, auditLogsData, settingsData] = await Promise.all([
                     api.getAllTransactions(),
                     api.getAdminStats(),
                     api.getFinancialChartData(),
                     api.getWithdrawalRequests(),
-                    api.getPendingShipperPayments() // Added shipper payments
+                    api.getPendingShipperPayments(),
+                    api.getInvoices(),
+                    api.getAuditLogs(50),
+                    api.getFinancialSettings()
                 ]);
                 setTransactions(trxData || []);
                 setStats(statsData);
                 setChartData(chartRawData);
                 setWithdrawals(withdrawalsData || []);
                 setShipperPayments(shipperPaymentsData || []);
+                setInvoices(invoicesData || []);
+                setAuditLogs(auditLogsData || []);
+                setFinancialSettings(settingsData || []);
             } catch (error) {
                 console.error("Error fetching finance data:", error);
                 toast.error("فشل في تحميل البيانات المالية");
@@ -291,6 +303,25 @@ export default function AdminFinance() {
         }
     };
 
+    const handleUpdateSetting = async (key: string, value: number) => {
+        setIsSavingSetting(true);
+        try {
+            await api.updateFinancialSetting(key, value);
+            toast.success("تم تحديث الإعداد بنجاح");
+
+            // Log the action
+            const oldSetting = financialSettings.find(s => s.setting_key === key);
+            await api.getAuditLogs(); // Refresh logs
+
+            const settingsData = await api.getFinancialSettings();
+            setFinancialSettings(settingsData || []);
+        } catch (error) {
+            toast.error("فشل في حفظ الإعدادات");
+        } finally {
+            setIsSavingSetting(false);
+        }
+    };
+
     if (loading) {
         return (
             <AdminLayout>
@@ -331,7 +362,7 @@ export default function AdminFinance() {
                 <div id="finance-report-content" className="space-y-8 bg-slate-50 p-4 rounded-3xl">
 
                     <Tabs defaultValue="overview" className="w-full">
-                        <TabsList className="grid w-full grid-cols-2 md:grid-cols-3 bg-slate-100 rounded-2xl h-14 mb-8 p-1">
+                        <TabsList className="grid w-full grid-cols-2 lg:grid-cols-5 bg-slate-100 rounded-2xl h-14 mb-8 p-1">
                             <TabsTrigger value="overview" className="rounded-xl font-bold text-slate-600 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm">المركز المالي</TabsTrigger>
                             <TabsTrigger value="withdrawals" className="rounded-xl font-bold text-slate-600 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm">
                                 طلبات السحب <Badge variant="secondary" className="ml-2 bg-rose-100 text-rose-600 border-none">{pendingWithdrawals.length}</Badge>
@@ -339,6 +370,8 @@ export default function AdminFinance() {
                             <TabsTrigger value="payments" className="rounded-xl font-bold text-slate-600 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm">
                                 إيصالات السداد <Badge variant="secondary" className="ml-2 bg-emerald-100 text-emerald-600 border-none">{pendingShipperPayments.length}</Badge>
                             </TabsTrigger>
+                            <TabsTrigger value="invoices" className="rounded-xl font-bold text-slate-600 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm">الفواتير</TabsTrigger>
+                            <TabsTrigger value="settings" className="rounded-xl font-bold text-slate-600 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm">الإعدادات</TabsTrigger>
                         </TabsList>
 
                         <TabsContent value="overview" className="space-y-8 mt-0 border-none p-0 outline-none">
@@ -384,15 +417,17 @@ export default function AdminFinance() {
                                     <CardContent className="p-8">
                                         <div className="flex justify-between items-start">
                                             <div>
-                                                <p className="font-bold text-slate-400 mb-2">مستحقات السائقين (للصرف)</p>
-                                                <h3 className="text-3xl font-black text-slate-900 tracking-tight">0 <span className="text-lg font-bold text-slate-400">ر.س</span></h3>
+                                                <p className="font-bold text-slate-400 mb-2">مستحقات الناقلين (للصرف)</p>
+                                                <h3 className="text-3xl font-black text-slate-900 tracking-tight">
+                                                    {withdrawals.filter(w => w.status === 'pending').reduce((sum, w) => sum + Number(w.amount), 0).toLocaleString()} <span className="text-lg font-bold text-slate-400">ر.س</span>
+                                                </h3>
                                             </div>
                                             <div className="p-3 bg-rose-50 rounded-2xl border border-rose-100">
                                                 <CreditCard size={24} className="text-rose-500" />
                                             </div>
                                         </div>
-                                        <div className="mt-6 flex items-center gap-2 text-sm font-bold text-slate-400">
-                                            <span>قريبًا - حساب المستحقات من المحافظ</span>
+                                        <div className="mt-6 flex items-center gap-2 text-sm font-bold text-rose-500">
+                                            <span>{withdrawals.filter(w => w.status === 'pending').length} طلبات سحب بانتظار الاعتماد</span>
                                         </div>
                                     </CardContent>
                                 </Card>
@@ -684,6 +719,167 @@ export default function AdminFinance() {
                                     )}
                                 </CardContent>
                             </Card>
+                        </TabsContent>
+
+                        {/* Invoices Tab */}
+                        <TabsContent value="invoices" className="space-y-6 mt-0 border-none p-0 outline-none text-right">
+                            <Card className="rounded-[2.5rem] shadow-xl border-none bg-white overflow-hidden">
+                                <CardHeader className="px-8 pt-8 pb-4 border-b border-slate-50">
+                                    <div className="flex justify-between items-center">
+                                        <CardTitle className="text-2xl font-black text-slate-800 flex items-center gap-3">
+                                            <div className="p-2 bg-blue-100 rounded-xl text-blue-600">
+                                                <FileText size={24} />
+                                            </div>
+                                            سجل الفواتير الصادرة
+                                        </CardTitle>
+                                        <Button variant="outline" className="rounded-xl border-blue-200 text-blue-600 font-bold">
+                                            <Download size={18} className="me-2" /> تصدير الكل
+                                        </Button>
+                                    </div>
+                                </CardHeader>
+                                <CardContent className="p-0">
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-right border-collapse">
+                                            <thead>
+                                                <tr className="bg-slate-50 border-b border-slate-100">
+                                                    <th className="px-6 py-4 font-black text-slate-500 text-sm">رقم الفاتورة</th>
+                                                    <th className="px-6 py-4 font-black text-slate-500 text-sm">الشاحن</th>
+                                                    <th className="px-6 py-4 font-black text-slate-500 text-sm">المبلغ الإجمالي</th>
+                                                    <th className="px-6 py-4 font-black text-slate-500 text-sm">التاريخ</th>
+                                                    <th className="px-6 py-4 font-black text-slate-500 text-sm">الحالة</th>
+                                                    <th className="px-6 py-4 font-black text-slate-500 text-sm">الإجراءات</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-50">
+                                                {invoices.length === 0 ? (
+                                                    <tr>
+                                                        <td colSpan={6} className="px-6 py-20 text-center text-slate-400 font-bold">لا توجد فواتير صادرة حالياً</td>
+                                                    </tr>
+                                                ) : invoices.map((invoice) => (
+                                                    <tr key={invoice.invoice_id} className="hover:bg-slate-50/50 transition-colors">
+                                                        <td className="px-6 py-4 font-black text-blue-600" dir="ltr">INV-{invoice.invoice_number}</td>
+                                                        <td className="px-6 py-4">
+                                                            <span className="font-bold text-slate-700">{invoice.shipper?.full_name}</span>
+                                                            <span className="block text-xs text-slate-400 font-bold">{invoice.shipper?.phone}</span>
+                                                        </td>
+                                                        <td className="px-6 py-4 font-black text-slate-900">{Number(invoice.total_amount).toLocaleString()} ر.س</td>
+                                                        <td className="px-6 py-4 text-slate-500 font-bold">{new Date(invoice.created_at).toLocaleDateString('ar-SA')}</td>
+                                                        <td className="px-6 py-4">
+                                                            <Badge className={invoice.payment_status === 'paid' ? 'bg-emerald-100 text-emerald-600 border-none px-3' : 'bg-amber-100 text-amber-600 border-none px-3'}>
+                                                                {invoice.payment_status === 'paid' ? 'مدفوعة' : 'بانتظار الدفع'}
+                                                            </Badge>
+                                                        </td>
+                                                        <td className="px-6 py-4">
+                                                            <Button variant="ghost" size="icon" className="text-slate-400 hover:text-blue-600">
+                                                                <Download size={18} />
+                                                            </Button>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </TabsContent>
+
+                        {/* Settings Tab */}
+                        <TabsContent value="settings" className="space-y-8 mt-0 border-none p-0 outline-none text-right">
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                                <div className="lg:col-span-1 space-y-6">
+                                    <Card className="rounded-[2.5rem] shadow-xl border-none bg-white p-6">
+                                        <CardHeader className="p-0 mb-6">
+                                            <CardTitle className="text-xl font-black text-slate-800 flex items-center gap-3">
+                                                <Settings className="text-blue-600" /> إعدادات النظام المالي
+                                            </CardTitle>
+                                        </CardHeader>
+                                        <CardContent className="p-0 space-y-6">
+                                            {financialSettings.map((setting) => (
+                                                <div key={setting.id} className="space-y-3">
+                                                    <Label className="font-black text-slate-600">{setting.description || setting.setting_key}</Label>
+                                                    <div className="flex gap-2">
+                                                        <div className="relative flex-1">
+                                                            <Input
+                                                                type="number"
+                                                                defaultValue={setting.setting_value}
+                                                                className="h-12 rounded-xl bg-slate-50 border-slate-200 font-black pl-10"
+                                                                id={`setting-${setting.setting_key}`}
+                                                            />
+                                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 font-black text-slate-400">%</span>
+                                                        </div>
+                                                        <Button
+                                                            onClick={() => {
+                                                                const val = (document.getElementById(`setting-${setting.setting_key}`) as HTMLInputElement).value;
+                                                                handleUpdateSetting(setting.setting_key, Number(val));
+                                                            }}
+                                                            disabled={isSavingSetting}
+                                                            className="h-12 rounded-xl bg-blue-600 hover:bg-blue-700 font-bold"
+                                                        >
+                                                            حفظ
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            ))}
+
+                                            <div className="pt-6 border-t border-slate-100">
+                                                <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100 flex items-start gap-3">
+                                                    <ShieldCheck className="text-blue-600 shrink-0 mt-1" size={20} />
+                                                    <p className="text-sm font-bold text-blue-800 leading-relaxed">
+                                                        تعديل القيم يؤثر على الشحنات المستقبلية فقط. العمليات الحالية تحتفظ بالنسب القديمة لضمان دقة السجلات.
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                </div>
+
+                                <div className="lg:col-span-2">
+                                    <Card className="rounded-[2.5rem] shadow-xl border-none bg-white overflow-hidden">
+                                        <CardHeader className="px-8 pt-8 pb-4 border-b border-slate-50">
+                                            <CardTitle className="text-xl font-black text-slate-800 flex items-center gap-3">
+                                                <History className="text-slate-500" /> سجل مراجعة العمليات (Audit Logs)
+                                            </CardTitle>
+                                        </CardHeader>
+                                        <CardContent className="p-0">
+                                            <div className="overflow-y-auto max-h-[500px] custom-scrollbar">
+                                                <div className="divide-y divide-slate-50">
+                                                    {auditLogs.length === 0 ? (
+                                                        <div className="p-20 text-center text-slate-400 font-bold">لا توجد سجلات حالياً</div>
+                                                    ) : auditLogs.map((log) => (
+                                                        <div key={log.id} className="p-6 hover:bg-slate-50/50 transition-colors">
+                                                            <div className="flex items-center justify-between mb-2">
+                                                                <Badge className="bg-slate-100 text-slate-600 border-none font-bold uppercase tracking-wider text-[10px]">
+                                                                    {log.action}
+                                                                </Badge>
+                                                                <span className="text-xs font-bold text-slate-400 flex items-center gap-1">
+                                                                    <Clock size={12} /> {new Date(log.created_at).toLocaleString('ar-SA')}
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex items-center gap-3 mt-3">
+                                                                <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 font-black text-xs">
+                                                                    {log.user?.full_name?.charAt(0) || 'A'}
+                                                                </div>
+                                                                <div>
+                                                                    <p className="text-sm font-bold text-slate-800">
+                                                                        <span className="text-blue-600 font-black">{log.user?.full_name || 'مسؤول'}</span>
+                                                                        {" قام بـ "}
+                                                                        <span className="text-slate-600">{log.action === 'update_setting' ? 'تحديث إعدادات النظام' : log.action}</span>
+                                                                    </p>
+                                                                    {log.new_values && (
+                                                                        <p className="text-[10px] font-mono text-slate-400 mt-1" dir="ltr">
+                                                                            {JSON.stringify(log.new_values)}
+                                                                        </p>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                </div>
+                            </div>
                         </TabsContent>
                     </Tabs>
                 </div>

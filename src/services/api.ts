@@ -723,6 +723,32 @@ export const api = {
     return await response.json();
   },
 
+  async getWalletBalance(userId: string, type: 'shipper' | 'driver') {
+    const { financeApi } = await import('@/lib/finances');
+    return await financeApi.getWallet(userId, type === 'driver' ? 'carrier' : 'shipper');
+  },
+
+  async getTransactionHistory(userId: string) {
+    const { financeApi } = await import('@/lib/finances');
+    return await financeApi.getTransactions(userId, 'carrier');
+  },
+
+  async getUserWithdrawals(userId: string) {
+    try {
+      const { data, error } = await (supabase as any)
+        .from('withdrawal_requests')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data || [];
+    } catch (e) {
+      console.warn("Error fetching user withdrawals:", e);
+      return [];
+    }
+  },
+
   async getAllTransactions() {
     try {
       const { data, error } = await (supabase as any)
@@ -778,7 +804,7 @@ export const api = {
 
       // If approved, create a financial transaction linking to wallet withdrawal
       if (status === 'approved' && data) {
-        await (supabase as any)
+        const { data: trx, error: trxError } = await (supabase as any)
           .from('financial_transactions')
           .insert([{
             wallet_id: data.wallet_id,
@@ -786,7 +812,21 @@ export const api = {
             type: 'debit',
             transaction_type: 'withdrawal',
             description: adminNotes || 'تم سحب الأرباح لحسابكم البنكي'
-          }]);
+          }])
+          .select()
+          .single();
+
+        if (trxError) throw trxError;
+
+        // 1.5. إنشاء إيصال صرف رسمي
+        const { financeApi } = await import('@/lib/finances');
+        await financeApi.createPayoutReceipt({
+          user_id: data.user_id,
+          amount: Math.abs(Number(data.amount)),
+          transaction_id: trx.id,
+          payment_method: 'bank_transfer',
+          reference_number: adminNotes
+        });
 
         // 2. تحديث رصيد المحفظة (خصم)
         const { data: wallet } = await (supabase as any)
@@ -798,7 +838,7 @@ export const api = {
         if (wallet) {
           await (supabase as any)
             .from('wallets')
-            .update({ balance: Number(wallet.balance) - Math.abs(Number(data.amount)) })
+            .update({ balance: Number(wallet.balance || 0) - Math.abs(Number(data.amount)) })
             .eq('wallet_id', data.wallet_id);
         }
       }
@@ -962,6 +1002,32 @@ export const api = {
     }
   },
 
+  // --- New Integrated Financial Methods ---
+  async getInvoices(shipperId?: string) {
+    const { financeApi } = await import('@/lib/finances');
+    return await financeApi.getInvoices(shipperId);
+  },
+
+  async getAuditLogs(limit = 100) {
+    const { financeApi } = await import('@/lib/finances');
+    return await financeApi.getAuditLogs(limit);
+  },
+
+  async getFinancialSettings() {
+    const { financeApi } = await import('@/lib/finances');
+    return await financeApi.getSettings();
+  },
+
+  async updateFinancialSetting(key: string, value: number) {
+    const { financeApi } = await import('@/lib/finances');
+    return await financeApi.updateSetting(key, value);
+  },
+
+  async getPayoutReceipts(userId?: string) {
+    const { financeApi } = await import('@/lib/finances');
+    return await financeApi.getPayoutReceipts(userId);
+  },
+
   // =========================
   // 🏢 إدارة الأسطول والمنتجات
   // =========================
@@ -972,7 +1038,7 @@ export const api = {
   },
 
   async getSubDrivers(userId: string) {
-    const { data } = await supabase.from('sub_drivers').select('*, trucks(*)').eq('carrier_id', userId);
+    const { data } = await supabase.from('sub_drivers').select('*, trucks(id, plate_number, brand, model_year, capacity, truck_type, owner_id)').eq('carrier_id', userId);
     return data || [];
   },
 

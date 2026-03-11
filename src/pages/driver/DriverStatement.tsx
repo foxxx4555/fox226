@@ -13,6 +13,12 @@ import { financeApi } from '@/lib/finances';
 import { supabase } from '@/integrations/supabase/client';
 import WalletCard from '@/components/finance/WalletCard';
 import TransactionList from '@/components/finance/TransactionList';
+import {
+    Tabs,
+    TabsContent,
+    TabsList,
+    TabsTrigger,
+} from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
@@ -25,6 +31,8 @@ export default function DriverStatement() {
     const [wallet, setWallet] = useState<any>(null);
     const [transactions, setTransactions] = useState<any[]>([]);
     const [withdrawals, setWithdrawals] = useState<any[]>([]);
+    const [receipts, setReceipts] = useState<any[]>([]);
+    const [activeTab, setActiveTab] = useState('activity');
 
     // UI States
     const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
@@ -36,14 +44,16 @@ export default function DriverStatement() {
         if (!userProfile?.id) return;
         setLoading(true);
         try {
-            const [walletData, txHistory, userWithdrawals] = await Promise.all([
-                api.getWalletBalance(userProfile.id),
+            const [walletData, txHistory, userWithdrawals, userReceipts] = await Promise.all([
+                api.getWalletBalance(userProfile.id, 'driver'),
                 api.getTransactionHistory(userProfile.id),
-                api.getUserWithdrawals(userProfile.id)
+                api.getUserWithdrawals(userProfile.id),
+                api.getPayoutReceipts(userProfile.id)
             ]);
 
             setWallet(walletData);
             setWithdrawals(userWithdrawals || []);
+            setReceipts(userReceipts || []);
 
             const mappedTransactions = txHistory.map((t: any) => ({
                 ...t,
@@ -200,49 +210,91 @@ export default function DriverStatement() {
                             </Card>
                         </div>
 
-                        {/* Withdrawals List */}
-                        <Card className="rounded-[3rem] border-none shadow-2xl bg-white overflow-hidden p-6 md:p-10">
-                            <div className="flex items-center justify-between mb-8 border-b pb-4">
-                                <h3 className="text-xl font-black flex items-center gap-2">
-                                    <CreditCard className="text-blue-500" /> تتبع طلبات السحب والحوالات
-                                </h3>
-                            </div>
-                            <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-                                {withdrawals.length === 0 ? (
-                                    <div className="text-center py-12 opacity-50 font-bold bg-slate-50 rounded-3xl border-2 border-dashed">لا يوجد طلبات سحب سابقة</div>
-                                ) : (
-                                    withdrawals.map(w => (
-                                        <div key={w.id} className="p-5 rounded-3xl bg-slate-50 border border-slate-100 flex flex-col md:flex-row justify-between items-center gap-4 hover:border-blue-200 transition-all">
-                                            <div className="flex items-center gap-4">
-                                                <div className={`p-3 rounded-2xl text-white ${w.status === 'approved' ? 'bg-emerald-500' :
-                                                    w.status === 'rejected' ? 'bg-rose-500' : 'bg-amber-500'
-                                                    } shadow-lg shadow-current/20`}>
-                                                    {w.status === 'approved' ? <CheckCircle2 size={24} /> : w.status === 'rejected' ? <XCircle size={24} /> : <Clock size={24} />}
+                        {/* Withdrawals List with Tabs */}
+                        <Tabs defaultValue="activity" className="w-full" onValueChange={setActiveTab}>
+                            <TabsList className="grid w-full grid-cols-2 h-14 bg-slate-100 p-1.5 rounded-2xl mb-6">
+                                <TabsTrigger value="activity" className="rounded-xl font-black data-[state=active]:bg-white data-[state=active]:shadow-sm">طلبات السحب</TabsTrigger>
+                                <TabsTrigger value="receipts" className="rounded-xl font-black data-[state=active]:bg-white data-[state=active]:shadow-sm">إيصالات الصرف</TabsTrigger>
+                            </TabsList>
+
+                            <TabsContent value="activity">
+                                <Card className="rounded-[3rem] border-none shadow-2xl bg-white overflow-hidden p-6 md:p-8">
+                                    <div className="flex items-center justify-between mb-8 border-b pb-4">
+                                        <h3 className="text-xl font-black flex items-center gap-2">
+                                            <CreditCard className="text-blue-500" /> تتبع طلبات السحب
+                                        </h3>
+                                    </div>
+                                    <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                                        {withdrawals.length === 0 ? (
+                                            <div className="text-center py-12 opacity-50 font-bold bg-slate-50 rounded-3xl border-2 border-dashed">لا يوجد طلبات سحب سابقة</div>
+                                        ) : (
+                                            withdrawals.map(w => (
+                                                <div key={w.id} className="p-5 rounded-3xl bg-slate-50 border border-slate-100 flex flex-col md:flex-row justify-between items-center gap-4 hover:border-blue-200 transition-all">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className={`p-3 rounded-2xl text-white ${w.status === 'approved' ? 'bg-emerald-500' :
+                                                            w.status === 'rejected' ? 'bg-rose-500' : 'bg-amber-500'
+                                                            } shadow-lg shadow-current/20`}>
+                                                            {w.status === 'approved' ? <CheckCircle2 size={24} /> : w.status === 'rejected' ? <XCircle size={24} /> : <Clock size={24} />}
+                                                        </div>
+                                                        <div>
+                                                            <p className="font-black text-slate-800">{w.status === 'approved' ? 'تم تحويل المبلغ' : w.status === 'rejected' ? 'الطلب مرفوض' : 'قيد المراجعة الإدارية'}</p>
+                                                            <p className="text-xs text-slate-400 font-bold">{(new Date(w.created_at)).toLocaleDateString('ar-SA')}</p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center gap-4 w-full md:w-auto">
+                                                        <div className="text-left flex-1 md:flex-none">
+                                                            <p className="font-black text-2xl text-slate-800">{Number(w.amount).toLocaleString()} <span className="text-xs">ر.س</span></p>
+                                                            {w.status === 'approved' && w.proof_image_url && (
+                                                                <Button
+                                                                    variant="link"
+                                                                    onClick={() => { setSelectedReceipt(w.proof_image_url); setIsReceiptModalOpen(true); }}
+                                                                    className="h-auto p-0 text-emerald-600 font-bold text-xs"
+                                                                >
+                                                                    عرض إيصال التحويل
+                                                                </Button>
+                                                            )}
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                                <div>
-                                                    <p className="font-black text-slate-800">{w.status === 'approved' ? 'تم تحويل المبلغ' : w.status === 'rejected' ? 'الطلب مرفوض' : 'قيد المراجعة الإدارية'}</p>
-                                                    <p className="text-xs text-slate-400 font-bold">{(new Date(w.created_at)).toLocaleDateString('ar-SA')}</p>
+                                            ))
+                                        )}
+                                    </div>
+                                </Card>
+                            </TabsContent>
+
+                            <TabsContent value="receipts">
+                                <Card className="rounded-[3rem] border-none shadow-2xl bg-white overflow-hidden p-6 md:p-8">
+                                    <div className="flex items-center justify-between mb-8 border-b pb-4">
+                                        <h3 className="text-xl font-black flex items-center gap-2">
+                                            <Printer className="text-blue-500" /> إيصالات الصرف الرسمية
+                                        </h3>
+                                    </div>
+                                    <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                                        {receipts.length === 0 ? (
+                                            <div className="text-center py-12 opacity-50 font-bold bg-slate-50 rounded-3xl border-2 border-dashed">لا يوجد إيصالات صرف حالياً</div>
+                                        ) : (
+                                            receipts.map(receipt => (
+                                                <div key={receipt.id} className="p-5 rounded-3xl bg-slate-50 border border-slate-100 flex flex-col md:flex-row justify-between items-center gap-4 hover:border-blue-200 transition-all">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="p-3 rounded-2xl bg-blue-500 text-white shadow-lg shadow-blue-500/20">
+                                                            <Printer size={24} />
+                                                        </div>
+                                                        <div>
+                                                            <p className="font-black text-slate-800">إيصال صرف رقم {receipt.receipt_number}</p>
+                                                            <p className="text-xs text-slate-400 font-bold">بتاريخ {new Date(receipt.created_at).toLocaleDateString('ar-SA')}</p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="text-left">
+                                                        <p className="font-black text-2xl text-slate-800">{Number(receipt.amount).toLocaleString()} <span className="text-xs">ر.س</span></p>
+                                                        <Button variant="link" className="h-auto p-0 text-blue-600 font-bold text-xs">تحميل الإيصال</Button>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                            <div className="flex items-center gap-4 w-full md:w-auto">
-                                                <div className="text-left flex-1 md:flex-none">
-                                                    <p className="font-black text-2xl text-slate-800">{Number(w.amount).toLocaleString()} <span className="text-xs">ر.س</span></p>
-                                                    {w.status === 'approved' && w.proof_image_url && (
-                                                        <Button
-                                                            variant="link"
-                                                            onClick={() => { setSelectedReceipt(w.proof_image_url); setIsReceiptModalOpen(true); }}
-                                                            className="h-auto p-0 text-emerald-600 font-bold text-xs"
-                                                        >
-                                                            عرض إيصال التحويل
-                                                        </Button>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))
-                                )}
-                            </div>
-                        </Card>
+                                            ))
+                                        )}
+                                    </div>
+                                </Card>
+                            </TabsContent>
+                        </Tabs>
                     </div>
                 </div>
 

@@ -29,6 +29,12 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import {
+    Tabs,
+    TabsContent,
+    TabsList,
+    TabsTrigger,
+} from "@/components/ui/tabs";
 import WalletCard from '@/components/finance/WalletCard';
 import TransactionList from '@/components/finance/TransactionList';
 import InvoiceTemplate from '@/components/finance/InvoiceTemplate';
@@ -130,6 +136,8 @@ export default function ShipperStatement() {
     const [userLoads, setUserLoads] = useState<any[]>([]);
     const [selectedLoadId, setSelectedLoadId] = useState<string>('general');
     const [isResetting, setIsResetting] = useState(false);
+    const [invoices, setInvoices] = useState<any[]>([]);
+    const [activeTab, setActiveTab] = useState('activity');
 
     const handleResetAccount = async () => {
         if (!confirm("تنبيه: سيتم حذف كافة الشحنات والعمليات بصفة نهائية. هل أنت متأكد؟")) return;
@@ -150,16 +158,18 @@ export default function ShipperStatement() {
         if (!userProfile?.id) return;
         setLoading(true);
         try {
-            const [walletData, txHistory, payments, loads] = await Promise.all([
+            const [walletData, txHistory, payments, loads, invoiceData] = await Promise.all([
                 api.getWalletBalance(userProfile.id, 'shipper'),
                 api.getTransactionHistory(userProfile.id),
                 api.getShipperPayments(userProfile.id),
-                api.getUserLoads(userProfile.id)
+                api.getUserLoads(userProfile.id),
+                api.getInvoices(userProfile.id)
             ]);
 
             setWallet(walletData);
             setShipperPayments(payments || []);
             setUserLoads(loads?.filter((l: any) => l.owner_id === userProfile.id) || []);
+            setInvoices(invoiceData || []);
 
             const mappedTransactions = txHistory?.map((t: any) => {
                 const amount = Math.abs(Number(t.amount) || 0);
@@ -611,14 +621,87 @@ export default function ShipperStatement() {
                     </div>
                 </div>
 
-                <TransactionList
-                    transactions={filteredTransactions}
-                    loading={loading}
-                    onViewDetails={(trx) => {
-                        setSelectedTransaction(trx);
-                        setIsDetailsModalOpen(true);
-                    }}
-                />
+                <Tabs defaultValue="activity" className="w-full" onValueChange={setActiveTab}>
+                    <TabsList className="grid w-full grid-cols-2 h-16 bg-white/50 p-2 rounded-2xl mb-8 border border-white">
+                        <TabsTrigger value="activity" className="rounded-xl font-black data-[state=active]:bg-white data-[state=active]:shadow-sm">النشاط المالى والمدفوعات</TabsTrigger>
+                        <TabsTrigger value="invoices" className="rounded-xl font-black data-[state=active]:bg-white data-[state=active]:shadow-sm">الفواتير الضريبية</TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value="activity" className="space-y-8">
+                        <TransactionList
+                            transactions={filteredTransactions}
+                            loading={loading}
+                            onViewDetails={(trx) => {
+                                setSelectedTransaction(trx);
+                                setIsDetailsModalOpen(true);
+                            }}
+                        />
+                    </TabsContent>
+
+                    <TabsContent value="invoices">
+                        <Card className="rounded-[3rem] border-none shadow-2xl bg-white overflow-hidden p-6 md:p-10">
+                            <div className="flex items-center justify-between mb-8 border-b pb-4">
+                                <h3 className="text-xl font-black flex items-center gap-2">
+                                    <FileText className="text-blue-500" /> الفواتير الصادرة
+                                </h3>
+                                <div className="text-xs font-bold text-slate-400">إجمالي الفواتير: {invoices.length}</div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                {invoices.length === 0 ? (
+                                    <div className="col-span-full text-center py-20 bg-slate-50 rounded-[2rem] border-2 border-dashed border-slate-200">
+                                        <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm">
+                                            <FileText size={40} className="text-slate-200" />
+                                        </div>
+                                        <p className="font-black text-slate-400 text-lg">لا توجد فواتير صادرة حالياً</p>
+                                        <p className="text-sm text-slate-300 font-bold mt-2">يتم إصدار الفواتير تلقائياً عند تأكيد سداد الشحنات</p>
+                                    </div>
+                                ) : (
+                                    invoices.map(invoice => (
+                                        <div key={invoice.id} className="p-6 rounded-[2rem] bg-slate-50 border border-slate-100 hover:border-blue-200 transition-all group overflow-hidden relative">
+                                            <div className="absolute top-0 left-0 w-2 h-full bg-blue-500 opacity-0 group-hover:opacity-100 transition-all"></div>
+
+                                            <div className="flex justify-between items-start mb-4">
+                                                <div>
+                                                    <p className="font-black text-lg text-slate-800">فاتورة #{invoice.invoice_number}</p>
+                                                    <p className="text-xs text-slate-400 font-bold">بتاريخ {new Date(invoice.created_at).toLocaleDateString('ar-SA')}</p>
+                                                </div>
+                                                <Badge className={`${invoice.status === 'paid' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'} border-none font-black px-3 py-1`}>
+                                                    {invoice.status === 'paid' ? 'مدفوعة' : 'معلقة'}
+                                                </Badge>
+                                            </div>
+
+                                            <div className="bg-white rounded-2xl p-4 border border-slate-100 mb-4">
+                                                <div className="flex justify-between text-sm mb-2">
+                                                    <span className="text-slate-400 font-bold">المبلغ الخاضع للضريبة:</span>
+                                                    <span className="font-black text-slate-700">{invoice.subtotal.toLocaleString()} ر.س</span>
+                                                </div>
+                                                <div className="flex justify-between text-sm mb-2">
+                                                    <span className="text-slate-400 font-bold">ضريبة القيمة المضافة (15%):</span>
+                                                    <span className="font-black text-slate-700">{invoice.tax_total.toLocaleString()} ر.س</span>
+                                                </div>
+                                                <div className="h-px bg-slate-100 my-2"></div>
+                                                <div className="flex justify-between text-lg">
+                                                    <span className="text-slate-800 font-black">الإجمالي:</span>
+                                                    <span className="font-black text-blue-600">{invoice.total_amount.toLocaleString()} ر.س</span>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex gap-2">
+                                                <Button className="flex-1 rounded-xl bg-slate-900 text-white font-black h-12" onClick={() => handlePrintInvoice(invoice)}>
+                                                    <Printer size={16} className="ml-2" /> طباعة
+                                                </Button>
+                                                <Button variant="outline" className="flex-1 rounded-xl border-slate-200 font-black h-12">
+                                                    <Download size={16} className="ml-2" /> تحميل PDF
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </Card>
+                    </TabsContent>
+                </Tabs>
 
             </div>
 

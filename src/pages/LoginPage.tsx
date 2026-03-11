@@ -111,9 +111,9 @@ export default function LoginPage() {
           <motion.div
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto shadow-xl shadow-primary/5 mb-3 border border-slate-50 relative overflow-hidden"
+            className="w-40 h-40 bg-white rounded-[2.5rem] flex items-center justify-center mx-auto shadow-2xl shadow-primary/10 mb-6 border border-slate-50 relative overflow-hidden"
           >
-            <img src="/logo.png" className="w-12 h-12 object-contain relative z-10 p-1" alt="Logo" />
+            <img src="/logo.png" className="w-32 h-32 object-contain relative z-10 p-2" alt="Logo" />
             <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent" />
           </motion.div>
           <h1 className="text-xl font-black text-slate-900 tracking-tight mb-1">{t('login_title')}</h1>
