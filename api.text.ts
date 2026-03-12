@@ -146,12 +146,12 @@ export const api = {
    */
   async completeWithdrawalRequest(requestId: string, bankName: string, reference: string, proofUrl?: string) {
     const { error } = await (supabase as any).from('withdrawal_requests').update({
-      status: 'approved',
-      bank_name_used: bankName,
-      transaction_reference: reference,
-      proof_image_url: proofUrl,
+        status: 'approved',
+        bank_name_used: bankName,
+        transaction_reference: reference,
+        proof_image_url: proofUrl,
     }).eq('id', requestId);
-
+    
     if (error) throw error;
     return true;
   },
@@ -194,15 +194,17 @@ export const api = {
   // 🔔 نظام الإشعارات (Live)
   // =========================
 
-  async createNotification(userId: string, title: string, message: string, type: string = 'info') {
+  async createNotification(userId: string, title: string, message: string, type: 'accept' | 'complete' | 'new_load' | 'system') {
     try {
       const { data, error } = await (supabase as any).from('notifications').insert([{ user_id: userId, title, message, type }]).select('*').single();
 
-      // إرسال Broadcast لضمان وصول الإشعار فوراً
+      // إرسال Broadcast لضمان وصول الإشعار فوراً حتى لو كان هناك تأخير في قاعدة البيانات أو قواعد الوصول RLS
+      const broadcastPayload = data || { id: Date.now().toString(), user_id: userId, title, message, type, is_read: false, created_at: new Date().toISOString() };
+
       supabase.channel(`user-notifs-${userId}`).send({
         type: 'broadcast',
         event: 'new_notification',
-        payload: data || { id: Date.now().toString(), user_id: userId, title, message, type, is_read: false, created_at: new Date().toISOString() }
+        payload: broadcastPayload
       });
 
       if (error) console.error("Notification DB Insert Warning:", error);
@@ -217,8 +219,6 @@ export const api = {
   async clearAllNotifications(userId: string) {
     await (supabase as any).from('notifications').delete().eq('user_id', userId);
   },
-
-
 
   // =========================
   // 🚚 إدارة الشحنات
@@ -272,9 +272,15 @@ export const api = {
     return true;
   },
 
-  async submitRating(ratingData: any) {
+  async submitRating(data: { load_id: string, driver_id: string, shipper_id: string, rating: number, comment?: string }) {
     try {
-      const { error } = await (supabase as any).from('ratings').insert([ratingData]);
+      const { error } = await (supabase as any).from('ratings').insert([{
+        load_id: data.load_id,
+        rater_id: data.driver_id,
+        rated_id: data.shipper_id,
+        rating: data.rating,
+        comment: data.comment
+      }]);
       if (error) throw error;
       return true;
     } catch (e) {
@@ -291,7 +297,7 @@ export const api = {
   async getAvailableLoads() {
     const { data: loads, error } = await supabase
       .from('loads')
-      .select('*, owner:profiles!owner_id(*)')
+      .select('*, owner:profiles!loads_owner_id_fkey(*)')
       .eq('status', 'available')
       .order('created_at', { ascending: false });
 
@@ -315,8 +321,8 @@ export const api = {
       .from('ratings')
       .select(`
         *,
-        rater:profiles!rater_id(full_name, phone),
-        rated:profiles!rated_id(full_name, phone, status),
+        rater:profiles!ratings_rater_id_fkey(full_name, phone),
+        rated:profiles!ratings_rated_id_fkey(full_name, phone, status),
         load:loads(origin, destination, package_type, price)
       `)
       .order('created_at', { ascending: false });
@@ -410,7 +416,7 @@ export const api = {
     if (role === 'shipper') {
       const { data } = await supabase
         .from('loads')
-        .select('driver:profiles!driver_id(id, full_name, phone)')
+        .select('driver:profiles!loads_driver_id_fkey(id, full_name, phone)')
         .eq('owner_id', userId)
         .not('driver_id', 'is', null);
 
@@ -424,7 +430,7 @@ export const api = {
     } else {
       const { data } = await supabase
         .from('loads')
-        .select('owner:profiles!owner_id(id, full_name, phone)')
+        .select('owner:profiles!loads_owner_id_fkey(id, full_name, phone)')
         .eq('driver_id', userId);
 
       const uniqueShippers = new Map();
@@ -443,8 +449,8 @@ export const api = {
         .from('messages')
         .select(`
           id, text, created_at, sender_id, receiver_id,
-          sender:profiles!sender_id(id, full_name, phone),
-          receiver:profiles!receiver_id(id, full_name, phone)
+          sender:profiles!messages_sender_id_fkey(id, full_name, phone),
+          receiver:profiles!messages_receiver_id_fkey(id, full_name, phone)
         `)
         .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`)
         .order('created_at', { ascending: false });
@@ -580,7 +586,7 @@ export const api = {
   },
 
   async getAllLoads() {
-    const { data } = await supabase.from('loads').select(`*, owner:profiles!owner_id(*), driver:profiles!driver_id(*)`).order('created_at', { ascending: false });
+    const { data } = await supabase.from('loads').select(`*, owner:profiles!loads_owner_id_fkey(*), driver:profiles!loads_driver_id_fkey(*)`).order('created_at', { ascending: false });
     return data || [];
   },
 
@@ -760,7 +766,7 @@ export const api = {
         .from('withdrawal_requests')
         .select(`
           *,
-          profile:profiles!user_id(full_name, phone, bank_name, account_name, account_number, iban)
+          profile:profiles(full_name, phone, bank_name, account_name, account_number, iban)
         `)
         .order('created_at', { ascending: false });
 
@@ -1005,15 +1011,15 @@ export const api = {
     return true;
   },
 
-  async getCarrierMaintenanceRequests(carrier_id: string) {
+  async getCarrierMaintenanceRequests(carrierId: string) {
     const { data, error } = await supabase
       .from('maintenance_requests' as any)
       .select(`
         *,
         truck:trucks(plate_number, brand),
-        driver:profiles!driver_id(full_name, phone)
+        driver:profiles!maintenance_requests_driver_id_fkey(full_name, phone)
       `)
-      .eq('carrier_id', carrier_id)
+      .eq('carrier_id', carrierId)
       .order('created_at', { ascending: false });
     if (error) throw error;
     return data || [];
@@ -1086,7 +1092,7 @@ export const api = {
   async getInvoices(shipperId?: string) {
     let query = (supabase as any).from('invoices').select(`
       *,
-      shipper:profiles!shipper_id(full_name, phone),
+      shipper:profiles(full_name, phone),
       shipment:loads(id, origin, destination, price)
     `);
 
@@ -1191,7 +1197,7 @@ export const api = {
   async getUserLoads(userId: string) {
     const { data, error } = await supabase
       .from('loads')
-      .select('*, owner:profiles!owner_id(*), driver:profiles!driver_id(*)')
+      .select('*, owner:profiles!loads_owner_id_fkey(*), driver:profiles!loads_driver_id_fkey(*)')
       .or(`owner_id.eq.${userId},driver_id.eq.${userId}`)
       .order('created_at', { ascending: false });
 
@@ -1215,16 +1221,10 @@ export const api = {
 
   async getBids(userId: string, role: 'driver' | 'shipper') {
     if (role === 'driver') {
-      const { data } = await supabase
-        .from('load_bids')
-        .select('*, loads(*, owner:profiles!owner_id(*))')
-        .eq('driver_id', userId);
+      const { data } = await supabase.from('load_bids').select('*, loads(*, owner:profiles!loads_owner_id_fkey(*))').eq('driver_id', userId);
       return data || [];
     } else {
-      const { data: bids } = await supabase
-        .from('load_bids')
-        .select(`*, driver:profiles!driver_id(*), loads!inner(*)`)
-        .eq('loads.owner_id', userId);
+      const { data: bids } = await supabase.from('load_bids').select(`*, loads!inner(*)`).eq('loads.owner_id', userId);
       return bids || [];
     }
   },

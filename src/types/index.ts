@@ -1,5 +1,5 @@
 export type UserRole = 'driver' | 'shipper' | 'super_admin' | 'operations' | 'carrier_manager' | 'support' | 'finance' | 'analytics';
-export type LoadStatus = 'available' | 'pending' | 'in_progress' | 'completed' | 'cancelled';
+export type LoadStatus = 'available' | 'pending' | 'in_progress' | 'delivered' | 'completed' | 'cancelled';
 export type TruckType = 'trella' | 'lorry' | 'dyna' | 'pickup' | 'refrigerated' | 'tanker' | 'flatbed' | 'container';
 export type TrailerType = 'flatbed' | 'curtain' | 'box' | 'refrigerated' | 'lowboy' | 'tank';
 export type TruckDimensions = 'small' | 'medium' | 'large' | 'extra_large';

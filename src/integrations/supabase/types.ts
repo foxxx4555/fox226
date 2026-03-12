@@ -694,6 +694,7 @@ export type Database = {
       | "available"
       | "pending"
       | "in_progress"
+      | "delivered"
       | "completed"
       | "cancelled"
       truck_type:

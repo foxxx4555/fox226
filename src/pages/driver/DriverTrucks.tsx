@@ -462,6 +462,7 @@ export default function DriverTrucks() {
         {/* Dialog إضافة شاحنة */}
         <Dialog open={isAdding} onOpenChange={setIsAdding}>
           <DialogContent className="max-w-2xl rounded-[3rem] p-0 overflow-hidden border-none bg-white shadow-2xl max-h-[90vh] flex flex-col">
+            <DialogTitle className="sr-only">تسجيل شاحنة جديدة</DialogTitle>
             <div className="p-6 bg-[#0f172a] text-white flex justify-between items-center shrink-0">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg"><Truck size={22} /></div>

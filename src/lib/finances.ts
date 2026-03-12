@@ -150,7 +150,7 @@ export const financeApi = {
     async getInvoices(shipperId?: string) {
         let query = (supabase as any).from('invoices').select(`
             *,
-            shipper:profiles!invoices_shipper_id_fkey(full_name, phone),
+            shipper:profiles!shipper_id(full_name, phone),
             shipment:loads(id, origin, destination, package_type)
         `);
 

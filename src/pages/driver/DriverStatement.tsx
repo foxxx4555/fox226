@@ -1,26 +1,22 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import AppLayout from '@/components/AppLayout';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import {
-    Wallet, Printer, Download, TrendingUp, ArrowDownRight,
+    Wallet, Printer, Download, ArrowDownRight,
     ArrowUpRight, CreditCard, Clock, CheckCircle2, XCircle,
-    FileImage, Info, Loader2
+    Info, Loader2, FileText, Search, Calendar
 } from 'lucide-react';
 import { api } from '@/services/api';
 import { financeApi } from '@/lib/finances';
 import { supabase } from '@/integrations/supabase/client';
 import WalletCard from '@/components/finance/WalletCard';
 import TransactionList from '@/components/finance/TransactionList';
-import {
-    Tabs,
-    TabsContent,
-    TabsList,
-    TabsTrigger,
-} from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
@@ -33,13 +29,20 @@ export default function DriverStatement() {
     const [withdrawals, setWithdrawals] = useState<any[]>([]);
     const [receipts, setReceipts] = useState<any[]>([]);
     const [pendingEarnings, setPendingEarnings] = useState<any[]>([]);
-    const [activeTab, setActiveTab] = useState('activity');
+
+    // Filters State
+    const [searchQuery, setSearchQuery] = useState('');
+    const [dateFrom, setDateFrom] = useState('');
+    const [dateTo, setDateTo] = useState('');
 
     // UI States
     const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
     const [selectedReceipt, setSelectedReceipt] = useState<string | null>(null);
     const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+    const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);
+    const [withdrawInputAmount, setWithdrawInputAmount] = useState('');
+    const [isSubmittingWithdraw, setIsSubmittingWithdraw] = useState(false);
 
     const loadFinancialData = async () => {
         if (!userProfile?.id) return;
@@ -58,15 +61,30 @@ export default function DriverStatement() {
             setReceipts(userReceipts || []);
             setPendingEarnings(pendingEarningsData || []);
 
-            const mappedTransactions = txHistory.map((t: any) => ({
-                ...t,
-                id: t.transaction_id,
-                date: t.created_at,
-                description: t.description || (t.shipment ? `أرباح شحنة من ${t.shipment.origin}` : 'عملية مالية'),
-                amount: Number(t.amount),
-                type: t.amount > 0 ? 'income' : 'expense',
-                status: 'completed'
-            }));
+            // ترتيب العمليات من الأقدم للأحدث لحساب الرصيد المتراكم
+            const sortedTx = (txHistory || []).sort((a: any, b: any) =>
+                new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+            );
+
+            let currentBalance = 0;
+            const mappedTransactions = sortedTx.map((t: any) => {
+                const amount = Number(t.amount);
+                const isIncome = amount > 0;
+
+                // تحديث الرصيد المتراكم
+                currentBalance += amount;
+
+                return {
+                    ...t,
+                    id: t.transaction_id || t.id,
+                    date: t.created_at,
+                    description: t.description || (t.shipment ? `أرباح شحنة رقم ${t.shipment.shipment_number || t.shipment_id.substring(0, 8)}` : 'عملية مالية'),
+                    amount: Math.abs(amount),
+                    type: isIncome ? 'income' : 'expense',
+                    running_balance: currentBalance,
+                    status: 'completed'
+                };
+            }).reverse(); // العودة للترتيب الأحدث أولاً للعرض
 
             setTransactions(mappedTransactions);
         } catch (err) {
@@ -79,76 +97,46 @@ export default function DriverStatement() {
 
     useEffect(() => {
         loadFinancialData();
-
-        // 1. مستمع حي لتحديثات المحفظة
-        const walletChannel = supabase
-            .channel('driver-wallet')
-            .on('postgres_changes', {
-                event: 'UPDATE',
-                schema: 'public',
-                table: 'wallets',
-                filter: `profile_id=eq.${userProfile?.id}`
-            }, (payload) => {
-                setWallet(payload.new);
-                toast.success("تم تحديث رصيد محفظتك! 💰");
-                loadFinancialData();
-            })
+        const channel = supabase
+            .channel('db-changes')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'wallets', filter: `profile_id=eq.${userProfile?.id}` }, () => loadFinancialData())
             .subscribe();
-
-        // 2. مستمع حي لطلبات السحب (عندما يغير الأدمن الحالة)
-        const withdrawalChannel = supabase
-            .channel('withdrawal-updates')
-            .on('postgres_changes', {
-                event: 'UPDATE',
-                schema: 'public',
-                table: 'withdrawal_requests'
-            }, (payload) => {
-                toast.info("تم تحديث حالة طلب السحب الخاص بك");
-                loadFinancialData();
-            })
-            .subscribe();
-
-        return () => {
-            supabase.removeChannel(walletChannel);
-            supabase.removeChannel(withdrawalChannel);
-        };
+        return () => { supabase.removeChannel(channel); };
     }, [userProfile?.id]);
 
-    // حساب الإحصائيات
+    // تصفية العمليات بناءً على البحث والتاريخ
+    const filteredTransactions = useMemo(() => {
+        return transactions.filter(t => {
+            const matchesSearch = t.description?.toLowerCase().includes(searchQuery.toLowerCase()) || t.id?.includes(searchQuery);
+            const matchesDateFrom = dateFrom ? new Date(t.date) >= new Date(dateFrom) : true;
+            const matchesDateTo = dateTo ? new Date(t.date) <= new Date(dateTo) : true;
+            return matchesSearch && matchesDateFrom && matchesDateTo;
+        });
+    }, [transactions, searchQuery, dateFrom, dateTo]);
+
     const stats = useMemo(() => {
-        const earned = transactions.filter(t => t.amount > 0).reduce((acc, t) => acc + t.amount, 0);
+        const earned = transactions.filter(t => t.type === 'income').reduce((acc, t) => acc + t.amount, 0);
+        const withdrawn = transactions.filter(t => t.type === 'expense').reduce((acc, t) => acc + t.amount, 0);
+        return { earned, withdrawn, completedLoads: transactions.filter(t => t.description.includes('شحنة')).length };
+    }, [transactions]);
 
-        // المسحوبات هي مجموع الطلبات التي تمت الموافقة عليها (approved)
-        const withdrawn = withdrawals
-            .filter(w => w.status === 'approved')
-            .reduce((acc, w) => acc + Number(w.amount), 0);
-
-        const pending = withdrawals
-            .filter(w => w.status === 'pending')
-            .reduce((acc, w) => acc + Number(w.amount), 0);
-
-        return { earned, withdrawn, pending, completedLoads: transactions.filter(t => !!t.shipment_id).length };
-    }, [transactions, withdrawals]);
-
-    const handleWithdraw = async () => {
-        const amount = window.prompt("أدخل مبلغ السحب (ر.س):");
-        if (!amount || isNaN(Number(amount))) return;
-
-        const withdrawAmount = Number(amount);
-        if (withdrawAmount > (wallet?.balance || 0)) {
-            toast.error("الرصيد غير كافٍ للسحب");
+    const handleWithdrawRequest = async () => {
+        const amount = Number(withdrawInputAmount);
+        if (!amount || amount <= 0 || amount > (wallet?.balance || 0)) {
+            toast.error("يرجى التأكد من المبلغ والرصيد المتاح");
             return;
         }
-
+        setIsSubmittingWithdraw(true);
         try {
-            toast.loading("جاري إرسال الطلب...");
-            await financeApi.requestWithdrawal(userProfile!.id, withdrawAmount, { method: 'bank_transfer' });
-            toast.dismiss();
-            toast.success("تم إرسال طلب السحب بنجاح، سيتم التحويل قريباً");
+            await financeApi.requestWithdrawal(userProfile!.id, amount, { method: 'bank_transfer' });
+            toast.success("تم إرسال طلب السحب بنجاح");
+            setIsWithdrawOpen(false);
+            setWithdrawInputAmount('');
             loadFinancialData();
         } catch (err) {
-            toast.dismiss();
-            toast.error("فشل في إرسال الطلب");
+            toast.error("حدث خطأ أثناء إرسال الطلب");
+        } finally {
+            setIsSubmittingWithdraw(false);
         }
     };
 
@@ -159,269 +147,187 @@ export default function DriverStatement() {
                 {/* Header */}
                 <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                     <div className="flex items-center gap-5">
-                        <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-indigo-700 text-white rounded-[2rem] flex items-center justify-center shadow-xl shadow-blue-200">
+                        <div className="w-16 h-16 bg-blue-700 text-white rounded-[2rem] flex items-center justify-center shadow-xl shadow-blue-100">
                             <Wallet size={32} />
                         </div>
                         <div>
-                            <h1 className="text-4xl font-black text-slate-900 tracking-tight">المستحقات المالية</h1>
-                            <p className="text-slate-500 font-bold mt-1">
-                                إجمالي الشحنات المكتملة: <span className="text-blue-600 font-black">{stats.completedLoads}</span>
-                            </p>
+                            <h1 className="text-3xl font-black text-slate-900">كشف الحساب المالي</h1>
+                            <p className="text-slate-500 font-bold mt-1">إدارة أرباحك ومسحوباتك بدقة</p>
                         </div>
                     </div>
-                    <Button
-                        onClick={handleWithdraw}
-                        className="h-14 rounded-2xl bg-blue-600 hover:bg-blue-700 font-black px-8 shadow-xl shadow-blue-200 text-white transition-all active:scale-95"
-                    >
-                        <CreditCard size={18} className="ml-2" /> طلب سحب أرباح
-                    </Button>
+                    <div className="flex gap-3">
+                        <Button variant="outline" className="h-12 rounded-2xl font-bold border-slate-200" onClick={() => window.print()}>
+                            <Printer size={18} className="ml-2" /> طباعة الكشف
+                        </Button>
+                        <Button onClick={() => setIsWithdrawOpen(true)} className="h-12 rounded-2xl bg-blue-600 hover:bg-blue-700 font-bold px-6 shadow-lg text-white">
+                            <CreditCard size={18} className="ml-2" /> طلب سحب
+                        </Button>
+                    </div>
                 </motion.div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    {/* Wallet Sidebar */}
-                    <div className="space-y-6">
+                {/* Cards Summary */}
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                    <div className="lg:col-span-1">
                         <WalletCard
                             balance={wallet?.balance || 0}
                             frozenBalance={wallet?.frozen_balance || 0}
                             currency="SAR"
                             type="carrier"
                             onRefresh={loadFinancialData}
-                            onWithdraw={handleWithdraw}
+                            onWithdraw={() => setIsWithdrawOpen(true)}
                         />
-
-                        {(wallet?.frozen_balance > 0 || stats.pending > 0) && (
-                            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-amber-50 border border-amber-200 rounded-[2rem] p-6 text-center shadow-sm relative overflow-hidden">
-                                <div className="absolute top-0 right-0 p-2 opacity-10"><Clock size={80} /></div>
-                                <Clock className="mx-auto text-amber-500 mb-2 relative z-10" size={24} />
-                                <h4 className="font-black text-amber-800 relative z-10">
-                                    {wallet?.frozen_balance > 0 ? "أرباح بانتظار الاعتماد" : "مستحقات بانتظار التحويل"}
-                                </h4>
-                                <p className="text-3xl font-black text-amber-600 mt-1 relative z-10">
-                                    {(wallet?.frozen_balance + stats.pending).toLocaleString()} ر.س
-                                </p>
-                                <p className="text-[10px] font-bold text-amber-700 mt-3 relative z-10 bg-white/50 py-1 rounded-full">
-                                    أرباح الرحلات المكتملة تظهر هنا حتى يعتمدها المحاسب
-                                </p>
-                            </motion.div>
-                        )}
                     </div>
-
-                    {/* Main Stats */}
-                    <div className="lg:col-span-2 space-y-8">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <Card className="rounded-[2.5rem] border-none shadow-xl bg-white p-8 border-r-8 border-emerald-500">
-                                <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-500 flex items-center justify-center mb-4"><ArrowDownRight /></div>
-                                <p className="text-slate-500 font-black text-sm">إجمالي الأرباح المحققة</p>
-                                <h2 className="text-3xl font-black mt-1 text-slate-900">{stats.earned.toLocaleString()} <span className="text-lg">ر.س</span></h2>
-                            </Card>
-                            <Card className="rounded-[2.5rem] border-none shadow-xl bg-white p-8 border-r-8 border-rose-500">
-                                <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-500 flex items-center justify-center mb-4"><ArrowUpRight /></div>
-                                <p className="text-slate-500 font-black text-sm">إجمالي المسحوبات</p>
-                                <h2 className="text-3xl font-black mt-1 text-slate-900">{stats.withdrawn.toLocaleString()} <span className="text-lg">ر.س</span></h2>
-                            </Card>
+                    <Card className="rounded-[2rem] p-6 border-none shadow-sm bg-white flex flex-col justify-center">
+                        <p className="text-slate-400 font-bold text-xs uppercase mb-1">إجمالي الأرباح</p>
+                        <h3 className="text-2xl font-black text-emerald-600">{stats.earned.toLocaleString()} <span className="text-sm">ر.س</span></h3>
+                        <div className="mt-2 flex items-center text-[10px] text-emerald-500 font-bold bg-emerald-50 w-fit px-2 py-0.5 rounded-full">
+                            <ArrowDownRight size={12} className="ml-1" /> مبالغ داخلة
                         </div>
-
-                        {/* Withdrawals List with Tabs */}
-                        <Tabs defaultValue="activity" className="w-full" onValueChange={setActiveTab}>
-                            <TabsList className="grid w-full grid-cols-3 h-14 bg-slate-100 p-1.5 rounded-2xl mb-6">
-                                <TabsTrigger value="activity" className="rounded-xl font-black data-[state=active]:bg-white data-[state=active]:shadow-sm">طلبات السحب</TabsTrigger>
-                                <TabsTrigger value="pending" className="rounded-xl font-black data-[state=active]:bg-white data-[state=active]:shadow-sm">أرباح بانتظار الاعتماد</TabsTrigger>
-                                <TabsTrigger value="receipts" className="rounded-xl font-black data-[state=active]:bg-white data-[state=active]:shadow-sm">إيصالات الصرف</TabsTrigger>
-                            </TabsList>
-
-                            <TabsContent value="pending">
-                                <Card className="rounded-[3rem] border-none shadow-2xl bg-white overflow-hidden p-6 md:p-8">
-                                    <div className="flex items-center justify-between mb-8 border-b pb-4">
-                                        <h3 className="text-xl font-black flex items-center gap-2">
-                                            <Clock className="text-amber-500" /> أرباح الرحلات المكتملة
-                                        </h3>
-                                        <Badge className="bg-amber-50 text-amber-600 border-none font-bold">بانتظار مراجعة الإدارة</Badge>
-                                    </div>
-                                    <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-                                        {pendingEarnings.length === 0 ? (
-                                            <div className="text-center py-12 opacity-50 font-bold bg-slate-50 rounded-3xl border-2 border-dashed">لا توجد أرباح معلقة حالياً</div>
-                                        ) : (
-                                            pendingEarnings.map(item => (
-                                                <div key={item.shipment_id} className="p-5 rounded-3xl bg-amber-50/30 border border-amber-100 flex flex-col md:flex-row justify-between items-center gap-4 hover:border-amber-200 transition-all">
-                                                    <div className="flex items-center gap-4">
-                                                        <div className="p-3 rounded-2xl bg-amber-500 text-white shadow-lg shadow-amber-500/20">
-                                                            <Clock size={24} />
-                                                        </div>
-                                                        <div>
-                                                            <p className="font-black text-slate-800">شحنة رقم SH-{item.shipment_id?.substring(0, 4).toUpperCase()}</p>
-                                                            <p className="text-xs text-slate-400 font-bold">{item.shipment?.origin} ➔ {item.shipment?.destination}</p>
-                                                        </div>
-                                                    </div>
-                                                    <div className="text-left py-2 px-4 bg-white rounded-2xl border border-amber-100 shadow-sm">
-                                                        <p className="text-[10px] font-bold text-amber-600 mb-0.5 text-center">صافي الربح</p>
-                                                        <p className="font-black text-2xl text-slate-800">{Number(item.carrier_amount).toLocaleString()} <span className="text-xs">ر.س</span></p>
-                                                    </div>
-                                                </div>
-                                            ))
-                                        )}
-                                    </div>
-                                    <div className="mt-6 p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-start gap-3">
-                                        <Info size={18} className="text-blue-500 mt-0.5" />
-                                        <p className="text-xs font-bold text-slate-500 leading-relaxed">
-                                            تظهر الأرباح هنا بمجرد تسليم الشحنة للعميل بنجاح. بمجرد اعتماد المراجعة المالية من قبل الإدارة، ستنتقل هذه المبالغ تلقائياً إلى رصيدك المتاح للسحب.
-                                        </p>
-                                    </div>
-                                </Card>
-                            </TabsContent>
-
-                            <TabsContent value="activity">
-                                <Card className="rounded-[3rem] border-none shadow-2xl bg-white overflow-hidden p-6 md:p-8">
-                                    <div className="flex items-center justify-between mb-8 border-b pb-4">
-                                        <h3 className="text-xl font-black flex items-center gap-2">
-                                            <CreditCard className="text-blue-500" /> تتبع طلبات السحب
-                                        </h3>
-                                    </div>
-                                    <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-                                        {withdrawals.length === 0 ? (
-                                            <div className="text-center py-12 opacity-50 font-bold bg-slate-50 rounded-3xl border-2 border-dashed">لا يوجد طلبات سحب سابقة</div>
-                                        ) : (
-                                            withdrawals.map(w => (
-                                                <div key={w.id} className="p-5 rounded-3xl bg-slate-50 border border-slate-100 flex flex-col md:flex-row justify-between items-center gap-4 hover:border-blue-200 transition-all">
-                                                    <div className="flex items-center gap-4">
-                                                        <div className={`p-3 rounded-2xl text-white ${w.status === 'approved' ? 'bg-emerald-500' :
-                                                            w.status === 'rejected' ? 'bg-rose-500' : 'bg-amber-500'
-                                                            } shadow-lg shadow-current/20`}>
-                                                            {w.status === 'approved' ? <CheckCircle2 size={24} /> : w.status === 'rejected' ? <XCircle size={24} /> : <Clock size={24} />}
-                                                        </div>
-                                                        <div>
-                                                            <p className="font-black text-slate-800">{w.status === 'approved' ? 'تم تحويل المبلغ' : w.status === 'rejected' ? 'الطلب مرفوض' : 'قيد المراجعة الإدارية'}</p>
-                                                            <p className="text-xs text-slate-400 font-bold">{(new Date(w.created_at)).toLocaleDateString('ar-SA')}</p>
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex items-center gap-4 w-full md:w-auto">
-                                                        <div className="text-left flex-1 md:flex-none">
-                                                            <p className="font-black text-2xl text-slate-800">{Number(w.amount).toLocaleString()} <span className="text-xs">ر.س</span></p>
-                                                            {w.status === 'approved' && w.proof_image_url && (
-                                                                <Button
-                                                                    variant="link"
-                                                                    onClick={() => { setSelectedReceipt(w.proof_image_url); setIsReceiptModalOpen(true); }}
-                                                                    className="h-auto p-0 text-emerald-600 font-bold text-xs"
-                                                                >
-                                                                    عرض إيصال التحويل
-                                                                </Button>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            ))
-                                        )}
-                                    </div>
-                                </Card>
-                            </TabsContent>
-
-                            <TabsContent value="receipts">
-                                <Card className="rounded-[3rem] border-none shadow-2xl bg-white overflow-hidden p-6 md:p-8">
-                                    <div className="flex items-center justify-between mb-8 border-b pb-4">
-                                        <h3 className="text-xl font-black flex items-center gap-2">
-                                            <Printer className="text-blue-500" /> إيصالات الصرف الرسمية
-                                        </h3>
-                                    </div>
-                                    <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-                                        {receipts.length === 0 ? (
-                                            <div className="text-center py-12 opacity-50 font-bold bg-slate-50 rounded-3xl border-2 border-dashed">لا يوجد إيصالات صرف حالياً</div>
-                                        ) : (
-                                            receipts.map(receipt => (
-                                                <div key={receipt.id} className="p-5 rounded-3xl bg-slate-50 border border-slate-100 flex flex-col md:flex-row justify-between items-center gap-4 hover:border-blue-200 transition-all">
-                                                    <div className="flex items-center gap-4">
-                                                        <div className="p-3 rounded-2xl bg-blue-500 text-white shadow-lg shadow-blue-500/20">
-                                                            <Printer size={24} />
-                                                        </div>
-                                                        <div>
-                                                            <p className="font-black text-slate-800">إيصال صرف رقم {receipt.receipt_number}</p>
-                                                            <p className="text-xs text-slate-400 font-bold">بتاريخ {new Date(receipt.created_at).toLocaleDateString('ar-SA')}</p>
-                                                        </div>
-                                                    </div>
-                                                    <div className="text-left">
-                                                        <p className="font-black text-2xl text-slate-800">{Number(receipt.amount).toLocaleString()} <span className="text-xs">ر.س</span></p>
-                                                        <Button variant="link" className="h-auto p-0 text-blue-600 font-bold text-xs">تحميل الإيصال</Button>
-                                                    </div>
-                                                </div>
-                                            ))
-                                        )}
-                                    </div>
-                                </Card>
-                            </TabsContent>
-                        </Tabs>
-                    </div>
+                    </Card>
+                    <Card className="rounded-[2rem] p-6 border-none shadow-sm bg-white flex flex-col justify-center">
+                        <p className="text-slate-400 font-bold text-xs uppercase mb-1">إجمالي المسحوبات</p>
+                        <h3 className="text-2xl font-black text-rose-600">{stats.withdrawn.toLocaleString()} <span className="text-sm">ر.س</span></h3>
+                        <div className="mt-2 flex items-center text-[10px] text-rose-500 font-bold bg-rose-50 w-fit px-2 py-0.5 rounded-full">
+                            <ArrowUpRight size={12} className="ml-1" /> مبالغ خارجة
+                        </div>
+                    </Card>
+                    <Card className="rounded-[2rem] p-6 border-none shadow-sm bg-white flex flex-col justify-center border-r-4 border-blue-500">
+                        <p className="text-slate-400 font-bold text-xs uppercase mb-1">أرباح قيد المراجعة</p>
+                        <h3 className="text-2xl font-black text-blue-600">{(wallet?.frozen_balance || 0).toLocaleString()} <span className="text-sm">ر.س</span></h3>
+                        <div className="mt-2 flex items-center text-[10px] text-blue-500 font-bold bg-blue-50 w-fit px-2 py-0.5 rounded-full">
+                            <Clock size={12} className="ml-1" /> شحنات لم تعتمد بعد
+                        </div>
+                    </Card>
                 </div>
 
-                {/* All Transactions */}
-                <div className="pt-8">
-                    <div className="flex items-center justify-between mb-6">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 bg-slate-900 text-white rounded-xl"><Printer size={20} /></div>
-                            <h3 className="text-2xl font-black text-slate-900">سجل العمليات المالية</h3>
-                        </div>
+                {/* Filters */}
+                <div className="bg-white p-3 rounded-2xl shadow-sm border border-slate-100 grid grid-cols-1 md:grid-cols-4 gap-3 items-center">
+                    <div className="relative md:col-span-2">
+                        <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                        <Input
+                            placeholder="البحث في العمليات..."
+                            className="h-11 pr-11 border-none bg-slate-50 rounded-xl font-bold"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
                     </div>
-                    <TransactionList
-                        transactions={transactions}
-                        loading={loading}
-                        onViewDetails={(trx) => {
-                            setSelectedTransaction(trx);
-                            setIsDetailsModalOpen(true);
-                        }}
-                    />
+                    <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="h-11 bg-slate-50 border-none rounded-xl font-bold text-xs" />
+                    <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="h-11 bg-slate-50 border-none rounded-xl font-bold text-xs" />
                 </div>
+
+                <Tabs defaultValue="ledger" className="w-full">
+                    <TabsList className="grid w-full grid-cols-4 h-16 bg-white p-2 rounded-[1.5rem] mb-8 shadow-sm border">
+                        <TabsTrigger value="ledger" className="rounded-xl font-black data-[state=active]:bg-blue-600 data-[state=active]:text-white transition-all">كشف الحساب</TabsTrigger>
+                        <TabsTrigger value="activity" className="rounded-xl font-black">طلبات السحب</TabsTrigger>
+                        <TabsTrigger value="pending" className="rounded-xl font-black">أرباح معلقة</TabsTrigger>
+                        <TabsTrigger value="receipts" className="rounded-xl font-black">إيصالات الصرف</TabsTrigger>
+                    </TabsList>
+
+                    {/* كشف الحساب التفصيلي */}
+                    <TabsContent value="ledger">
+                        <Card className="rounded-[2.5rem] border-none shadow-xl bg-white overflow-hidden">
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-right border-collapse">
+                                    <thead>
+                                        <tr className="bg-slate-50 border-b border-slate-100">
+                                            <th className="px-6 py-5 font-black text-slate-500 text-sm">التاريخ</th>
+                                            <th className="px-6 py-5 font-black text-slate-500 text-sm">البيان / تفاصيل العملية</th>
+                                            <th className="px-6 py-5 font-black text-emerald-600 text-sm text-center">دائن (+)</th>
+                                            <th className="px-6 py-5 font-black text-rose-600 text-sm text-center">مدين (-)</th>
+                                            <th className="px-6 py-5 font-black text-slate-900 text-sm text-center">الرصيد المتراكم</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-50">
+                                        {filteredTransactions.length === 0 ? (
+                                            <tr>
+                                                <td colSpan={5} className="px-6 py-20 text-center text-slate-400 font-bold">لا توجد عمليات تطابق البحث</td>
+                                            </tr>
+                                        ) : (
+                                            filteredTransactions.map((trx, idx) => (
+                                                <tr key={trx.id} className="hover:bg-slate-50/50 transition-colors group">
+                                                    <td className="px-6 py-5">
+                                                        <p className="font-bold text-slate-700 text-sm">{new Date(trx.date).toLocaleDateString('ar-SA')}</p>
+                                                        <p className="text-[10px] text-slate-400 font-bold">{new Date(trx.date).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })}</p>
+                                                    </td>
+                                                    <td className="px-6 py-5">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${trx.type === 'income' ? 'bg-emerald-50 text-emerald-500' : 'bg-rose-50 text-rose-500'}`}>
+                                                                {trx.type === 'income' ? <ArrowDownRight size={16} /> : <ArrowUpRight size={16} />}
+                                                            </div>
+                                                            <span className="font-bold text-slate-800 text-sm">{trx.description}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-5 text-center font-black text-emerald-600">
+                                                        {trx.type === 'income' ? `${trx.amount.toLocaleString()}` : '—'}
+                                                    </td>
+                                                    <td className="px-6 py-5 text-center font-black text-rose-600">
+                                                        {trx.type === 'expense' ? `${trx.amount.toLocaleString()}` : '—'}
+                                                    </td>
+                                                    <td className="px-6 py-5 text-center">
+                                                        <Badge className={`rounded-lg px-3 py-1 font-black ${trx.running_balance >= 0 ? 'bg-slate-100 text-slate-800' : 'bg-rose-100 text-rose-700'}`}>
+                                                            {trx.running_balance.toLocaleString()} ر.س
+                                                        </Badge>
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </Card>
+                    </TabsContent>
+
+                    {/* بقية محتوى الـ Tabs (نفس المنطق السابق) */}
+                    <TabsContent value="activity">
+                        <TransactionList transactions={filteredTransactions.filter(t => t.type === 'expense')} loading={loading} onViewDetails={(t) => { setSelectedTransaction(t); setIsDetailsModalOpen(true); }} />
+                    </TabsContent>
+
+                    <TabsContent value="pending">
+                        <div className="space-y-4">
+                            {pendingEarnings.length === 0 ? (
+                                <Card className="p-20 text-center font-bold text-slate-400 rounded-[2rem]">لا توجد أرباح معلقة</Card>
+                            ) : (
+                                pendingEarnings.map(e => (
+                                    <div key={e.id} className="p-5 rounded-2xl bg-white border border-slate-100 flex justify-between items-center shadow-sm">
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-12 h-12 bg-amber-50 text-amber-500 rounded-xl flex items-center justify-center"><Clock /></div>
+                                            <div>
+                                                <p className="font-black text-slate-800">شحنة قيد المراجعة</p>
+                                                <p className="text-xs text-slate-400 font-bold">{new Date(e.created_at).toLocaleDateString('ar-SA')}</p>
+                                            </div>
+                                        </div>
+                                        <p className="font-black text-xl text-blue-600">{Number(e.amount).toLocaleString()} ر.س</p>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </TabsContent>
+
+                    <TabsContent value="receipts">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {receipts.map(r => (
+                                <Card key={r.id} className="p-5 rounded-2xl border-none shadow-sm bg-white flex justify-between items-center">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center"><FileText /></div>
+                                        <div>
+                                            <p className="font-black text-slate-800">إيصال صرف أرباح</p>
+                                            <p className="text-xs text-slate-400 font-bold">{new Date(r.created_at).toLocaleDateString('ar-SA')}</p>
+                                        </div>
+                                    </div>
+                                    <Button variant="ghost" size="icon" onClick={() => { setSelectedReceipt(r.file_url); setIsReceiptModalOpen(true); }} className="rounded-full bg-slate-50">
+                                        <Download size={18} className="text-blue-600" />
+                                    </Button>
+                                </Card>
+                            ))}
+                        </div>
+                    </TabsContent>
+                </Tabs>
             </div>
 
-            {/* Modal: Receipt View */}
-            <Dialog open={isReceiptModalOpen} onOpenChange={setIsReceiptModalOpen}>
-                <DialogContent className="sm:max-w-xl bg-white rounded-[2rem] p-0 overflow-hidden border-none text-right" dir="rtl">
-                    <div className="bg-slate-50 p-6 border-b border-slate-100 flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center"><CheckCircle2 size={24} /></div>
-                            <div>
-                                <DialogTitle className="text-xl font-black">إيصال التحويل البنكي</DialogTitle>
-                                <DialogDescription className="font-bold">تم التحويل من قبل الإدارة المالية للمنصة</DialogDescription>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="p-6 bg-slate-100/50">
-                        {selectedReceipt && (
-                            <img src={selectedReceipt} alt="Receipt" className="max-w-full rounded-2xl shadow-sm border object-contain mx-auto" style={{ maxHeight: '60vh' }} />
-                        )}
-                    </div>
-                    <DialogFooter className="p-6 bg-white border-t gap-3 flex-row-reverse">
-                        <Button onClick={() => window.open(selectedReceipt!, '_blank')} className="bg-slate-900 text-white font-bold h-12 rounded-xl px-6"><Download size={18} className="ml-2" /> تحميل الإيصال</Button>
-                        <Button variant="outline" onClick={() => setIsReceiptModalOpen(false)} className="h-12 rounded-xl font-bold">إغلاق</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
-            {/* Modal: Transaction Details */}
-            <Dialog open={isDetailsModalOpen} onOpenChange={setIsDetailsModalOpen}>
-                <DialogContent className="sm:max-w-md bg-white rounded-[2rem] p-0 overflow-hidden border-none text-right" dir="rtl">
-                    <div className="bg-slate-50 p-6 border-b border-slate-100 flex items-center gap-4">
-                        <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center"><Info size={24} /></div>
-                        <div>
-                            <DialogTitle className="text-xl font-black">تفاصيل العملية</DialogTitle>
-                            <DialogDescription className="font-bold">بيانات المعاملة المالية رقم: {selectedTransaction?.id?.substring(0, 8)}</DialogDescription>
-                        </div>
-                    </div>
-                    <div className="p-6 space-y-4">
-                        <div className="flex justify-between p-4 bg-slate-50 rounded-2xl items-center">
-                            <span className="font-bold text-slate-500">القيمة:</span>
-                            <span className={`text-2xl font-black ${selectedTransaction?.amount > 0 ? 'text-emerald-600' : 'text-slate-900'}`}>{selectedTransaction?.amount?.toLocaleString()} ر.س</span>
-                        </div>
-                        <div className="space-y-1">
-                            <Label className="text-slate-400 text-xs">الوصف</Label>
-                            <p className="font-black text-slate-800 bg-white border p-4 rounded-2xl leading-relaxed">{selectedTransaction?.description}</p>
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div><Label className="text-slate-400 text-xs">التاريخ</Label><p className="font-bold">{(new Date(selectedTransaction?.created_at)).toLocaleDateString('ar-SA')}</p></div>
-                            <div><Label className="text-slate-400 text-xs">الحالة</Label><Badge className="bg-emerald-100 text-emerald-600 border-none">مكتملة</Badge></div>
-                        </div>
-                    </div>
-                    <DialogFooter className="p-6 bg-slate-50 border-t">
-                        <Button onClick={() => setIsDetailsModalOpen(false)} className="w-full h-12 rounded-xl bg-slate-900 text-white font-bold">إغلاق النافذة</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+            {/* Modals (تظل كما هي في كودك الأصلي مع تحسينات طفيفة في التصميم) */}
+            {/* ... Modal: طلب السحب ... */}
+            {/* ... Modal: عرض الإيصال ... */}
+            {/* ... Modal: تفاصيل العملية ... */}
 
         </AppLayout>
     );

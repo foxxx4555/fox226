@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import AppLayout from '@/components/AppLayout';
 import { supabase } from '@/integrations/supabase/client';
-import { MapPin, Truck, Navigation, CheckCircle2, Clock, PackageCheck, AlertCircle, Loader2 } from 'lucide-react';
+import { MapPin, Truck, Navigation, CheckCircle2, Clock, PackageCheck, AlertCircle, Loader2, RotateCcw } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';

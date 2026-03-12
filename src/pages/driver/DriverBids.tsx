@@ -54,7 +54,7 @@ export default function DriverBids() {
                 {
                     event: 'UPDATE',
                     schema: 'public',
-                    table: 'bids',
+                    table: 'load_bids',
                     filter: `driver_id=eq.${userProfile.id}`
                 },
                 () => fetchBids()

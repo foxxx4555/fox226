@@ -68,7 +68,7 @@ export default function AdminAdmins() {
             // Fetch user roles that are of type 'Super Admin', 'Operations Manager', etc.
             const { data: rolesData, error: rolesErr } = await supabase
                 .from('user_roles')
-                .select('*, profiles(*)');
+                .select('*, profiles!user_id(*)');
 
             if (rolesErr) throw rolesErr;
 

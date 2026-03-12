@@ -354,6 +354,7 @@ export default function DriverLoads() {
         <Dialog open={!!selectedLoad} onOpenChange={() => setSelectedLoad(null)}>
           {/* ... نفس محتوى الـ Dialog مع تحسينات CSS ... */}
           <DialogContent className="max-w-2xl rounded-[3rem] p-0 overflow-hidden border-none bg-white shadow-2xl">
+            <DialogTitle className="sr-only">تفاصيل الشحنة</DialogTitle>
             <div className="p-6 bg-[#0f172a] text-white flex justify-between items-center">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg"><Package size={22} /></div>
@@ -461,6 +462,7 @@ export default function DriverLoads() {
         {/* حوار تقديم العرض */}
         <Dialog open={showBidDialog} onOpenChange={setShowBidDialog}>
           <DialogContent className="max-w-md rounded-[3rem] p-0 overflow-hidden border-none bg-white shadow-2xl">
+            <DialogTitle className="sr-only">تقديم عرض سعر</DialogTitle>
             <div className="p-6 bg-blue-600 text-white text-center">
               <h3 className="font-black text-xl">تقديم عرض سعر</h3>
               <p className="text-xs opacity-80 mt-1">نافس بسعرك للحفوز على هذه الشحنة</p>

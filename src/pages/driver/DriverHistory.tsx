@@ -12,7 +12,7 @@ import {
   TrendingUp, ArrowRightLeft, Download, Truck, User, Star, Eye
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis,
@@ -43,7 +43,7 @@ export default function DriverHistory() {
     try {
       const [loadsData, balanceObj] = await Promise.all([
         api.getUserLoads(userProfile?.id || ''),
-        api.getWalletBalance(userProfile?.id || '')
+        api.getWalletBalance(userProfile?.id || '', 'driver')
       ]);
       setLoads(loadsData || []);
       setWalletBalance(balanceObj?.balance || 0);
@@ -236,6 +236,7 @@ export default function DriverHistory() {
         {/* Modal التفاصيل */}
         <Dialog open={!!selectedLoad && !showRating} onOpenChange={() => setSelectedLoad(null)}>
           <DialogContent className="max-w-md rounded-[3rem] p-0 overflow-hidden border-none bg-white shadow-2xl text-right" dir="rtl">
+            <DialogTitle className="sr-only">تفاصيل الرحلة السابقة</DialogTitle>
             <div className="p-6 bg-[#0f172a] text-white flex justify-between items-center">
               <h2 className="text-xl font-black">تفاصيل الرحلة السابقة</h2>
               <Button variant="ghost" size="icon" onClick={() => setSelectedLoad(null)} className="text-white rounded-full hover:bg-white/10">✕</Button>

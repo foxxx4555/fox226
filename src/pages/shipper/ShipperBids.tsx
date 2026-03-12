@@ -54,7 +54,7 @@ export default function ShipperBids() {
 
         setAcceptingId(bid.id);
         try {
-            await api.acceptBid(bid.load_id, bid.driver_id, bid.price);
+            await api.acceptBid(bid.load_id, bid.driver_id, bid.price, bid.loads?.owner_id);
             toast.success("تم قبول العرض بنجاح! الشحنة الآن قيد التنفيذ.");
             fetchBids();
             // الانتقال لصفحة التتبع لمراقبة السائق
@@ -136,10 +136,10 @@ export default function ShipperBids() {
                                                 <div className="space-y-1">
                                                     <div className="flex items-center gap-2 text-blue-600 font-black mb-2">
                                                         <Navigation size={18} />
-                                                        <span>{bid.loads.origin} ← {bid.loads.destination}</span>
+                                                        <span>{bid.loads?.origin || '---'} ← {bid.loads?.destination || '---'}</span>
                                                     </div>
                                                     <Badge className="bg-slate-100 text-slate-600 border-none font-bold text-[10px]">
-                                                        رقم الشحنة: #{bid.load_id.slice(0, 8)}
+                                                        رقم الشحنة: #{bid.load_id?.slice(0, 8)}
                                                     </Badge>
                                                 </div>
                                                 <div className="text-end">
