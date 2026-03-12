@@ -59,6 +59,7 @@ export default function DriverLoads() {
   const [showSurvey, setShowSurvey] = useState(false);
   const [pendingLoadId, setPendingLoadId] = useState<string | null>(null);
   const [showBidDialog, setShowBidDialog] = useState(false);
+  const [confirmAcceptId, setConfirmAcceptId] = useState<string | null>(null);
   const [bidPrice, setBidPrice] = useState('');
   const [bidMessage, setBidMessage] = useState('');
   const [trucks, setTrucks] = useState<any[]>([]);
@@ -157,16 +158,21 @@ export default function DriverLoads() {
     }
   };
 
-  const handleDirectAccept = async (loadId: string) => {
-    if (!confirm("هل أنت متأكد من رغبتك في قبول الشحنة بالسعر المعلن؟")) return;
+  const handleDirectAcceptClick = (loadId: string) => {
+    setConfirmAcceptId(loadId);
+  };
+
+  const executeDirectAccept = async () => {
+    if (!confirmAcceptId) return;
     setIsProcessing(true);
     try {
-      const targetLoad = loads.find(l => l.id === loadId);
-      await api.acceptLoad(loadId, userProfile?.id!);
+      const targetLoad = loads.find(l => l.id === confirmAcceptId);
+      await api.acceptLoad(confirmAcceptId, userProfile?.id!, targetLoad?.owner_id, targetLoad?.price);
       if (targetLoad) {
         await api.createNotification(targetLoad.owner_id, "✅ تم قبول شحنتك!", `تم قبول شحنتك المتوجهة إلى ${targetLoad.destination} بالسعر المعلن من قبل الناقل.`, 'accept');
       }
       toast.success("تم قبول الشحنة بنجاح! 🚛");
+      setConfirmAcceptId(null);
       fetchLoads();
     } catch (e) { toast.error("فشل القبول"); }
     finally { setIsProcessing(false); }
@@ -338,7 +344,7 @@ export default function DriverLoads() {
                           </div>
                           <div className="flex gap-2 w-full">
                             <Button onClick={() => setSelectedLoad(load)} variant="outline" className="flex-1 h-12 rounded-xl border-slate-200 text-slate-600 font-black hover:bg-slate-50">تفاصيل</Button>
-                            <Button onClick={() => handleDirectAccept(load.id)} className="flex-1 h-12 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black shadow-lg shadow-blue-100">قبول سريـع</Button>
+                            <Button onClick={() => handleDirectAcceptClick(load.id)} className="flex-1 h-12 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black shadow-lg shadow-blue-100">قبول سريـع</Button>
                           </div>
                         </div>
                       </div>
@@ -459,6 +465,24 @@ export default function DriverLoads() {
           </DialogContent>
         </Dialog>
 
+        {/* حوار تأكيد القبول المباشر */}
+        <Dialog open={!!confirmAcceptId} onOpenChange={(open) => !open && setConfirmAcceptId(null)}>
+          <DialogContent className="max-w-md rounded-[3rem] p-8 text-center space-y-6 bg-white border-none shadow-2xl">
+            <DialogTitle className="sr-only">تأكيد قبول الشحنة</DialogTitle>
+            <div className="w-20 h-20 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center mx-auto"><CheckCircle2 size={40} /></div>
+            <div className="space-y-2">
+              <h3 className="text-2xl font-black text-slate-800">تأكيد قبول الشحنة</h3>
+              <p className="text-sm font-bold text-slate-500">هل أنت متأكد من رغبتك في قبول الشحنة بالسعر المعلن؟</p>
+            </div>
+            <div className="flex flex-col gap-3">
+              <Button onClick={executeDirectAccept} disabled={isProcessing} className="h-14 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-black text-lg">
+                {isProcessing ? <Loader2 className="animate-spin" /> : "نعم، تأكيد القبول"}
+              </Button>
+              <Button onClick={() => setConfirmAcceptId(null)} disabled={isProcessing} variant="ghost" className="font-bold text-slate-400">إلغاء</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
         {/* حوار تقديم العرض */}
         <Dialog open={showBidDialog} onOpenChange={setShowBidDialog}>
           <DialogContent className="max-w-md rounded-[3rem] p-0 overflow-hidden border-none bg-white shadow-2xl">
@@ -510,7 +534,7 @@ export default function DriverLoads() {
               <Button onClick={async () => {
                 if (pendingLoadId) {
                   const targetLoad = loads.find(l => l.id === pendingLoadId);
-                  await api.acceptLoad(pendingLoadId, userProfile?.id!);
+                  await api.acceptLoad(pendingLoadId, userProfile?.id!, targetLoad?.owner_id, targetLoad?.price);
                   if (targetLoad) {
                     await api.createNotification(targetLoad.owner_id, "✅ تم قبول شحنتك!", `تم قبول شحنتك المتوجهة إلى ${targetLoad.destination} من قبل الناقل بعد الاتفاق.`, 'accept');
                   }

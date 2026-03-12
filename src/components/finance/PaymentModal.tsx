@@ -52,10 +52,10 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="sm:max-w-[420px] rounded-[2rem] border-none shadow-2xl p-0 overflow-hidden bg-white">
-                <div className="bg-gradient-to-br from-blue-600 to-blue-800 p-8 text-white relative">
+            <DialogContent className="sm:max-w-[420px] rounded-[2rem] border-none shadow-2xl p-0 overflow-hidden bg-white" dir="rtl">
+                <DialogHeader className="bg-gradient-to-br from-blue-600 to-blue-800 p-8 text-white relative m-0">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl -mr-16 -mt-16"></div>
-                    <DialogHeader className="relative z-10">
+                    <div className="relative z-10 flex flex-col gap-2">
                         <DialogTitle className="text-2xl font-black text-white flex items-center gap-3">
                             <div className="p-2 bg-white/20 rounded-xl">
                                 <Wallet size={24} />
@@ -65,10 +65,10 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
                         <DialogDescription className="text-blue-100 font-medium">
                             سيتم خصم المبلغ من محفظتك وحجزه في نظام الضمان (Escrow) لحين إتمام التوصيل.
                         </DialogDescription>
-                    </DialogHeader>
-                </div>
+                    </div>
+                </DialogHeader>
 
-                <div className="p-8 space-y-6">
+                <div className="px-8 pb-6 space-y-6 mt-4">
                     <div className="space-y-4">
                         <div className="flex justify-between items-center py-3 border-b border-slate-50">
                             <span className="text-slate-500 font-bold">تفاصيل الشحنة</span>
@@ -113,7 +113,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
                         className="w-full h-14 rounded-2xl font-black text-lg bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/20"
                     >
                         {loading ? <Loader2 className="animate-spin me-2" /> : <ShieldCheck size={20} className="me-2" />}
-                        تأكيد الدفع والخصم المستحي
+                        تأكيد الدفع 
                     </Button>
                     <Button
                         variant="ghost"

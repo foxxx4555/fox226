@@ -24,7 +24,6 @@ export default function DriverHistory() {
   const { userProfile } = useAuth();
   const [loads, setLoads] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [walletBalance, setWalletBalance] = useState(0);
 
   const [selectedLoad, setSelectedLoad] = useState<any>(null);
   const [showRating, setShowRating] = useState(false);
@@ -41,12 +40,8 @@ export default function DriverHistory() {
   const loadHistoryData = async () => {
     setLoading(true);
     try {
-      const [loadsData, balanceObj] = await Promise.all([
-        api.getUserLoads(userProfile?.id || ''),
-        api.getWalletBalance(userProfile?.id || '', 'driver')
-      ]);
-      setLoads(loadsData || []);
-      setWalletBalance(balanceObj?.balance || 0);
+      const data = await api.getUserLoads(userProfile?.id || '');
+      setLoads(data || []);
     } catch (err) {
       console.error(err);
     } finally {
@@ -116,19 +111,7 @@ export default function DriverHistory() {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card className="rounded-[2.5rem] border-none shadow-2xl bg-slate-900 text-white overflow-hidden relative">
-            <div className="absolute -right-4 -top-4 w-32 h-32 bg-primary/20 rounded-full blur-3xl"></div>
-            <CardContent className="p-8 relative z-10">
-              <p className="text-slate-400 font-bold mb-2 flex items-center gap-2">
-                <Wallet size={16} /> الرصيد القابل للسحب
-              </p>
-              <h2 className="text-5xl font-black tabular-nums">
-                {formatCurrency(walletBalance)}
-                <span className="text-lg font-medium text-slate-500 mr-2">ر.س</span>
-              </h2>
-            </CardContent>
-          </Card>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
           <Card className="rounded-[2.5rem] border-none shadow-xl bg-white border border-slate-100 flex items-center">
             <CardContent className="p-8 w-full">

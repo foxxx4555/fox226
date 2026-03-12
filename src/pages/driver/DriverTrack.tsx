@@ -56,6 +56,7 @@ export default function DriverTrack() {
     const [isSignatureModalOpen, setIsSignatureModalOpen] = useState(false);
     const [activeLoadForSignature, setActiveLoadForSignature] = useState<string | null>(null);
     const [pendingPodImage, setPendingPodImage] = useState<string | null>(null);
+    const [confirmTrackLoadId, setConfirmTrackLoadId] = useState<string | null>(null);
 
     const { data: activeLoads = [], isLoading } = useQuery({
         queryKey: ['driver-active-loads', userProfile?.id],
@@ -157,35 +158,36 @@ export default function DriverTrack() {
         }
     };
 
-    const handleCompleteDelivery = async (loadId: string) => {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = 'image/*';
-        input.onchange = async (e: any) => {
-            const file = e.target.files[0];
-            if (!file) return;
+    const handleCompleteDeliveryClick = (loadId: string) => {
+        setConfirmTrackLoadId(loadId);
+    };
 
-            setLoading(true);
-            try {
-                // 1. Upload POD Image
-                const fileName = `${loadId}_pod_img_${Date.now()}.png`;
-                const { data: uploadData, error: uploadError } = await supabase.storage
-                    .from('pods')
-                    .upload(fileName, file);
+    const handleFileSelect = async (e: any) => {
+        const file = e.target.files[0];
+        if (!file || !confirmTrackLoadId) return;
 
-                if (uploadError) throw uploadError;
+        const loadId = confirmTrackLoadId;
+        setConfirmTrackLoadId(null);
+        setLoading(true);
+        
+        try {
+            // 1. Upload POD Image
+            const fileName = `${loadId}_pod_img_${Date.now()}.png`;
+            const { data: uploadData, error: uploadError } = await supabase.storage
+                .from('pods')
+                .upload(fileName, file);
 
-                const { data: publicUrlData } = supabase.storage.from('pods').getPublicUrl(fileName);
-                setPendingPodImage(publicUrlData.publicUrl);
-                setActiveLoadForSignature(loadId);
-                setIsSignatureModalOpen(true);
-            } catch (err: any) {
-                toast.error("فشل رفع الصورة: " + err.message);
-            } finally {
-                setLoading(false);
-            }
-        };
-        input.click();
+            if (uploadError) throw uploadError;
+
+            const { data: publicUrlData } = supabase.storage.from('pods').getPublicUrl(fileName);
+            setPendingPodImage(publicUrlData.publicUrl);
+            setActiveLoadForSignature(loadId);
+            setIsSignatureModalOpen(true);
+        } catch (err: any) {
+            toast.error("فشل رفع الصورة: " + err.message);
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleSaveSignature = async (signatureDataUrl: string) => {
@@ -390,7 +392,7 @@ export default function DriverTrack() {
                                                 {load.status === 'in_progress' && (
                                                     <Button
                                                         className="w-full mt-3 h-14 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-2xl gap-2 shadow-lg shadow-emerald-500/20"
-                                                        onClick={() => handleCompleteDelivery(load.id)}
+                                                        onClick={() => handleCompleteDeliveryClick(load.id)}
                                                     >
                                                         <PackageCheck size={24} /> تأكيد وصول وتسليم الشحنة
                                                     </Button>
@@ -415,6 +417,26 @@ export default function DriverTrack() {
                         onSave={handleSaveSignature}
                         onCancel={() => setIsSignatureModalOpen(false)}
                     />
+                </DialogContent>
+            </Dialog>
+
+            {/* حوار تأكيد التسليم ورفع البوليصة */}
+            <Dialog open={!!confirmTrackLoadId} onOpenChange={(open) => !open && setConfirmTrackLoadId(null)}>
+                <DialogContent className="max-w-md rounded-[3rem] p-8 text-center space-y-6 bg-white border-none shadow-2xl">
+                    <DialogTitle className="sr-only">تأكيد التسليم وإرفاق الصورة</DialogTitle>
+                    <div className="w-20 h-20 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center mx-auto"><PackageCheck size={40} /></div>
+                    <div className="space-y-2">
+                        <h3 className="text-2xl font-black text-slate-800">تأكيد التسليم</h3>
+                        <p className="text-sm font-bold text-slate-500">يرجى إرفاق صورة إثبات التسليم (بوليصة / بضاعة) لإتمام العملية والانتقال للتوقيع</p>
+                    </div>
+                    <div className="flex flex-col gap-3">
+                        <label className="flex items-center justify-center w-full h-14 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-lg cursor-pointer transition-colors">
+                            <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFileSelect} />
+                            <PackageCheck size={20} className="mr-2" />
+                            التقاط / رفع صورة الإثبات
+                        </label>
+                        <Button onClick={() => setConfirmTrackLoadId(null)} variant="ghost" className="font-bold text-slate-400">إلغاء</Button>
+                    </div>
                 </DialogContent>
             </Dialog>
 

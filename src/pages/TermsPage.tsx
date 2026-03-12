@@ -1,11 +1,13 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
-import { FileText, Shield, Globe, Scale, AlertCircle, Mail, Clock, Lock } from 'lucide-react';
+import { FileText, Shield, Globe, Scale, AlertCircle, Mail, Clock, Lock, ChevronLeft } from 'lucide-react';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
+import { useNavigate } from 'react-router-dom';
 
 const TermsPage = () => {
+    const navigate = useNavigate();
     const { t, i18n } = useTranslation();
     const isRtl = i18n.language === 'ar';
 
@@ -201,6 +203,16 @@ const TermsPage = () => {
                                 </div>
                             </div>
                         </section>
+
+                        <div className="flex justify-center pt-8 border-t border-slate-100">
+                            <button
+                                onClick={() => navigate('/driver/dashboard')}
+                                className="flex items-center gap-2 text-slate-400 font-black hover:text-blue-600 transition-colors"
+                            >
+                                <ChevronLeft size={20} className={`${isRtl ? 'rotate-180' : ''}`} />
+                                {t('terms_back_driver', 'العودة لصفحة السائق')}
+                            </button>
+                        </div>
                     </div>
                 </motion.div>
             </div>

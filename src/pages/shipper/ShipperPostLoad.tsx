@@ -146,7 +146,8 @@ export default function ShipperPostLoad() {
     qty: '',
     unit: '',
     goods_value: '',
-    payment_method: 'CASH',
+    insurance_value: '',
+    payment_method: 'الدفع عند الاستلام',
   });
 
   const filteredBodyTypes = form.truck_category
@@ -293,7 +294,8 @@ export default function ShipperPostLoad() {
         qty: templateLoad.quantity?.toString() || '',
         unit: templateLoad.unit || '',
         goods_value: templateLoad.goods_value?.toString() || '',
-        payment_method: templateLoad.payment_method || 'CASH',
+        insurance_value: templateLoad.insurance_value?.toString() || '',
+        payment_method: templateLoad.payment_method || 'الدفع عند الاستلام',
       });
       toast.success("تم استيراد بيانات الشحنة السابقة بنجاح");
     }
@@ -422,7 +424,7 @@ export default function ShipperPostLoad() {
     } else {
       setDistance(null);
     }
-  }, [form.origin, form.destination, form.truck_category, form.body_type, pricingConfig, typePricing]);
+  }, [form.origin, form.destination, form.truck_category, form.body_type]); // Removed pricingConfig and typePricing from deps to prevent infinite loops
 
   const nextStep = () => { if (step < totalSteps) setStep(step + 1); };
   const prevStep = () => { if (step > 1) setStep(step - 1); };
@@ -509,6 +511,7 @@ export default function ShipperPostLoad() {
         quantity: parseSafeNumber(form.qty),
         unit: form.unit,
         goods_value: parseSafeNumber(form.goods_value),
+        insurance_value: parseSafeNumber(form.insurance_value),
         payment_method: form.payment_method,
         type: dbShipmentType
       };
@@ -749,6 +752,26 @@ export default function ShipperPostLoad() {
                         </div>
                       </div>
 
+                      {/* Section 1.5: Quantity, Unit, Goods Value, Insurance */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-8 border-b border-t border-slate-100 pt-8 mt-8">
+                        <div className="space-y-3">
+                          <Label className="font-bold text-slate-700">الكمية (العدد)</Label>
+                          <Input type="number" min="0" value={form.qty} onChange={e => setForm(p => ({ ...p, qty: e.target.value }))} className="h-16 rounded-2xl" placeholder="مثال: 50" />
+                        </div>
+                        <div className="space-y-3">
+                          <Label className="font-bold text-slate-700">الوحدة</Label>
+                          <Input value={form.unit} onChange={e => setForm(p => ({ ...p, unit: e.target.value }))} className="h-16 rounded-2xl" placeholder="مثال: كرتون، حبة، طبلية" />
+                        </div>
+                        <div className="space-y-3">
+                          <Label className="font-bold text-slate-700">قيمة البضاعة (ر.س)</Label>
+                          <Input type="number" min="0" value={form.goods_value} onChange={e => setForm(p => ({ ...p, goods_value: e.target.value }))} className="h-16 rounded-2xl" placeholder="مثال: 10000" />
+                        </div>
+                        <div className="space-y-3">
+                          <Label className="font-bold text-slate-700">التأمين على الشحنة (ر.س)</Label>
+                          <Input type="number" min="0" value={form.insurance_value} onChange={e => setForm(p => ({ ...p, insurance_value: e.target.value }))} className="h-16 rounded-2xl" placeholder="مثال: 150 (اختياري)" />
+                        </div>
+                      </div>
+
                       {/* Section 2: Truck Category Selection (Conditional on Weight) */}
                       <AnimatePresence>
                         {form.weight && parseFloat(form.weight) > 0 && (
@@ -975,9 +998,9 @@ export default function ShipperPostLoad() {
                                 <SelectValue placeholder="اختر طريقة الدفع" />
                               </SelectTrigger>
                               <SelectContent className="rounded-xl font-bold">
-                                <SelectItem value="CASH">نقدي عند الاستلام</SelectItem>
-                                <SelectItem value="TRANSFER">تحويل بنكي</SelectItem>
-                                <SelectItem value="WALLET">محفظة SAS</SelectItem>
+                                <SelectItem value="الدفع عند الاستلام">الدفع عند الاستلام</SelectItem>
+                                <SelectItem value="تحويل بنكي">تحويل بنكي</SelectItem>
+                                <SelectItem value="محفظة SAS">محفظة SAS</SelectItem>
                               </SelectContent>
                             </Select>
                           </div>

@@ -43,7 +43,6 @@ export default function DriverMaintenance() {
     const [form, setForm] = useState({
         truck_id: '',
         category: '',
-        load_id: '',
         description: '',
         other_category: '',
         repair_cost: '',
@@ -56,11 +55,9 @@ export default function DriverMaintenance() {
     useEffect(() => {
         if (userProfile?.id) {
             async function loadData() {
-                // 1. Get ONLY this user's specific loads (Current/Active)
+                // 1. Get ONLY this user's specific loads (Current/Active) - Keeping for context if needed later, but removing from active loads state.
                 const data = await api.getUserLoads(userProfile.id);
                 const current = data.filter((l: any) => l.status === 'in_progress' || l.status === 'accepted');
-
-                setActiveLoads(current || []);
 
                 // 2. Get User Trucks
                 // First check if current user is a carrier/owner
@@ -89,14 +86,7 @@ export default function DriverMaintenance() {
                     }
                 }
 
-                // 3. Auto-link load if truck is already selected
-                const currentTruckId = truckId || form.truck_id;
-                if (currentTruckId) {
-                    const matchingLoad = (current || []).find((l: any) => l.truck_id === currentTruckId || l.driver_id === userProfile.id);
-                    if (matchingLoad) {
-                        setForm(p => ({ ...p, load_id: matchingLoad.id, truck_id: currentTruckId }));
-                    }
-                }
+                // 3. Removed Auto-link load logic as it's no longer required
             }
             loadData();
         }
@@ -144,8 +134,8 @@ export default function DriverMaintenance() {
     const handleSubmit = async () => {
         const finalCategory = form.category === 'other' ? form.other_category : form.category;
 
-        if (!form.truck_id || !form.category || !form.load_id || !form.description || capturedImages.length === 0 || !form.invoice_image || (form.category === 'other' && !form.other_category)) {
-            toast.error("يرجى إكمال كافة البيانات والصور المطلوبة واختيار الشاحنة والشحنة");
+        if (!form.truck_id || !form.category || !form.description || capturedImages.length === 0 || !form.invoice_image || (form.category === 'other' && !form.other_category)) {
+            toast.error("يرجى إكمال كافة البيانات والصور المطلوبة واختيار الشاحنة");
             return;
         }
 
@@ -174,7 +164,6 @@ export default function DriverMaintenance() {
             const { error: dbError } = await supabase.from('maintenance_requests' as any).insert({
                 driver_id: userProfile?.id,
                 truck_id: form.truck_id,
-                load_id: form.load_id,
                 carrier_id: carrierId,
                 category: form.category === 'other' ? 'other' : form.category,
                 issue_type: form.category === 'other' ? 'other' : form.category, // Required by DB
@@ -273,19 +262,7 @@ export default function DriverMaintenance() {
                                         </div>
                                     </div>
 
-                                    <div className="space-y-4">
-                                        <Label className="text-lg font-black text-rose-600">ربط بشحنة (إجباري) *</Label>
-                                        <Select value={form.load_id} onValueChange={val => setForm(p => ({ ...p, load_id: val }))}>
-                                            <SelectTrigger className="h-14 rounded-2xl border-slate-200">
-                                                <SelectValue placeholder="اختر الشحنة المتأثرة" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {activeLoads.map(l => (
-                                                    <SelectItem key={l.id} value={l.id}>{l.origin} - {l.destination} (#{l.id.substring(0, 8)})</SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
+
 
                                     {form.category === 'other' && (
                                         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
@@ -320,7 +297,7 @@ export default function DriverMaintenance() {
                                         <Button
                                             className="h-16 flex-[2] rounded-2xl bg-orange-600 hover:bg-orange-700 text-white font-black text-lg"
                                             onClick={() => setStep(2)}
-                                            disabled={!form.truck_id || !form.category || !form.load_id || !form.description || (form.category === 'other' && !form.other_category)}
+                                            disabled={!form.truck_id || !form.category || !form.description || (form.category === 'other' && !form.other_category)}
                                         >
                                             التالي: تصوير العطل
                                         </Button>

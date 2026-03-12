@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { api } from '@/services/api';
 import { Button } from '@/components/ui/button';
@@ -16,7 +16,7 @@ import {
 import { toast } from 'sonner';
 import {
   Loader2, Truck, Package, MailCheck, RefreshCcw, User, Phone, Lock,
-  ChevronRight, UserCircle2, Eye, EyeOff, ShieldCheck, FileUp, Image as ImageIcon, CheckCircle2
+  ChevronRight, UserCircle2, Eye, EyeOff, ShieldCheck, FileUp, Image as ImageIcon, CheckCircle2, Link2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
@@ -33,12 +33,14 @@ export default function RegisterPage() {
   const [otpCode, setOtpCode] = useState("");
   const [timer, setTimer] = useState(0);
 
+  const [searchParams] = useSearchParams();
   const [form, setForm] = useState({
     full_name: '',
     email: '',
     phone: '',
     password: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    inviteCode: searchParams.get('invite') || ''
   });
 
   const [showPassword, setShowPassword] = useState(false);
@@ -161,6 +163,16 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       await api.verifyEmailOtp(form.email, otpCode);
+      
+      // If there is an invite code and the user registered as a driver, link them automatically
+      if (form.inviteCode && role === 'driver') {
+        try {
+          await api.addInvitedSubDriver(form.inviteCode, { driver_name: form.full_name, driver_phone: form.phone });
+        } catch (e) {
+          console.warn("Could not automatically add sub driver (Invalid code or other error):", e);
+        }
+      }
+
       localStorage.removeItem('pending_email');
       toast.success(t('success_activate'));
       setTimeout(() => navigate('/login'), 1500);
@@ -293,6 +305,29 @@ export default function RegisterPage() {
                       className="h-11 rounded-xl border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary transition-all font-bold text-xs shadow-sm"
                     />
                   </div>
+
+                  <AnimatePresence>
+                    {role === 'driver' && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0, marginTop: 0 }}
+                        animate={{ opacity: 1, height: 'auto', marginTop: 12 }}
+                        exit={{ opacity: 0, height: 0, marginTop: 0 }}
+                        className="space-y-1.5 overflow-hidden"
+                      >
+                        <Label className="text-[10px] font-black text-slate-400 ms-1 uppercase">رمز الدعوة (اختياري)</Label>
+                        <div className="relative group">
+                          <Link2 className={cn("absolute top-1/2 -translate-y-1/2 text-slate-300", i18n.language === 'ar' ? "right-4" : "left-4")} size={16} />
+                          <Input
+                            placeholder="إذا كان لديك رمز دعوة، أدخله هنا"
+                            value={form.inviteCode}
+                            onChange={e => setForm(p => ({ ...p, inviteCode: e.target.value }))}
+                            dir="ltr"
+                            className={cn("h-11 rounded-xl border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary transition-all font-bold text-xs shadow-sm", i18n.language === 'ar' ? "pr-11" : "pl-11")}
+                          />
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
 
                   {/* Password Grid */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">

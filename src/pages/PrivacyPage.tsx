@@ -212,11 +212,11 @@ const PrivacyPage = () => {
 
                     <div className="flex justify-center pt-8">
                         <button
-                            onClick={() => navigate('/')}
+                            onClick={() => navigate('/driver/dashboard')}
                             className="flex items-center gap-2 text-slate-400 font-black hover:text-blue-600 transition-colors"
                         >
                             <ChevronLeft size={20} className={`${isRtl ? 'rotate-180' : ''}`} />
-                            {t('privacy_back_home', 'العودة للرئيسية')}
+                            {t('privacy_back_driver', 'العودة لصفحة السائق')}
                         </button>
                     </div>
                 </motion.div>

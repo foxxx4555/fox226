@@ -54,9 +54,9 @@ export const WaybillPreview: React.FC<WaybillProps> = ({ load, shipper, driver }
                             <div>Address</div>
                         </div>
                         <div className="flex-1 p-1 text-black flex flex-col justify-between">
-                            <div className="border-b border-dashed border-gray-300 pb-1">{shipper?.company_name || shipper?.full_name || load?.owner?.company_name || load?.owner?.full_name || ''}</div>
-                            <div className="border-b border-dashed border-gray-300 py-1" dir="ltr">{shipper?.phone || load?.owner?.phone || ''}</div>
-                            <div className="pt-1">{load.origin || ''}</div>
+                            <div className="border-b border-dashed border-gray-300 pb-1 font-bold text-sm">{shipper?.company_name || shipper?.full_name || load?.owner?.company_name || load?.owner?.full_name || '---'}</div>
+                            <div className="border-b border-dashed border-gray-300 py-1 font-bold" dir="ltr">{shipper?.phone || load?.owner?.phone || '---'}</div>
+                            <div className="pt-1 font-bold text-xs">{load?.origin || '---'}</div>
                         </div>
                         <div className="w-20 border-r border-[#002060] p-1 font-bold text-left flex flex-col justify-between" dir="ltr">
                             <div>الاسم</div>
@@ -72,9 +72,9 @@ export const WaybillPreview: React.FC<WaybillProps> = ({ load, shipper, driver }
                             <div>Address</div>
                         </div>
                         <div className="flex-1 p-1 text-black flex flex-col justify-between">
-                            <div className="border-b border-dashed border-gray-300 pb-1">{load.receiver_name || ''}</div>
-                            <div className="border-b border-dashed border-gray-300 py-1" dir="ltr">{load.receiver_phone || ''}</div>
-                            <div className="pt-1">{load.destination || ''}</div>
+                            <div className="border-b border-dashed border-gray-300 pb-1 font-bold text-sm">{load?.receiver_name || '---'}</div>
+                            <div className="border-b border-dashed border-gray-300 py-1 font-bold" dir="ltr">{load?.receiver_phone || '---'}</div>
+                            <div className="pt-1 font-bold text-xs">{load?.destination || '---'}</div>
                         </div>
                         <div className="w-20 border-r border-[#002060] p-1 font-bold text-left flex flex-col justify-between" dir="ltr">
                             <div>الاسم</div>
@@ -141,17 +141,17 @@ export const WaybillPreview: React.FC<WaybillProps> = ({ load, shipper, driver }
                 {/* Shipment Rows (Static empty rows + 1 filled) */}
                 {[...Array(5)].map((_, i) => (
                     <div key={i} className="flex border-b border-[#002060] min-h-[25px]">
-                        <div className="w-20 border-l border-[#002060] p-1 text-center text-black flex items-center justify-center">
-                            {i === 0 ? (load.quantity || load.weight || '') : ''}
+                        <div className="w-20 border-l border-[#002060] p-1 text-center text-black flex items-center justify-center font-bold">
+                            {i === 0 ? (load.quantity || load.weight || '---') : ''}
                         </div>
-                        <div className="flex-1 border-l border-[#002060] p-1 text-black flex items-center px-2">
-                            {i === 0 ? (load.description || (load.origin && load.destination ? `شحنة من ${load.origin} إلى ${load.destination}` : '')) : ''}
+                        <div className="flex-1 border-l border-[#002060] p-1 text-black flex items-center px-2 font-bold">
+                            {i === 0 ? (load.description || (load.origin && load.destination ? `شحنة من ${load.origin} إلى ${load.destination}` : '---')) : ''}
                         </div>
-                        <div className="w-20 border-l border-[#002060] p-1 text-center text-black flex items-center justify-center">
-                            {i === 0 ? (load.unit || '') : ''}
+                        <div className="w-20 border-l border-[#002060] p-1 text-center text-black flex items-center justify-center font-bold">
+                            {i === 0 ? (load.unit || '---') : ''}
                         </div>
-                        <div className="w-24 p-1 text-center text-black flex items-center justify-center">
-                            {i === 0 ? (load.package_type || '') : ''}
+                        <div className="w-24 p-1 text-center text-black flex items-center justify-center font-bold">
+                            {i === 0 ? (load.package_type || '---') : ''}
                         </div>
                     </div>
                 ))}
@@ -177,9 +177,9 @@ export const WaybillPreview: React.FC<WaybillProps> = ({ load, shipper, driver }
                     <div className="flex min-h-[35px]">
                         <div className="w-[15%] border-l border-[#002060] p-1 flex items-center justify-start pl-2 bg-[#f8f9fa]" dir="ltr">Shipping insurance</div>
                         <div className="w-[15%] border-l border-[#002060] p-1 flex items-center justify-center bg-[#f8f9fa]">التأمين على الشحنة</div>
-                        <div className="w-[20%] border-l border-[#002060] p-1 flex items-center justify-center text-black font-bold text-[12px]">{load.insurance_value || '0'}</div>
+                        <div className="w-[20%] border-l border-[#002060] p-1 flex items-center justify-center text-black font-bold text-[12px]">{load.insurance_value ? `${load.insurance_value} SAR` : '---'}</div>
                         <div className="w-[15%] border-l border-[#002060] p-1 flex items-center justify-center bg-[#f8f9fa]" dir="ltr">Fare Payment Method</div>
-                        <div className="w-[20%] border-l border-[#002060] p-1 flex items-center justify-center text-black font-bold text-[12px]">{load.payment_method || 'نقدًا / Cash'}</div>
+                        <div className="w-[20%] border-l border-[#002060] p-1 flex items-center justify-center text-black font-bold text-[12px]">{load.payment_method || 'الدفع عند الاستلام'}</div>
                         <div className="w-[15%] p-1 flex items-center justify-center bg-[#f8f9fa]">طريقة دفع الأجرة</div>
                     </div>
                 </div>

@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { Loader2, Plus, Trash2, UserPlus, Users } from 'lucide-react';
+import { Loader2, Plus, Trash2, UserPlus, Users, Share2, Copy, Send } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SubDriver } from '@/types';
 
@@ -19,6 +19,7 @@ export default function DriverSubDrivers() {
   const [drivers, setDrivers] = useState<SubDriver[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [form, setForm] = useState({ driver_name: '', driver_phone: '', id_number: '', license_number: '' });
   const [submitting, setSubmitting] = useState(false);
 
@@ -54,6 +55,20 @@ export default function DriverSubDrivers() {
     } catch (err: any) { toast.error(err.message); }
   };
 
+  const inviteLink = typeof window !== 'undefined' ? `${window.location.origin}/register?invite=${userProfile?.id}` : '';
+
+  const handleCopyLink = () => {
+    if (!inviteLink) return;
+    navigator.clipboard.writeText(inviteLink);
+    toast.success("تم نسخ الرابط بنجاح!");
+  };
+
+  const handleWhatsAppShare = () => {
+    if (!inviteLink) return;
+    const message = encodeURIComponent(`انضم إلى أسطولي في تطبيق كايو كمر بلس.\nاستخدم رابط الدعوة التالي للتسجيل:\n${inviteLink}\n\nأو يمكنك التسجيل بإدخال رمز الدعوة اليدوي:\n${userProfile?.id}`);
+    window.open(`https://wa.me/?text=${message}`, '_blank');
+  };
+
   return (
     <AppLayout>
       <div className="space-y-8 max-w-5xl mx-auto pb-20 px-4">
@@ -62,12 +77,52 @@ export default function DriverSubDrivers() {
             <h1 className="text-3xl font-black text-slate-900 mb-1">إدارة السائقين</h1>
             <p className="text-slate-500 font-bold">قم بإضافة وإدارة سائقي الأسطول الخاص بك</p>
           </div>
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="rounded-2xl bg-primary hover:bg-primary/90 h-14 px-8 gap-3 shadow-xl shadow-primary/20 font-black text-lg text-white transition-all transform hover:scale-105 active:scale-95">
-                <Plus size={24} /> إضافة سائق جديد
-              </Button>
-            </DialogTrigger>
+          <div className="flex items-center gap-3">
+            <Dialog open={shareDialogOpen} onOpenChange={setShareDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" className="rounded-2xl h-14 px-6 gap-3 shadow-sm font-black text-lg border-2 border-slate-200 text-slate-700 hover:bg-slate-50 transition-all transform hover:scale-105 active:scale-95">
+                  <Share2 size={24} className="text-primary" /> مشاركة الرمز
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-md rounded-[3rem] p-0 overflow-hidden border-none bg-white shadow-2xl text-center">
+                <div className="p-8 pb-4">
+                  <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
+                    <Share2 size={36} />
+                  </div>
+                  <h2 className="text-2xl font-black text-slate-900 mb-2">رمز الدعوة الخاص بك</h2>
+                  <p className="text-sm font-bold text-slate-500 mb-8">
+                    يرجى نشر هذا الرمز مع سائقيك أو مشاركة الرابط بالضغط على الزر للتخفيف من عملية الإضافة اليدوية
+                  </p>
+                  
+                  <div className="bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 mb-6 relative group overflow-hidden">
+                    <p className="text-[11px] text-slate-400 font-black uppercase mb-1">رمز الدعوة</p>
+                    <p className="text-3xl font-black text-primary tracking-wider" dir="ltr">{userProfile?.id?.substring(0, 8).toUpperCase()}</p>
+                    
+                    {/* Copy layer */}
+                    <div 
+                      onClick={handleCopyLink}
+                      className="absolute inset-0 bg-primary/95 text-white flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 cursor-pointer transition-all duration-300 font-bold text-lg"
+                    >
+                      <Copy size={20} /> نسخ الرابط
+                    </div>
+                  </div>
+
+                  <Button onClick={handleWhatsAppShare} className="w-full h-16 rounded-2xl bg-[#25D366] hover:bg-[#20bd5a] font-black text-xl gap-3 shadow-xl shadow-[#25D366]/20 transition-all text-white">
+                    <Send size={24} /> إرسال إلى السائق (WhatsApp)
+                  </Button>
+                </div>
+                <div className="bg-slate-50 p-6 text-xs text-slate-400 font-bold border-t border-slate-100">
+                  سيتم ربط أي سائق يسجل بهذا الرمز بأسطولك بشكل آلي.
+                </div>
+              </DialogContent>
+            </Dialog>
+
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+              <DialogTrigger asChild>
+                <Button className="rounded-2xl bg-primary hover:bg-primary/90 h-14 px-8 gap-3 shadow-xl shadow-primary/20 font-black text-lg text-white transition-all transform hover:scale-105 active:scale-95">
+                  <Plus size={24} /> إضافة سائق يدوي
+                </Button>
+              </DialogTrigger>
             <DialogContent className="max-w-md rounded-[3rem] p-0 overflow-hidden border-none bg-white shadow-2xl">
               <div className="p-8 bg-slate-900 text-white">
                 <div className="flex items-center gap-4 mb-2">
@@ -110,6 +165,7 @@ export default function DriverSubDrivers() {
               </div>
             </DialogContent>
           </Dialog>
+          </div>
         </motion.div>
 
         {loading ? (

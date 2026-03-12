@@ -6,11 +6,13 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, MapPin, Phone, MessageCircle, X, CheckCircle2, Clock, Navigation, Printer, FileText, User, Package, Truck as TruckIcon, ListChecks, ArrowRightLeft, Trash2 } from 'lucide-react';
+import { Loader2, MapPin, Phone, MessageCircle, X, CheckCircle2, Clock, Navigation, Printer, FileText, User, Package, Truck as TruckIcon, ListChecks, ArrowRightLeft, Trash2, PackageCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import { Dialog, DialogContent, DialogTitle, DialogHeader } from "@/components/ui/dialog";
+import SignaturePad from '@/components/finance/SignaturePad';
 
 export default function DriverTasks() {
   const { userProfile } = useAuth();
@@ -18,6 +20,11 @@ export default function DriverTasks() {
   const [tasks, setTasks] = useState<any[]>([]);
   const [bids, setBids] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [confirmDeliveryTask, setConfirmDeliveryTask] = useState<any>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [isSignatureModalOpen, setIsSignatureModalOpen] = useState(false);
+  const [activeLoadForSignature, setActiveLoadForSignature] = useState<string | null>(null);
+  const [pendingPodImage, setPendingPodImage] = useState<string | null>(null);
 
   const fetchTasks = async () => {
     if (!userProfile?.id) return;
@@ -62,26 +69,89 @@ export default function DriverTasks() {
     return () => { supabase.removeChannel(channel); };
   }, [userProfile?.id]);
 
-  const handleComplete = async (task: any) => {
-    if (!confirm("هل تم تسليم الشحنة بنجاح؟")) return;
+  const handleCompleteClick = (task: any) => {
+    setConfirmDeliveryTask(task);
+  };
+
+  const handleFileSelect = async (e: any) => {
+    const file = e.target.files[0];
+    if (!file || !confirmDeliveryTask) return;
+
+    const task = confirmDeliveryTask;
+    setConfirmDeliveryTask(null);
+    setIsProcessing(true);
+
     try {
-      await api.completeLoad(task.id);
+      const fileName = `${task.id}_pod_img_${Date.now()}.png`;
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('pods')
+        .upload(fileName, file);
 
-      // (Financial settlement is automatically handled by Postgres triggers upon status change)
+      if (uploadError) throw uploadError;
 
-      // إرسال إشعار فوري للتاجر (صاحب الشحنة)
-      if (task.owner_id) {
+      const { data: publicUrlData } = supabase.storage.from('pods').getPublicUrl(fileName);
+      setPendingPodImage(publicUrlData.publicUrl);
+      setActiveLoadForSignature(task.id);
+      setIsSignatureModalOpen(true);
+    } catch (err: any) {
+      toast.error("فشل رفع الصورة: " + err.message);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleSaveSignature = async (signatureDataUrl: string) => {
+    if (!activeLoadForSignature || !pendingPodImage) return;
+
+    setIsProcessing(true);
+    try {
+      const res = await fetch(signatureDataUrl);
+      const blob = await res.blob();
+      const fileName = `${activeLoadForSignature}_signature_${Date.now()}.png`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('pods')
+        .upload(fileName, blob);
+
+      if (uploadError) throw uploadError;
+
+      const { data: publicUrlData } = supabase.storage.from('pods').getPublicUrl(fileName);
+      const signatureUrl = publicUrlData.publicUrl;
+
+      const updateData = {
+        status: 'completed',
+        pod_image_url: pendingPodImage,
+        signature_url: signatureUrl,
+        delivered_at: new Date().toISOString()
+      };
+
+      const { error: updateError } = await supabase
+        .from('loads')
+        .update(updateData)
+        .eq('id', activeLoadForSignature);
+
+      const targetTask = tasks.find(t => t.id === activeLoadForSignature);
+      if (targetTask?.owner_id) {
         await api.createNotification(
-          task.owner_id,
+          targetTask.owner_id,
           'تم تسليم شحنتك بنجاح ✅',
-          `قام السائق ${userProfile?.full_name || ''} بتسليم الشحنة المتجهة إلى ${task.destination} بنجاح.`,
+          `قام السائق ${userProfile?.full_name || ''} بتسليم الشحنة المرجعية #${activeLoadForSignature.substring(0, 6)} بنجاح وإرفاق الإثباتات.`,
           'complete'
         );
       }
 
-      toast.success("تم إنهاء الرحلة بنجاح 🏁");
+      if (updateError) throw updateError;
+
+      toast.success("تم إنهاء الرحلة وتوثيق الإثبات بنجاح 🏁");
+      setIsSignatureModalOpen(false);
+      setPendingPodImage(null);
+      setActiveLoadForSignature(null);
       fetchTasks();
-    } catch (e) { toast.error("فشل التحديث"); }
+    } catch (err: any) {
+      toast.error("فشل التوثيق: " + err.message);
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handleStartTrip = async (id: string) => {
@@ -237,7 +307,7 @@ export default function DriverTasks() {
                                   </Button>
                                 ) : (
                                   <Button
-                                    onClick={() => handleComplete(task)}
+                                    onClick={() => handleCompleteClick(task)}
                                     className="flex-1 md:w-48 h-12 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black gap-2 shadow-lg shadow-emerald-100"
                                   >
                                     <CheckCircle2 size={18} /> تم التسليم
@@ -318,6 +388,43 @@ export default function DriverTasks() {
             )}
           </TabsContent>
         </Tabs>
+
+        {/* حوار تأكيد التسليم */}
+        <Dialog open={!!confirmDeliveryTask} onOpenChange={(open) => !open && setConfirmDeliveryTask(null)}>
+          <DialogContent className="max-w-md rounded-[3rem] p-8 text-center space-y-6 bg-white border-none shadow-2xl">
+            <DialogTitle className="sr-only">تأكيد تسليم الشحنة</DialogTitle>
+            <div className="w-20 h-20 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center mx-auto"><PackageCheck size={40} /></div>
+            <div className="space-y-2">
+              <h3 className="text-2xl font-black text-slate-800">تأكيد التسليم</h3>
+              <p className="text-sm font-bold text-slate-500">يرجى إرفاق صورة إثبات التسليم (بوليصة / بضاعة) لإتمام العملية والانتقال للتوقيع</p>
+            </div>
+            <div className="flex flex-col gap-3">
+              <label className="flex items-center justify-center w-full h-14 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-lg cursor-pointer transition-colors">
+                {isProcessing ? <Loader2 className="animate-spin" /> : (
+                  <>
+                    <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFileSelect} />
+                    <PackageCheck size={20} className="mr-2" />
+                    التقاط / رفع صورة الإثبات
+                  </>
+                )}
+              </label>
+              <Button onClick={() => setConfirmDeliveryTask(null)} disabled={isProcessing} variant="ghost" className="font-bold text-slate-400">إلغاء</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Signature Modal */}
+        <Dialog open={isSignatureModalOpen} onOpenChange={setIsSignatureModalOpen}>
+            <DialogContent className="max-w-md bg-transparent border-none shadow-none p-0">
+                <DialogHeader className="hidden">
+                    <DialogTitle>توقيع المستلم</DialogTitle>
+                </DialogHeader>
+                <SignaturePad
+                    onSave={handleSaveSignature}
+                    onCancel={() => setIsSignatureModalOpen(false)}
+                />
+            </DialogContent>
+        </Dialog>
       </div>
     </AppLayout>
   );

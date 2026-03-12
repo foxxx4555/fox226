@@ -986,6 +986,38 @@ export const api = {
     return true;
   },
 
+  async addInvitedSubDriver(carrierId: string, driverData: { driver_name: string, driver_phone: string }) {
+    // 1. Verify that the carrier actually exists and is a driver
+    const { data: carrierInfo, error: carrierError } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('id', carrierId)
+      .maybeSingle();
+
+    if (carrierError || !carrierInfo) {
+      console.warn("Invalid referral code or carrier not found", carrierId);
+      return false; // Fail silently, no need to interrupt the registration completely.
+    }
+
+    // 2. Add as a sub-driver to the carrier
+    const { data, error } = await supabase
+      .from('sub_drivers')
+      .insert([{
+        carrier_id: carrierId,
+        driver_name: driverData.driver_name,
+        driver_phone: driverData.driver_phone
+      }])
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Failed to automatically link sub-driver:", error);
+      return false;
+    }
+    
+    return data;
+  },
+
   async submitMaintenanceRequest(payload: any) {
     const { data, error } = await supabase
       .from('maintenance_requests' as any)
