@@ -638,6 +638,48 @@ export type Database = {
         }
         Relationships: []
       }
+      shipment_finances: {
+        Row: {
+          id: string
+          shipment_id: string
+          shipper_id: string
+          carrier_id: string | null
+          shipment_price: number
+          carrier_amount: number | null
+          platform_commission: number | null
+          payment_status: string | null
+          settlement_status: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          shipment_id: string
+          shipper_id: string
+          carrier_id?: string | null
+          shipment_price: number
+          carrier_amount?: number | null
+          platform_commission?: number | null
+          payment_status?: string | null
+          settlement_status?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          shipment_id?: string
+          shipper_id?: string
+          carrier_id?: string | null
+          shipment_price?: number
+          carrier_amount?: number | null
+          platform_commission?: number | null
+          payment_status?: string | null
+          settlement_status?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
