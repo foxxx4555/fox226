@@ -83,19 +83,19 @@ export default function RegisterPage() {
   }, []);
 
   const validateForm = () => {
-    if (!role) { toast.error(t('select_account_type', 'يرجى اختيار نوع الحساب')); return false; }
-    if (form.full_name.length < 3) { toast.error(t('name_too_short', 'الاسم الكامل قصير جداً')); return false; }
-    if (!/^\S+@\S+\.\S+$/.test(form.email)) { toast.error(t('invalid_email', 'البريد الإلكتروني غير صحيح')); return false; }
-    if (form.phone.length < 8) { toast.error(t('invalid_phone', 'رقم الجوال غير صحيح')); return false; }
-    if (form.password.length < 6) { toast.error(t('pass_too_short', 'كلمة المرور يجب أن تكون 6 أحرف على الأقل')); return false; }
-    if (form.password !== form.confirmPassword) { toast.error(t('pass_mismatch', 'كلمات المرور غير متطابقة')); return false; }
-    if (!agreeTerms) { toast.error(t('agree_terms_error', 'يرجى الموافقة على الشروط والأحكام وسياسة الخصوصية')); return false; }
+    if (!role) { toast.error(t('select_account_type')); return false; }
+    if (form.full_name.length < 3) { toast.error(t('name_too_short')); return false; }
+    if (!/^\S+@\S+\.\S+$/.test(form.email)) { toast.error(t('invalid_email')); return false; }
+    if (form.phone.length < 8) { toast.error(t('invalid_phone')); return false; }
+    if (form.password.length < 6) { toast.error(t('pass_too_short')); return false; }
+    if (form.password !== form.confirmPassword) { toast.error(t('pass_mismatch')); return false; }
+    if (!agreeTerms) { toast.error(t('agree_terms_error')); return false; }
 
     if (role === 'driver') {
-      if (!files.license) { toast.error(t('license_required', 'يرجى رفع رخصة القيادة')); return false; }
-      if (!files.idDoc) { toast.error(t('id_required', 'يرجى رفع الهوية الوطنية')); return false; }
+      if (!files.license) { toast.error(t('license_required')); return false; }
+      if (!files.idDoc) { toast.error(t('id_required')); return false; }
       if (!form.inviteCode && !files.truckImg) { 
-        toast.error(t('truck_img_required', 'يرجى رفع صورة الشاحنة')); 
+        toast.error(t('truck_img_required')); 
         return false; 
       }
     }
@@ -108,7 +108,7 @@ export default function RegisterPage() {
       return publicUrl;
     } catch (error) {
       console.error(`Error uploading ${docType}:`, error);
-      throw new Error(t('upload_failed', 'فشل رفع {{type}}', { type: docType }));
+      throw new Error(t('upload_failed', { type: docType }));
     }
   };
 
@@ -125,7 +125,7 @@ export default function RegisterPage() {
       };
 
       if (role === 'driver') {
-        toast.info(t('uploading_docs', 'جاري رفع المستندات...'));
+        toast.info(t('uploading_docs'));
 
         const uploadPromises = [
           api.uploadImage(files.license!, 'documents'),
@@ -155,7 +155,7 @@ export default function RegisterPage() {
       });
 
       localStorage.setItem('pending_email', form.email);
-      toast.success(t('otp_sent', 'تم إرسال رمز التحقق إلى بريدك الإلكتروني'));
+      toast.success(t('otp_sent'));
       setShowOtp(true);
       setTimer(60);
     } catch (err: any) {
@@ -167,7 +167,7 @@ export default function RegisterPage() {
 
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (otpCode.length < 6) return toast.error(t('enter_6_digits', 'يرجى إدخال الرمز المكون من 6 أرقام'));
+    if (otpCode.length < 6) return toast.error(t('enter_6_digits'));
 
     setLoading(true);
     try {
@@ -186,7 +186,7 @@ export default function RegisterPage() {
       toast.success(t('success_activate'));
       setTimeout(() => navigate('/login'), 1500);
     } catch (err: any) {
-      toast.error(t('invalid_otp', 'الرمز غير صحيح أو منتهي الصلاحية'));
+      toast.error(t('invalid_otp'));
     } finally {
       setLoading(false);
     }
@@ -198,9 +198,9 @@ export default function RegisterPage() {
     try {
       await api.resendOtp(form.email);
       setTimer(60);
-      toast.success(t('otp_resent', 'تم إعادة إرسال الكود بنجاح'));
+      toast.success(t('otp_resent'));
     } catch (err: any) {
-      toast.error(t('resend_failed', 'فشل إعادة الإرسال، حاول ثانية'));
+      toast.error(t('resend_failed'));
     } finally {
       setLoading(false);
     }
@@ -361,11 +361,11 @@ export default function RegisterPage() {
                         exit={{ opacity: 0, height: 0, marginTop: 0 }}
                         className="space-y-1.5 overflow-hidden pb-2"
                       >
-                        <Label className="text-[10px] font-black text-slate-400 ms-1 uppercase">رمز دعوة السائق (اختياري)</Label>
+                        <Label className="text-[10px] font-black text-slate-400 ms-1 uppercase">{t('invite_code_label')}</Label>
                         <div className="relative group">
                           <Link2 className={cn("absolute top-1/2 -translate-y-1/2 text-slate-300", i18n.language === 'ar' ? "right-4" : "left-4")} size={16} />
                           <Input
-                            placeholder="أدخل رمز الدعوة من الناقل هنا (إن وجد)"
+                            placeholder={t('invite_code_placeholder')}
                             value={form.inviteCode}
                             onChange={e => setForm(p => ({ ...p, inviteCode: e.target.value }))}
                             dir="ltr"
@@ -445,7 +445,7 @@ export default function RegisterPage() {
                             </div>
                             <span className="text-[9px] font-black text-slate-700 text-center">
                               {t('truck_pic')}
-                              {form.inviteCode && <span className="block text-[7px] text-slate-400 font-bold mt-1">(اختياري هنا)</span>}
+                              {form.inviteCode && <span className="block text-[7px] text-slate-400 font-bold mt-1">{t('optional_here')}</span>}
                             </span>
                             {files.truckImg && <span className="text-[7px] text-emerald-600 font-bold truncate max-w-full px-2">{files.truckImg.name}</span>}
                           </div>
@@ -521,7 +521,7 @@ export default function RegisterPage() {
                         onClick={handleResendOtp}
                         className="font-bold text-slate-500 hover:text-primary transition-colors text-[10px]"
                       >
-                        {timer > 0 ? `${t('resend_in')} (${timer} ${i18n.language === 'ar' ? 'ثانية' : 'sec'})` : (
+                        {timer > 0 ? `${t('resend_in')} (${timer} ${t('seconds')})` : (
                           <span className="flex items-center gap-2">
                             <RefreshCcw size={12} /> {t('resend_code')}
                           </span>

@@ -23,6 +23,7 @@ export default function LoginPage() {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [inviteCode, setInviteCode] = useState('');
   const [adminEmail, setAdminEmail] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -39,6 +40,21 @@ export default function LoginPage() {
       } else {
         if (profile) setUserProfile(profile);
         if (role) setCurrentRole(role);
+      }
+
+      // If driver and has invite code, link to fleet
+      if (role?.toLowerCase() === 'driver' && inviteCode.trim() && profile?.id) {
+        try {
+          await api.addInvitedSubDriver(inviteCode.trim(), { 
+            driver_name: profile.full_name, 
+            driver_phone: profile.phone 
+          });
+          toast.success(t('link_fleet_success'));
+        } catch (inviteErr) {
+          console.error("Invite link failed:", inviteErr);
+          // Don't block login if invite fails, just warn
+          toast.error(t('link_fleet_error'));
+        }
       }
 
       toast.success(t('success'));
@@ -177,6 +193,21 @@ export default function LoginPage() {
                           >
                             {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                           </button>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <Label className="text-[10px] font-black text-slate-400 ms-1 uppercase">{t('invite_code_label')}</Label>
+                        <div className="relative group">
+                          <Link2 className={cn("absolute top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-primary transition-colors", i18n.language === 'ar' ? "right-4" : "left-4")} size={16} />
+                          <Input
+                            type="text"
+                            value={inviteCode}
+                            onChange={e => setInviteCode(e.target.value)}
+                            dir="ltr"
+                            className={cn("h-12 rounded-xl border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary transition-all font-bold text-sm", i18n.language === 'ar' ? "pr-11" : "pl-11")}
+                            placeholder={t('invite_code_placeholder')}
+                          />
                         </div>
                       </div>
 

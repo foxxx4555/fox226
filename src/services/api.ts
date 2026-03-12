@@ -157,7 +157,25 @@ export const api = {
   },
 
   // ✅ دالة تحديث بيانات البروفايل
-  async updateProfile(userId: string, updates: { full_name?: string; phone?: string; email?: string; company_name?: string; commercial_register?: string; tax_number?: string; id_number?: string; plate_number?: string; avatar_url?: string; driving_license_url?: string; id_document_url?: string; vehicle_insurance_url?: string; }) {
+  async updateProfile(userId: string, updates: { 
+    full_name?: string; 
+    phone?: string; 
+    email?: string; 
+    company_name?: string; 
+    commercial_register?: string; 
+    tax_number?: string; 
+    id_number?: string; 
+    plate_number?: string; 
+    avatar_url?: string; 
+    driving_license_url?: string; 
+    id_document_url?: string; 
+    vehicle_insurance_url?: string; 
+    truck_image_url?: string;
+    bank_name?: string;
+    account_name?: string;
+    account_number?: string;
+    iban?: string;
+  }) {
     try {
       const { data, error } = await supabase
         .from('profiles')

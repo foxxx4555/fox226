@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/store/appStore';
 import { api } from '@/services/api';
 import { supabase } from '@/integrations/supabase/client';
@@ -16,6 +17,7 @@ import { FileUp, FileCheck, FileText } from 'lucide-react';
 import { useRef } from 'react';
 import { Link } from 'react-router-dom';
 export default function DriverAccount() {
+  const { t, i18n } = useTranslation();
   const { userProfile } = useAuth();
   const { setUserProfile } = useAppStore();
   const [form, setForm] = useState({
@@ -38,8 +40,9 @@ export default function DriverAccount() {
   const licenseInputRef = useRef<HTMLInputElement>(null);
   const idInputRef = useRef<HTMLInputElement>(null);
   const insuranceInputRef = useRef<HTMLInputElement>(null);
+  const truckImageInputRef = useRef<HTMLInputElement>(null);
 
-  const handleDocumentUpload = async (e: React.ChangeEvent<HTMLInputElement>, docType: 'driving_license_url' | 'id_document_url' | 'vehicle_insurance_url') => {
+  const handleDocumentUpload = async (e: React.ChangeEvent<HTMLInputElement>, docType: 'driving_license_url' | 'id_document_url' | 'vehicle_insurance_url' | 'truck_image_url') => {
     const file = e.target.files?.[0];
     if (!file || !userProfile?.id) return;
 
@@ -159,20 +162,20 @@ export default function DriverAccount() {
                 </div>
               </div>
               <div>
-                <h1 className="text-4xl font-black mb-2">{form.full_name || 'الناقل الشريك'}</h1>
+                <h1 className="text-4xl font-black mb-2">{form.full_name || t('partner_carrier')}</h1>
                 <div className="flex items-center justify-end gap-3 flex-wrap">
                   <Badge className={`border-none py-1.5 px-4 rounded-xl flex items-center gap-2 font-bold shadow-lg ${(userProfile as any)?.is_verified ? 'bg-blue-500 text-white shadow-blue-500/20' : 'bg-amber-500 text-white shadow-amber-500/20'}`}>
-                    <ShieldCheck size={14} /> {(userProfile as any)?.is_verified ? 'ناقل معتمد' : 'بانتظار الاعتماد'}
+                    <ShieldCheck size={14} /> {(userProfile as any)?.is_verified ? t('certified_carrier') : t('pending_approval')}
                   </Badge>
                   <Badge className={`border-none py-1.5 px-4 rounded-xl flex items-center gap-2 font-bold shadow-lg ${(userProfile as any)?.status === 'suspended' ? 'bg-rose-500 text-white shadow-rose-500/20' : 'bg-emerald-500 text-white shadow-emerald-500/20'}`}>
-                    <CheckCircle2 size={14} /> {(userProfile as any)?.status === 'suspended' ? 'موقوف مؤقتاً' : 'حساب مفعل'}
+                    <CheckCircle2 size={14} /> {(userProfile as any)?.status === 'suspended' ? t('suspended') : t('active_account')}
                   </Badge>
                   <span className="text-slate-400 font-bold">{form.email}</span>
                 </div>
               </div>
             </div>
             <Button onClick={handleSave} disabled={saving} className="h-16 rounded-[1.5rem] bg-blue-600 hover:bg-blue-700 px-10 text-xl font-black gap-3 shadow-xl shadow-blue-500/20 transition-all transform hover:scale-105">
-              {saving ? <Loader2 className="animate-spin" /> : "حفظ التغييرات"}
+              {saving ? <Loader2 className="animate-spin" /> : t('save_changes')}
             </Button>
           </div>
         </div>
@@ -182,18 +185,18 @@ export default function DriverAccount() {
           {/* Sidebar Info */}
           <div className="space-y-6">
             <Card className="rounded-[2.5rem] border-none shadow-xl bg-white p-8">
-              <h3 className="font-black text-xl mb-6 flex items-center gap-2 text-right justify-end">ملخص المهنة <Briefcase size={20} className="text-blue-500" /></h3>
+              <h3 className="font-black text-xl mb-6 flex items-center gap-2 text-right justify-end">{t('career_summary')} <Briefcase size={20} className="text-blue-500" /></h3>
               <div className="space-y-6">
                 <div className="p-5 bg-slate-50 rounded-2xl border border-slate-100 text-right">
-                  <p className="text-[10px] font-black text-slate-400 uppercase mb-1">تاريخ التسجيل</p>
-                  <p className="font-bold text-slate-800">يناير 2024</p>
+                  <p className="text-[10px] font-black text-slate-400 uppercase mb-1">{t('registration_date')}</p>
+                  <p className="font-bold text-slate-800">{t('january')} 2024</p>
                 </div>
                 <div className="p-5 bg-slate-50 rounded-2xl border border-slate-100 text-right">
-                  <p className="text-[10px] font-black text-slate-400 uppercase mb-1">الرحلات المكتملة</p>
-                  <p className="font-bold text-slate-800">45 رحلة</p>
+                  <p className="text-[10px] font-black text-slate-400 uppercase mb-1">{t('completed_trips')}</p>
+                  <p className="font-bold text-slate-800">{t('trips_count', { count: 45 })}</p>
                 </div>
                 <div className="p-5 bg-slate-50 rounded-2xl border border-slate-100 text-right">
-                  <p className="text-[10px] font-black text-slate-400 uppercase mb-1">التقييم العام</p>
+                  <p className="text-[10px] font-black text-slate-400 uppercase mb-1">{t('overall_rating')}</p>
                   <div className="flex items-center gap-1 justify-end">
                     <span className="font-bold text-amber-500">4.9 / 5</span>
                   </div>
@@ -206,58 +209,58 @@ export default function DriverAccount() {
           <div className="lg:col-span-2 space-y-8">
             <Card className="rounded-[3rem] border-none shadow-xl bg-white p-10">
               <div className="mb-10 text-right border-b border-slate-50 pb-6">
-                <h3 className="text-2xl font-black text-slate-900">المعلومات الشخصية</h3>
-                <p className="text-slate-400 font-bold">إدارة بيانات التواصل والتوثيق الأمني</p>
+                <h3 className="text-2xl font-black text-slate-900">{t('personal_info')}</h3>
+                <p className="text-slate-400 font-bold">{t('personal_info_desc')}</p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-right">
                 <div className="space-y-3">
-                  <Label className="font-black text-sm text-slate-700 mr-2 uppercase tracking-wide">الاسم الكامل</Label>
+                  <Label className="font-black text-sm text-slate-700 mr-2 uppercase tracking-wide">{t('full_name')}</Label>
                   <Input value={form.full_name} onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))} className="h-14 rounded-2xl bg-slate-50 border-slate-100 font-bold px-6 focus:ring-blue-200" />
                 </div>
                 <div className="space-y-3">
-                  <Label className="font-black text-sm text-slate-700 mr-2 uppercase tracking-wide">رقم الجوال</Label>
+                  <Label className="font-black text-sm text-slate-700 mr-2 uppercase tracking-wide">{t('phone')}</Label>
                   <div className="relative">
                     <Input value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} className="h-14 rounded-2xl bg-slate-50 border-slate-100 font-black px-6 pl-20" dir="ltr" />
                     <span className="absolute left-6 top-1/2 -translate-y-1/2 font-black text-emerald-500 text-xs flex items-center gap-1">
-                      <CheckCircle2 size={12} /> موثق
+                      <CheckCircle2 size={12} /> {t('verified')}
                     </span>
                   </div>
                 </div>
                 <div className="space-y-3 md:col-span-2">
-                  <Label className="font-black text-sm text-slate-700 mr-2 uppercase tracking-wide">البريد الإلكتروني</Label>
+                  <Label className="font-black text-sm text-slate-700 mr-2 uppercase tracking-wide">{t('email')}</Label>
                   <Input value={form.email} disabled className="h-14 rounded-2xl bg-slate-50 border-slate-100 font-bold px-6 opacity-60" dir="ltr" />
-                  <p className="text-[10px] text-slate-400 mr-2 mt-1 font-bold">لا يمكن تغيير البريد المرتبط بالحساب حالياً</p>
+                  <p className="text-[10px] text-slate-400 mr-2 mt-1 font-bold">{t('email_change_restricted')}</p>
                 </div>
               </div>
 
               <div className="mt-12 pt-10 border-t border-slate-50">
                 <div className="flex items-center gap-3 mb-8 text-amber-600 justify-end">
-                  <h4 className="text-xl font-black">حماية الدخول</h4>
+                  <h4 className="text-xl font-black">{t('login_protection')}</h4>
                   <ShieldCheck size={24} />
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-end text-right">
                   <div className="space-y-3">
-                    <Label className="font-black text-sm text-slate-700 mr-2">تحديث كلمة المرور</Label>
+                    <Label className="font-black text-sm text-slate-700 mr-2">{t('update_password')}</Label>
                     <Input type="password" placeholder="••••••••" value={form.password} onChange={e => setForm(p => ({ ...p, password: e.target.value }))} className="h-14 rounded-2xl bg-slate-50 border-slate-100 font-bold px-6" dir="ltr" />
                   </div>
-                  <p className="text-[10px] text-slate-400 font-bold pb-4">اترك هذا الحقل فارغاً في حال لم ترغب في تغيير كلمة المرور.</p>
+                  <p className="text-[10px] text-slate-400 font-bold pb-4">{t('password_hint')}</p>
                 </div>
               </div>
 
               {/* Driver & Truck Details */}
               <div className="mt-12 pt-10 border-t border-slate-50">
                 <div className="flex items-center gap-3 mb-8 text-blue-600 justify-end">
-                  <h4 className="text-xl font-black">بيانات الناقل والمركبة</h4>
+                  <h4 className="text-xl font-black">{t('carrier_truck_info')}</h4>
                   <Truck size={24} />
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-right">
                   <div className="space-y-3">
-                    <Label className="font-black text-sm text-slate-700 mr-2 uppercase tracking-wide">رقم الهوية / الإقامة</Label>
+                    <Label className="font-black text-sm text-slate-700 mr-2 uppercase tracking-wide">{t('id_number')}</Label>
                     <Input value={form.id_number} onChange={e => setForm(p => ({ ...p, id_number: e.target.value }))} className="h-14 rounded-2xl bg-slate-50 border-slate-100 font-bold px-6" />
                   </div>
                   <div className="space-y-3">
-                    <Label className="font-black text-sm text-slate-700 mr-2 uppercase tracking-wide">رقم اللوحة</Label>
+                    <Label className="font-black text-sm text-slate-700 mr-2 uppercase tracking-wide">{t('plate_number')}</Label>
                     <Input value={form.plate_number} onChange={e => setForm(p => ({ ...p, plate_number: e.target.value }))} className="h-14 rounded-2xl bg-slate-50 border-slate-100 font-bold px-6 text-center" dir="ltr" />
                   </div>
                 </div>
@@ -266,24 +269,24 @@ export default function DriverAccount() {
               {/* Bank Details Section */}
               <div className="mt-12 pt-10 border-t border-slate-50">
                 <div className="flex items-center gap-3 mb-8 text-emerald-600 justify-end">
-                  <h4 className="text-xl font-black">المعلومات البنكية المعتمدة للسداد</h4>
+                  <h4 className="text-xl font-black">{t('bank_details_title')}</h4>
                   <Building size={24} />
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-right">
                   <div className="space-y-3">
-                    <Label className="font-black text-sm text-slate-700 mr-2 uppercase tracking-wide">اسم البنك</Label>
-                    <Input placeholder="مثال: مصرف الراجحي" value={form.bank_name} onChange={e => setForm(p => ({ ...p, bank_name: e.target.value }))} className="h-14 rounded-2xl bg-slate-50 border-slate-100 font-bold px-6" />
+                    <Label className="font-black text-sm text-slate-700 mr-2 uppercase tracking-wide">{t('bank_name')}</Label>
+                    <Input placeholder={t('bank_name_placeholder')} value={form.bank_name} onChange={e => setForm(p => ({ ...p, bank_name: e.target.value }))} className="h-14 rounded-2xl bg-slate-50 border-slate-100 font-bold px-6" />
                   </div>
                   <div className="space-y-3">
-                    <Label className="font-black text-sm text-slate-700 mr-2 uppercase tracking-wide">اسم صاحب الحساب</Label>
-                    <Input placeholder="كما هو مسجل في البنك" value={form.account_name} onChange={e => setForm(p => ({ ...p, account_name: e.target.value }))} className="h-14 rounded-2xl bg-slate-50 border-slate-100 font-bold px-6" />
+                    <Label className="font-black text-sm text-slate-700 mr-2 uppercase tracking-wide">{t('account_holder_name')}</Label>
+                    <Input placeholder={t('account_holder_placeholder')} value={form.account_name} onChange={e => setForm(p => ({ ...p, account_name: e.target.value }))} className="h-14 rounded-2xl bg-slate-50 border-slate-100 font-bold px-6" />
                   </div>
                   <div className="space-y-3">
-                    <Label className="font-black text-sm text-slate-700 mr-2 uppercase tracking-wide">رقم الحساب</Label>
-                    <Input placeholder="رقم الحساب البنكي" value={form.account_number} onChange={e => setForm(p => ({ ...p, account_number: e.target.value }))} className="h-14 rounded-2xl bg-slate-50 border-slate-100 font-bold px-6 text-center" dir="ltr" />
+                    <Label className="font-black text-sm text-slate-700 mr-2 uppercase tracking-wide">{t('account_number')}</Label>
+                    <Input placeholder={t('account_number_placeholder')} value={form.account_number} onChange={e => setForm(p => ({ ...p, account_number: e.target.value }))} className="h-14 rounded-2xl bg-slate-50 border-slate-100 font-bold px-6 text-center" dir="ltr" />
                   </div>
                   <div className="space-y-3">
-                    <Label className="font-black text-sm text-slate-700 mr-2 uppercase tracking-wide">رقم الآيبان (IBAN)</Label>
+                    <Label className="font-black text-sm text-slate-700 mr-2 uppercase tracking-wide">{t('iban_label')}</Label>
                     <Input placeholder="SA..." value={form.iban} onChange={e => setForm(p => ({ ...p, iban: e.target.value }))} className="h-14 rounded-2xl bg-slate-50 border-slate-100 font-bold px-6 text-center" dir="ltr" />
                   </div>
                 </div>
@@ -292,7 +295,7 @@ export default function DriverAccount() {
               {/* Official Documents Upload Section */}
               <div className="mt-12 pt-10 border-t border-slate-50">
                 <div className="flex items-center gap-3 mb-8 text-emerald-600 justify-end">
-                  <h4 className="text-xl font-black">المستندات الرسمية والتراخيص</h4>
+                  <h4 className="text-xl font-black">{t('official_docs_title')}</h4>
                   <FileCheck size={24} />
                 </div>
 
@@ -306,9 +309,9 @@ export default function DriverAccount() {
                     <div className={`w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-sm transition-colors ${uploadingDoc === 'driving_license_url' ? 'text-blue-500' : (userProfile as any)?.driving_license_url ? 'text-emerald-500' : 'text-slate-400 group-hover:text-blue-600'}`}>
                       {uploadingDoc === 'driving_license_url' ? <Loader2 className="animate-spin" size={24} /> : (userProfile as any)?.driving_license_url ? <CheckCircle2 size={24} /> : <FileUp size={24} />}
                     </div>
-                    <p className="font-black text-slate-700">رخصة القيادة</p>
-                    <p className="text-[10px] text-slate-400 font-bold">{(userProfile as any)?.driving_license_url ? 'تم الرفع بنجاح' : 'PDF, JPG, PNG (Max 5MB)'}</p>
-                    <Button variant="outline" size="sm" className="mt-2 rounded-xl border-slate-200 text-xs font-bold w-full">تحديث المستند</Button>
+                    <p className="font-black text-slate-700">{t('driving_license')}</p>
+                    <p className="text-[10px] text-slate-400 font-bold">{(userProfile as any)?.driving_license_url ? t('upload_success') : 'PDF, JPG, PNG (Max 5MB)'}</p>
+                    <Button variant="outline" size="sm" className="mt-2 rounded-xl border-slate-200 text-xs font-bold w-full">{t('update_doc')}</Button>
                   </div>
 
                   {/* الهوية الوطنية / الإقامة */}
@@ -320,9 +323,9 @@ export default function DriverAccount() {
                     <div className={`w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-sm transition-colors ${uploadingDoc === 'id_document_url' ? 'text-amber-500' : (userProfile as any)?.id_document_url ? 'text-emerald-500' : 'text-slate-400 group-hover:text-amber-600'}`}>
                       {uploadingDoc === 'id_document_url' ? <Loader2 className="animate-spin" size={24} /> : (userProfile as any)?.id_document_url ? <CheckCircle2 size={24} /> : <FileUp size={24} />}
                     </div>
-                    <p className="font-black text-slate-700">الهوية / الإقامة</p>
-                    <p className="text-[10px] text-slate-400 font-bold">{(userProfile as any)?.id_document_url ? 'تم الرفع بنجاح' : 'PDF, JPG, PNG (Max 5MB)'}</p>
-                    <Button variant="outline" size="sm" className="mt-2 rounded-xl border-slate-200 text-xs font-bold w-full">تحديث المستند</Button>
+                    <p className="font-black text-slate-700">{t('id_card')}</p>
+                    <p className="text-[10px] text-slate-400 font-bold">{(userProfile as any)?.id_document_url ? t('upload_success') : 'PDF, JPG, PNG (Max 5MB)'}</p>
+                    <Button variant="outline" size="sm" className="mt-2 rounded-xl border-slate-200 text-xs font-bold w-full">{t('update_doc')}</Button>
                   </div>
 
                   {/* تأمين المركبة */}
@@ -334,24 +337,37 @@ export default function DriverAccount() {
                     <div className={`w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-sm transition-colors ${uploadingDoc === 'vehicle_insurance_url' ? 'text-emerald-500' : (userProfile as any)?.vehicle_insurance_url ? 'text-emerald-500' : 'text-slate-400 group-hover:text-emerald-600'}`}>
                       {uploadingDoc === 'vehicle_insurance_url' ? <Loader2 className="animate-spin" size={24} /> : (userProfile as any)?.vehicle_insurance_url ? <CheckCircle2 size={24} /> : <FileUp size={24} />}
                     </div>
-                    <p className="font-black text-emerald-800">تأمين المركبة</p>
-                    <p className="text-[10px] text-emerald-600 font-bold">{(userProfile as any)?.vehicle_insurance_url ? 'تم الرفع بنجاح' : 'PDF, JPG, PNG (Max 5MB)'}</p>
-                    <Button variant="outline" size="sm" className="mt-2 rounded-xl border-emerald-200 text-emerald-700 text-xs font-bold bg-white w-full hover:bg-emerald-100 hover:text-emerald-800">تحديث المستند</Button>
+                    <p className="font-black text-emerald-800">{t('vehicle_insurance')}</p>
+                    <p className="text-[10px] text-emerald-600 font-bold">{(userProfile as any)?.vehicle_insurance_url ? t('upload_success') : 'PDF, JPG, PNG (Max 5MB)'}</p>
+                    <Button variant="outline" size="sm" className="mt-2 rounded-xl border-emerald-200 text-emerald-700 text-xs font-bold bg-white w-full hover:bg-emerald-100 hover:text-emerald-800">{t('update_doc')}</Button>
+                  </div>
+
+                  {/* صورة الشاحنة */}
+                  <div
+                    className={`p-6 rounded-[2rem] border-2 border-dashed ${uploadingDoc === 'truck_image_url' ? 'border-primary/40 bg-primary/5' : (userProfile as any)?.truck_image_url ? 'border-emerald-200 bg-emerald-50/50' : 'border-slate-200 bg-slate-50'} hover:bg-slate-100 transition-colors flex flex-col justify-center items-center gap-3 cursor-pointer group`}
+                    onClick={() => truckImageInputRef.current?.click()}
+                  >
+                    <input type="file" ref={truckImageInputRef} onChange={(e) => handleDocumentUpload(e, 'truck_image_url')} accept="image/*" className="hidden" />
+                    <div className={`w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-sm transition-colors ${uploadingDoc === 'truck_image_url' ? 'text-primary' : (userProfile as any)?.truck_image_url ? 'text-emerald-500' : 'text-slate-400 group-hover:text-primary'}`}>
+                      {uploadingDoc === 'truck_image_url' ? <Loader2 className="animate-spin" size={24} /> : (userProfile as any)?.truck_image_url ? <CheckCircle2 size={24} /> : <ImageIcon size={24} />}
+                    </div>
+                    <p className="font-black text-slate-700">{t('truck_pic')}</p>
+                    <p className="text-[10px] text-slate-400 font-bold">{(userProfile as any)?.truck_image_url ? t('upload_success') : 'JPG, PNG (Max 5MB)'}</p>
+                    <Button variant="outline" size="sm" className="mt-2 rounded-xl border-slate-200 text-xs font-bold w-full">{t('update_img')}</Button>
                   </div>
                 </div>
               </div>
               
-              {/* Policy Links Section */}
               <div className="mt-12 pt-10 border-t border-slate-50">
                 <div className="flex flex-col gap-4">
                   <Link to="/terms" className="flex items-center gap-4 p-4 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-100 transition-colors group justify-end">
-                    <span className="font-bold text-slate-700 group-hover:text-blue-600 transition-colors">الشروط والأحكام</span>
+                    <span className="font-bold text-slate-700 group-hover:text-blue-600 transition-colors">{t('terms_conditions')}</span>
                     <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-slate-500 group-hover:text-blue-600 shadow-sm">
                       <FileText size={20} />
                     </div>
                   </Link>
                   <Link to="/privacy" className="flex items-center gap-4 p-4 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-100 transition-colors group justify-end">
-                    <span className="font-bold text-slate-700 group-hover:text-blue-600 transition-colors">سياسة الخصوصية</span>
+                    <span className="font-bold text-slate-700 group-hover:text-blue-600 transition-colors">{t('privacy_policy')}</span>
                     <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-slate-500 group-hover:text-blue-600 shadow-sm">
                       <ShieldCheck size={20} />
                     </div>

@@ -48,13 +48,13 @@ export const Navbar = () => {
                             onClick={() => navigate('/drivers')}
                             className="bg-[#FF7A00] hover:bg-orange-600 text-white font-black px-4 md:px-6 rounded-xl h-10 text-xs hidden md:flex items-center gap-2"
                         >
-                            {t('driver_app', 'تطبيق SAS للسائقين')}
+                            {t('driver_app')}
                             <Download size={14} />
                         </Button>
                         <Button
                             className="bg-[#005274] hover:bg-[#003d57] text-white font-black px-4 md:px-6 rounded-xl h-10 text-xs hidden sm:flex items-center gap-2"
                         >
-                            {t('shipper_app', 'تطبيق SAS للعملاء')}
+                            {t('shipper_app')}
                             <Download size={14} />
                         </Button>
                     </div>
@@ -82,50 +82,50 @@ export const Navbar = () => {
                         onClick={() => navigate('/info')}
                         className={`font-bold text-sm flex items-center gap-2 transition-colors ${isActive('/info') ? 'text-primary border-b-2 border-primary pb-1' : 'text-slate-600 hover:text-primary'}`}
                     >
-                        {t('general_info', 'معلومات عامة')} <Home size={18} />
+                        {t('general_info')} <Home size={18} />
                     </button>
                     <button
                         onClick={() => navigate('/drivers')}
                         className={`font-bold text-sm flex items-center gap-2 transition-colors ${isActive('/drivers') ? 'text-primary border-b-2 border-primary pb-1' : 'text-slate-600 hover:text-primary'}`}
                     >
-                        {t('drivers', 'السائقين')} <Truck size={18} />
+                        {t('drivers')} <Truck size={18} />
                     </button>
                     <button
                         onClick={() => navigate('/customers')}
                         className={`font-bold text-sm flex items-center gap-2 transition-colors ${isActive('/customers') ? 'text-primary border-b-2 border-primary pb-1' : 'text-slate-600 hover:text-primary'}`}
                     >
-                        {t('customers', 'العملاء')} <User size={18} />
+                        {t('customers')} <User size={18} />
                     </button>
                     <button
                         onClick={() => navigate(getHomeRoute())}
                         className={`font-bold text-sm flex items-center gap-2 transition-colors ${isActive(getHomeRoute()) ? 'text-primary border-b-2 border-primary pb-1' : 'text-slate-600 hover:text-primary'}`}
                     >
-                        {t('home_nav', 'الصفحة الرئيسية')} <Home size={18} />
+                        {t('home_nav')} <Home size={18} />
                     </button>
                 </div>
 
                 <div className="cursor-pointer flex items-center gap-2" onClick={() => navigate('/')}>
-                    <img src="/logo.png" alt="شعار SAS" className="h-[55px] md:h-[75px] w-auto object-contain" />
+                    <img src="/logo.png" alt={t('app_name')} className="h-[55px] md:h-[75px] w-auto object-contain" />
                 </div>
             </nav>
 
             {isMobileMenuOpen && (
                 <div className="fixed inset-0 z-[99] bg-white pt-24 px-8 flex flex-col md:hidden" dir={i18n.language === 'ar' ? 'rtl' : 'ltr'}>
                     <button onClick={() => { navigate(getHomeRoute()); setIsMobileMenuOpen(false); }} className={`py-4 text-xl font-black border-b border-slate-50 text-right flex items-center justify-end gap-3 ${isActive(getHomeRoute()) ? 'text-primary' : 'text-slate-800'}`}>
-                        {t('home_nav', 'الصفحة الرئيسية')} <Home size={22} />
+                        {t('home_nav')} <Home size={22} />
                     </button>
                     <button onClick={() => { navigate('/drivers'); setIsMobileMenuOpen(false); }} className={`py-4 text-xl font-black border-b border-slate-50 text-right flex items-center justify-end gap-3 ${isActive('/drivers') ? 'text-primary' : 'text-slate-800'}`}>
-                        {t('drivers', 'السائقين')} <Truck size={22} />
+                        {t('drivers')} <Truck size={22} />
                     </button>
                     <button onClick={() => { navigate('/customers'); setIsMobileMenuOpen(false); }} className={`py-4 text-xl font-black border-b border-slate-50 text-right flex items-center justify-end gap-3 ${isActive('/customers') ? 'text-primary' : 'text-slate-800'}`}>
-                        {t('customers', 'العملاء')} <User size={22} />
+                        {t('customers')} <User size={22} />
                     </button>
                     <button onClick={() => { navigate('/info'); setIsMobileMenuOpen(false); }} className={`py-4 text-xl font-black border-b border-slate-50 text-right flex items-center justify-end gap-3 ${isActive('/info') ? 'text-primary' : 'text-slate-800'}`}>
-                        {t('general_info', 'معلومات عامة')} <Home size={22} />
+                        {t('general_info')} <Home size={22} />
                     </button>
                     <div className="mt-8 flex flex-col gap-4">
-                        <Button onClick={() => { navigate('/drivers'); setIsMobileMenuOpen(false); }} className="h-14 bg-[#FF7A00] text-white font-black text-lg rounded-2xl">{t('driver_app', 'تطبيق SAS للسائقين')}</Button>
-                        <Button className="h-14 bg-[#005274] text-white font-black text-lg rounded-2xl">{t('shipper_app', 'تطبيق SAS للعملاء')}</Button>
+                        <Button onClick={() => { navigate('/drivers'); setIsMobileMenuOpen(false); }} className="h-14 bg-[#FF7A00] text-white font-black text-lg rounded-2xl">{t('driver_app')}</Button>
+                        <Button className="h-14 bg-[#005274] text-white font-black text-lg rounded-2xl">{t('shipper_app')}</Button>
                         <div className="mt-4 flex justify-center">
                             <span
                                 onClick={toggleLanguage}
