@@ -515,28 +515,31 @@ export default function ShipperStatement() {
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-2 md:gap-3">
+                    <div className="flex flex-wrap items-center gap-2 md:gap-3">
                         <Button
                             onClick={handleResetAccount}
                             variant="outline"
-                            className="h-12 md:h-14 rounded-2xl border-rose-200 text-rose-600 hover:bg-rose-50 font-black px-4 md:px-6 shadow-sm transition-all active:scale-95 text-xs md:text-sm"
+                            className="h-10 md:h-14 rounded-2xl border-rose-200 text-rose-600 hover:bg-rose-50 font-black px-3 md:px-6 shadow-sm transition-all active:scale-95 text-[10px] md:text-sm flex-1 md:flex-none"
                         >
-                            <Trash2 size={18} className="md:ml-2" /> <span className="hidden md:inline">تصفية الحساب</span>
+                            <Trash2 size={16} className="md:ml-2" /> <span>تصفية الحساب</span>
                         </Button>
-                        <Button variant="outline" className="h-12 md:h-14 rounded-2xl font-black px-4 md:px-6 border-slate-200 hover:bg-slate-50 text-xs md:text-sm">
-                            <Printer size={18} className="md:ml-2 text-slate-400" /> <span className="hidden md:inline">طباعة سجل النشاط</span>
+                        <Button 
+                            variant="outline" 
+                            className="h-10 md:h-14 rounded-2xl font-black px-3 md:px-6 border-slate-200 hover:bg-slate-50 text-[10px] md:text-sm flex-1 md:flex-none"
+                        >
+                            <Printer size={16} className="md:ml-2 text-slate-400" /> <span>طباعة</span>
                         </Button>
                         <Button
                             onClick={() => setIsPaymentModalOpen(true)}
-                            className="h-12 md:h-14 rounded-2xl bg-slate-900 hover:bg-slate-800 font-black px-4 md:px-8 shadow-xl transition-all active:scale-95 text-white text-xs md:text-sm"
+                            className="h-10 md:h-14 rounded-2xl bg-slate-900 hover:bg-slate-800 font-black px-3 md:px-8 shadow-xl transition-all active:scale-95 text-white text-[10px] md:text-sm flex-1 md:flex-none"
                         >
-                            <Upload size={18} className="md:ml-2" /> <span className="hidden md:inline">إرفاق إيصال سداد</span>
+                            <Upload size={16} className="md:ml-2" /> <span>إرفاق إيصال</span>
                         </Button>
                         <Button
                             onClick={handleTopUp}
-                            className="h-12 md:h-14 rounded-2xl bg-blue-600 hover:bg-blue-700 font-black px-4 md:px-8 shadow-xl shadow-blue-200 transition-all active:scale-95 text-white text-xs md:text-sm"
+                            className="h-10 md:h-14 rounded-2xl bg-blue-600 hover:bg-blue-700 font-black px-3 md:px-8 shadow-xl shadow-blue-200 transition-all active:scale-95 text-white text-[10px] md:text-sm flex-1 md:flex-none"
                         >
-                            <CreditCard size={18} className="md:ml-2" /> <span className="hidden md:inline">الدفع بالبطاقة</span>
+                            <CreditCard size={16} className="md:ml-2" /> <span>دفع</span>
                         </Button>
                     </div>
                 </motion.div>
@@ -745,9 +748,9 @@ export default function ShipperStatement() {
                 </div>
 
                 <Tabs defaultValue="activity" className="w-full" onValueChange={setActiveTab}>
-                    <TabsList className="grid w-full grid-cols-2 h-16 bg-white/50 p-2 rounded-2xl mb-8 border border-white">
-                        <TabsTrigger value="activity" className="rounded-xl font-black data-[state=active]:bg-white data-[state=active]:shadow-sm">النشاط المالى والمدفوعات</TabsTrigger>
-                        <TabsTrigger value="invoices" className="rounded-xl font-black data-[state=active]:bg-white data-[state=active]:shadow-sm">الفواتير الضريبية</TabsTrigger>
+                    <TabsList className="grid w-full grid-cols-2 h-14 md:h-16 bg-white/50 p-1.5 md:p-2 rounded-2xl mb-8 border border-white">
+                        <TabsTrigger value="activity" className="rounded-xl font-black data-[state=active]:bg-white data-[state=active]:shadow-sm text-xs md:text-base">النشاط المالى والمدفوعات</TabsTrigger>
+                        <TabsTrigger value="invoices" className="rounded-xl font-black data-[state=active]:bg-white data-[state=active]:shadow-sm text-xs md:text-base">الفواتير الضريبية</TabsTrigger>
                     </TabsList>
 
                     <TabsContent value="activity" className="space-y-8">
@@ -999,35 +1002,38 @@ export default function ShipperStatement() {
                         </div>
                     </div>
 
-                    <div className="p-6 border-t border-slate-100 flex gap-3 bg-white">
-                        <Button
-                            onClick={handlePayDebt}
-                            disabled={isSubmitting || !paymentAmount || !paymentImage}
-                            className="flex-1 h-14 rounded-xl font-black bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/20"
-                        >
-                            {isSubmitting ? <Loader2 size={18} className="animate-spin me-2" /> : <CheckCircle2 size={18} className="me-2" />}
-                            إرسال إثبات السداد
-                        </Button>
-                        <Button
-                            variant="outline"
-                            onClick={() => setIsPaymentModalOpen(false)}
-                            disabled={isSubmitting}
-                            className="h-14 px-6 rounded-xl font-bold bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
-                        >
-                            إلغاء
-                        </Button>
-                        <Button onClick={() => window.print()} variant="outline" className="h-14 px-6 rounded-2xl border-slate-200 text-slate-600 hover:bg-slate-50 font-bold gap-2">
-                            <Printer size={20} /> طباعة سجل النشاط
-                        </Button>
-
-                        <Button
-                            onClick={handleResetAccount}
-                            disabled={isResetting}
-                            variant="outline"
-                            className="h-14 px-6 rounded-2xl border-rose-200 text-rose-600 hover:bg-rose-50 font-bold gap-2"
-                        >
-                            {isResetting ? <Loader2 size={20} className="animate-spin me-2" /> : <Trash2 size={20} />} تصفية الحساب
-                        </Button>
+                    <div className="p-4 md:p-6 border-t border-slate-100 flex flex-col sm:flex-row gap-3 bg-white">
+                        <div className="flex gap-2 w-full">
+                            <Button
+                                onClick={handlePayDebt}
+                                disabled={isSubmitting || !paymentAmount || !paymentImage}
+                                className="flex-1 h-12 md:h-14 rounded-xl font-black bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/20 text-sm md:text-base"
+                            >
+                                {isSubmitting ? <Loader2 size={18} className="animate-spin me-2" /> : <CheckCircle2 size={18} className="me-2" />}
+                                إرسال الإثبات
+                            </Button>
+                            <Button
+                                variant="outline"
+                                onClick={() => setIsPaymentModalOpen(false)}
+                                disabled={isSubmitting}
+                                className="h-12 md:h-14 px-4 md:px-6 rounded-xl font-bold bg-white text-slate-600 border-slate-200 hover:bg-slate-50 text-sm md:text-base"
+                            >
+                                إلغاء
+                            </Button>
+                        </div>
+                        <div className="flex gap-2 w-full">
+                            <Button onClick={() => window.print()} variant="outline" className="flex-1 h-12 md:h-14 rounded-xl border-slate-200 text-slate-600 hover:bg-slate-50 font-bold gap-1 text-xs md:text-sm">
+                                <Printer size={16} /> طباعة
+                            </Button>
+                            <Button
+                                onClick={handleResetAccount}
+                                disabled={isResetting}
+                                variant="outline"
+                                className="flex-1 h-12 md:h-14 rounded-xl border-rose-100 text-rose-500 hover:bg-rose-50 font-bold gap-1 text-xs md:text-sm"
+                            >
+                                {isResetting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />} تصفية
+                            </Button>
+                        </div>
                     </div>
                 </DialogContent>
             </Dialog>

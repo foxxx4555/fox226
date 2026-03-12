@@ -147,20 +147,20 @@ export default function DriverStatement() {
                 {/* Header */}
                 <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                     <div className="flex items-center gap-5">
-                        <div className="w-16 h-16 bg-blue-700 text-white rounded-[2rem] flex items-center justify-center shadow-xl shadow-blue-100">
-                            <Wallet size={32} />
+                        <div className="w-12 h-12 md:w-16 md:h-16 bg-blue-700 text-white rounded-2xl md:rounded-[2rem] flex items-center justify-center shadow-xl shadow-blue-100 shrink-0">
+                            <Wallet size={24} className="md:w-8 md:h-8" />
                         </div>
                         <div>
-                            <h1 className="text-3xl font-black text-slate-900">كشف الحساب المالي</h1>
-                            <p className="text-slate-500 font-bold mt-1">إدارة أرباحك ومسحوباتك بدقة</p>
+                            <h1 className="text-xl md:text-3xl font-black text-slate-900">كشف الحساب المالي</h1>
+                            <p className="text-slate-500 font-bold mt-1 text-xs md:text-base">إدارة أرباحك ومسحوباتك بدقة</p>
                         </div>
                     </div>
-                    <div className="flex gap-3">
-                        <Button variant="outline" className="h-12 rounded-2xl font-bold border-slate-200" onClick={() => window.print()}>
-                            <Printer size={18} className="ml-2" /> طباعة الكشف
+                    <div className="flex gap-2 md:gap-3">
+                        <Button variant="outline" className="h-10 md:h-12 rounded-xl md:rounded-2xl font-bold border-slate-200 flex-1 md:flex-none text-xs md:text-sm" onClick={() => window.print()}>
+                            <Printer size={16} className="md:ml-2" /> طباعة
                         </Button>
-                        <Button onClick={() => setIsWithdrawOpen(true)} className="h-12 rounded-2xl bg-blue-600 hover:bg-blue-700 font-bold px-6 shadow-lg text-white">
-                            <CreditCard size={18} className="ml-2" /> طلب سحب
+                        <Button onClick={() => setIsWithdrawOpen(true)} className="h-10 md:h-12 rounded-xl md:rounded-2xl bg-blue-600 hover:bg-blue-700 font-bold px-4 md:px-6 shadow-lg text-white flex-1 md:flex-none text-xs md:text-sm">
+                            <CreditCard size={16} className="md:ml-2" /> طلب سحب
                         </Button>
                     </div>
                 </motion.div>
@@ -216,11 +216,11 @@ export default function DriverStatement() {
                 </div>
 
                 <Tabs defaultValue="ledger" className="w-full">
-                    <TabsList className="grid w-full grid-cols-4 h-16 bg-white p-2 rounded-[1.5rem] mb-8 shadow-sm border">
-                        <TabsTrigger value="ledger" className="rounded-xl font-black data-[state=active]:bg-blue-600 data-[state=active]:text-white transition-all">كشف الحساب</TabsTrigger>
-                        <TabsTrigger value="activity" className="rounded-xl font-black">طلبات السحب</TabsTrigger>
-                        <TabsTrigger value="pending" className="rounded-xl font-black">أرباح معلقة</TabsTrigger>
-                        <TabsTrigger value="receipts" className="rounded-xl font-black">إيصالات الصرف</TabsTrigger>
+                    <TabsList className="flex md:grid w-full grid-cols-4 h-14 md:h-16 bg-white p-1.5 md:p-2 rounded-2xl md:rounded-[1.5rem] mb-8 shadow-sm border overflow-x-auto no-scrollbar justify-start md:justify-center">
+                        <TabsTrigger value="ledger" className="rounded-xl font-black data-[state=active]:bg-blue-600 data-[state=active]:text-white transition-all whitespace-nowrap px-4 text-xs md:text-sm">كشف الحساب</TabsTrigger>
+                        <TabsTrigger value="activity" className="rounded-xl font-black whitespace-nowrap px-4 text-xs md:text-sm">طلبات السحب</TabsTrigger>
+                        <TabsTrigger value="pending" className="rounded-xl font-black whitespace-nowrap px-4 text-xs md:text-sm">أرباح معلقة</TabsTrigger>
+                        <TabsTrigger value="receipts" className="rounded-xl font-black whitespace-nowrap px-4 text-xs md:text-sm">إيصالات الصرف</TabsTrigger>
                     </TabsList>
 
                     {/* كشف الحساب التفصيلي */}

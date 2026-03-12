@@ -199,71 +199,74 @@ export default function AdminFinance() {
             <div className="space-y-8 max-w-7xl mx-auto pb-20 p-4" dir="rtl">
 
                 {/* Header */}
-                <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 text-right">
-                    <div className="flex items-center gap-5">
-                        <div className="w-16 h-16 bg-slate-900 text-white rounded-[2rem] flex items-center justify-center shadow-2xl">
-                            <Calculator size={32} />
+                <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 text-right">
+                    <div className="flex items-center gap-4 md:gap-5">
+                        <div className="w-12 h-12 md:w-16 md:h-16 bg-slate-900 text-white rounded-2xl md:rounded-[2rem] flex items-center justify-center shadow-2xl shrink-0">
+                            <Calculator size={24} className="md:w-8 md:h-8" />
                         </div>
                         <div>
-                            <h1 className="text-3xl font-black text-slate-900">دفتر الأستاذ العام</h1>
-                            <p className="text-slate-500 font-bold">مراقبة السيولة، العمولات، وصافي أرباح المنصة</p>
+                            <h1 className="text-xl md:text-3xl font-black text-slate-900">دفتر الأستاذ العام</h1>
+                            <p className="text-slate-500 font-bold text-xs md:text-base">موائمة السيولة، العمولات، وصافي الأرباح</p>
                         </div>
                     </div>
-                    <div className="flex gap-3">
+                    <div className="flex flex-wrap gap-2 md:gap-3 w-full md:w-auto">
                         <Button 
                             variant="outline" 
-                            className="h-12 rounded-2xl font-bold border-rose-200 text-rose-600 hover:bg-rose-50" 
+                            className="h-10 md:h-12 rounded-xl md:rounded-2xl font-bold border-rose-200 text-rose-600 hover:bg-rose-50 text-xs flex-1 md:flex-none" 
                             onClick={handleMasterReset}
                         >
-                            <RotateCcw size={18} className="ml-2" /> تصفية الحساب العام
+                            <RotateCcw size={16} className="md:ml-2" /> تصفية الحساب
                         </Button>
-                        <Button variant="outline" className="h-12 rounded-2xl font-bold border-slate-200" onClick={() => window.print()}>
-                            <Printer size={18} className="ml-2" /> طباعة التقارير
+                        <Button variant="outline" className="h-10 md:h-12 rounded-xl md:rounded-2xl font-bold border-slate-200 text-xs flex-1 md:flex-none" onClick={() => window.print()}>
+                            <Printer size={16} className="md:ml-2" /> طباعة
                         </Button>
-                        <Button className="h-12 rounded-2xl bg-blue-600 hover:bg-blue-700 font-bold px-6 text-white shadow-lg">
-                            <Download size={18} className="ml-2" /> تصدير Excel
+                        <Button className="h-10 md:h-12 rounded-xl md:rounded-2xl bg-blue-600 hover:bg-blue-700 font-bold px-4 md:px-6 text-white shadow-lg text-xs flex-1 md:flex-none">
+                            <Download size={16} className="md:ml-2" /> تصدير
                         </Button>
                     </div>
                 </motion.div>
 
                 {/* KPI Cards Summary */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                    <Card className="rounded-[2rem] p-6 border-none shadow-xl bg-gradient-to-br from-blue-600 to-blue-800 text-white">
-                        <p className="text-blue-100 font-bold text-xs uppercase mb-1">صافي أرباح المنصة</p>
-                        <h3 className="text-3xl font-black">{(stats?.totalCommissions || 0).toLocaleString()} <span className="text-sm">ر.س</span></h3>
-                        <div className="mt-4 flex items-center text-[10px] text-blue-200 font-bold bg-white/10 w-fit px-3 py-1 rounded-full">
-                            <TrendingUp size={12} className="ml-1" /> صافي العمولات
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
+                    <Card className="col-span-2 md:col-span-1 border-none bg-gradient-to-br from-blue-600 to-blue-800 text-white overflow-hidden flex flex-col justify-center min-h-[140px] relative px-6 rounded-3xl md:rounded-[2rem] shadow-xl">
+                        <div className="relative z-10">
+                            <p className="text-blue-100 font-bold text-[10px] md:text-xs uppercase mb-1">صافي أرباح المنصة</p>
+                            <h3 className="text-2xl md:text-3xl font-black">{(stats?.totalCommissions || 0).toLocaleString()} <span className="text-sm">ر.س</span></h3>
+                            <div className="mt-2 md:mt-4 flex items-center text-[8px] md:text-[10px] text-blue-200 font-bold bg-white/10 w-fit px-3 py-1 rounded-full">
+                                <TrendingUp size={12} className="ml-1" /> صافي العمولات
+                            </div>
                         </div>
+                        <div className="absolute -right-4 -bottom-4 opacity-10 rotate-12"><DollarSign size={100} /></div>
                     </Card>
-
-                    <Card className="rounded-[2rem] p-6 border-none shadow-sm bg-white border-r-4 border-emerald-500">
-                        <p className="text-slate-400 font-bold text-xs uppercase mb-1">إجمالي التحصيلات (إيراد)</p>
-                        <h3 className="text-2xl font-black text-slate-900">
-                            {transactions.filter(t => t.isIncome).reduce((sum, t) => sum + t.amount, 0).toLocaleString()} <span className="text-sm font-bold text-slate-400">ر.س</span>
+ 
+                    <Card className="rounded-3xl md:rounded-[2rem] p-4 md:p-6 border-none shadow-sm bg-white border-r-4 border-emerald-500 flex flex-col justify-center min-h-[140px]">
+                        <p className="text-slate-400 font-bold text-[10px] md:text-xs uppercase mb-1">التحصيلات</p>
+                        <h3 className="text-xl md:text-2xl font-black text-slate-900 leading-none">
+                            {transactions.filter(t => t.isIncome).reduce((sum, t) => sum + t.amount, 0).toLocaleString()} <span className="text-[10px] md:text-sm font-bold text-slate-400">ر.س</span>
                         </h3>
-                        <Badge className="mt-2 bg-emerald-50 text-emerald-600 border-none font-bold">داخل للمنصة (+)</Badge>
+                        <Badge className="mt-2 text-[8px] md:text-[10px] bg-emerald-50 text-emerald-600 border-none font-bold w-fit">إيراد (+)</Badge>
                     </Card>
-
-                    <Card className="rounded-[2rem] p-6 border-none shadow-sm bg-white border-r-4 border-rose-500">
-                        <p className="text-slate-400 font-bold text-xs uppercase mb-1">إجمالي المصروفات</p>
-                        <h3 className="text-2xl font-black text-slate-900">
-                            {transactions.filter(t => !t.isIncome).reduce((sum, t) => sum + t.amount, 0).toLocaleString()} <span className="text-sm font-bold text-slate-400">ر.س</span>
+ 
+                    <Card className="rounded-3xl md:rounded-[2rem] p-4 md:p-6 border-none shadow-sm bg-white border-r-4 border-rose-500 flex flex-col justify-center min-h-[140px]">
+                        <p className="text-slate-400 font-bold text-[10px] md:text-xs uppercase mb-1">المصروفات</p>
+                        <h3 className="text-xl md:text-2xl font-black text-slate-900 leading-none">
+                            {transactions.filter(t => !t.isIncome).reduce((sum, t) => sum + t.amount, 0).toLocaleString()} <span className="text-[10px] md:text-sm font-bold text-slate-400">ر.س</span>
                         </h3>
-                        <Badge className="mt-2 bg-rose-50 text-rose-600 border-none font-bold">خارج من المنصة (-)</Badge>
+                        <Badge className="mt-2 text-[8px] md:text-[10px] bg-rose-50 text-rose-600 border-none font-bold w-fit">مصروف (-)</Badge>
                     </Card>
-
-                    <Card className="rounded-[2rem] p-6 border-none shadow-sm bg-white border-r-4 border-amber-500">
-                        <p className="text-slate-400 font-bold text-xs uppercase mb-1">سحوبات معلقة</p>
-                        <h3 className="text-2xl font-black text-slate-900">{withdrawals.filter(w => w.status === 'pending').length} <span className="text-sm font-bold text-slate-400">طلب</span></h3>
-                        <p className="text-xs text-amber-600 font-bold mt-2">قيد المراجعة</p>
+ 
+                    <Card className="rounded-3xl md:rounded-[2rem] p-4 md:p-6 border-none shadow-sm bg-white border-r-4 border-amber-500 flex flex-col justify-center min-h-[140px]">
+                        <p className="text-slate-400 font-bold text-[10px] md:text-xs uppercase mb-1">سحوبات معلقة</p>
+                        <h3 className="text-xl md:text-2xl font-black text-slate-900 leading-none">{withdrawals.filter(w => w.status === 'pending').length} <span className="text-[10px] md:text-sm font-bold text-slate-400">طلب</span></h3>
+                        <p className="text-[10px] text-amber-600 font-bold mt-2">قيد المراجعة</p>
                     </Card>
-
-                    <Card className="rounded-[2rem] p-6 border-none shadow-sm bg-white border-r-4 border-blue-500">
-                        <p className="text-slate-400 font-bold text-xs uppercase mb-1">إيصالات الشاحنين</p>
-                        <h3 className="text-2xl font-black text-slate-900">
-                            {shipperPayments.length} <span className="text-sm font-bold text-slate-400">إيصال</span>
+ 
+                    <Card className="rounded-3xl md:rounded-[2rem] p-4 md:p-6 border-none shadow-sm bg-white border-r-4 border-blue-500 flex flex-col justify-center min-h-[140px]">
+                        <p className="text-slate-400 font-bold text-[10px] md:text-xs uppercase mb-1">إيصالات الشاحنين</p>
+                        <h3 className="text-xl md:text-2xl font-black text-slate-900 leading-none">
+                            {shipperPayments.length} <span className="text-[10px] md:text-sm font-bold text-slate-400">إيصال</span>
                         </h3>
-                        <p className="text-xs text-blue-600 font-bold mt-2">
+                        <p className="text-[10px] text-blue-600 font-bold mt-2">
                              {shipperPayments.filter(p => p.status === 'pending').length} قيد المراجعة
                         </p>
                     </Card>
@@ -284,12 +287,12 @@ export default function AdminFinance() {
                     <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="h-11 bg-slate-50 border-none rounded-xl font-bold text-xs" />
                 </div>
 
-                <Tabs defaultValue="ledger" className="w-full text-right">
-                    <TabsList className="grid w-full grid-cols-4 h-16 bg-white p-2 rounded-[1.5rem] mb-8 shadow-sm border">
-                        <TabsTrigger value="ledger" className="rounded-xl font-black data-[state=active]:bg-slate-900 data-[state=active]:text-white">كشف الحساب العام</TabsTrigger>
-                        <TabsTrigger value="withdrawals" className="rounded-xl font-black">طلبات السحب</TabsTrigger>
-                        <TabsTrigger value="shipper_payments" className="rounded-xl font-black">إيصالات الشاحنين</TabsTrigger>
-                        <TabsTrigger value="carrier_settlements" className="rounded-xl font-black">تسويات الناقلين</TabsTrigger>
+                <Tabs defaultValue="ledger" className="w-full text-right" dir="rtl">
+                    <TabsList className="flex md:grid w-full grid-cols-4 h-14 md:h-16 bg-white p-1.5 md:p-2 rounded-2xl md:rounded-[1.5rem] mb-8 shadow-sm border overflow-x-auto no-scrollbar justify-start md:justify-center">
+                        <TabsTrigger value="ledger" className="rounded-xl font-black data-[state=active]:bg-slate-900 data-[state=active]:text-white whitespace-nowrap px-4 text-xs md:text-sm">كشف الحساب</TabsTrigger>
+                        <TabsTrigger value="withdrawals" className="rounded-xl font-black whitespace-nowrap px-4 text-xs md:text-sm">طلبات السحب</TabsTrigger>
+                        <TabsTrigger value="shipper_payments" className="rounded-xl font-black whitespace-nowrap px-4 text-xs md:text-sm">إيصالات الشاحنين</TabsTrigger>
+                        <TabsTrigger value="carrier_settlements" className="rounded-xl font-black whitespace-nowrap px-4 text-xs md:text-sm">تسويات الناقلين</TabsTrigger>
                     </TabsList>
 
                     {/* Master Ledger */}

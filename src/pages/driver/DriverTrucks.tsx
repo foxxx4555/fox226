@@ -211,42 +211,45 @@ export default function DriverTrucks() {
     <AppLayout>
       <div className="max-w-5xl mx-auto pb-20 px-4 space-y-8">
 
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100">
-          <div>
-            <h1 className="text-3xl font-black text-slate-900 flex items-center gap-3">
-              <Shield className="text-blue-600" size={32} /> إدارة الأسطول
-            </h1>
-            <p className="text-slate-500 font-bold mt-1">التحكم المركزي في المركبات وطاقم السائقين</p>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white p-6 md:p-8 rounded-[2rem] md:rounded-[2.5rem] shadow-sm border border-slate-100">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 md:w-14 md:h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center shrink-0">
+              <Shield size={24} className="md:w-8 md:h-8" />
+            </div>
+            <div>
+              <h1 className="text-xl md:text-3xl font-black text-slate-900">إدارة الأسطول</h1>
+              <p className="text-slate-500 font-bold mt-1 text-xs md:text-base">التحكم المركزي في المركبات والسائقين</p>
+            </div>
           </div>
           <div className="relative w-full md:w-80">
             <Input
               placeholder="بحث باللوحة أو الاسم..."
-              className="h-12 rounded-2xl bg-slate-50 border-none font-bold pr-12"
+              className="h-11 md:h-12 rounded-2xl bg-slate-50 border-none font-bold pr-11"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
-            <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+            <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
           </div>
         </div>
 
         <Tabs defaultValue="trucks" className="w-full" dir="rtl">
-          <TabsList className="grid w-full grid-cols-3 h-16 bg-slate-100 rounded-[1.5rem] p-1.5 mb-8">
-            <TabsTrigger value="trucks" className="rounded-[1.2rem] font-black gap-2 data-[state=active]:bg-white data-[state=active]:shadow-lg text-sm md:text-base">
-              <Truck size={18} /> الشاحنات ({trucks.length})
+          <TabsList className="grid w-full grid-cols-3 h-14 md:h-16 bg-slate-100/50 rounded-2xl md:rounded-[1.5rem] p-1.5 mb-8 border border-slate-200/50">
+            <TabsTrigger value="trucks" className="rounded-xl md:rounded-[1.2rem] font-black gap-2 data-[state=active]:bg-white data-[state=active]:shadow-lg text-[10px] sm:text-xs md:text-base">
+              <Truck size={14} className="md:w-5 md:h-5" /> الشاحنات 
             </TabsTrigger>
-            <TabsTrigger value="drivers" className="rounded-[1.2rem] font-black gap-2 data-[state=active]:bg-white data-[state=active]:shadow-lg text-sm md:text-base">
-              <Users size={18} /> السائقين ({drivers.length})
+            <TabsTrigger value="drivers" className="rounded-xl md:rounded-[1.2rem] font-black gap-2 data-[state=active]:bg-white data-[state=active]:shadow-lg text-[10px] sm:text-xs md:text-base">
+              <Users size={14} className="md:w-5 md:h-5" /> السائقين
             </TabsTrigger>
-            <TabsTrigger value="maintenance" className="rounded-[1.2rem] font-black gap-2 data-[state=active]:bg-white data-[state=active]:shadow-lg text-sm md:text-base">
-              <Wrench size={18} className={maintenanceRequests.some(r => r.status !== 'resolved') ? "text-rose-500 animate-pulse" : ""} /> بلاغات الأعطال
+            <TabsTrigger value="maintenance" className="rounded-xl md:rounded-[1.2rem] font-black gap-2 data-[state=active]:bg-white data-[state=active]:shadow-lg text-[10px] sm:text-xs md:text-base">
+              <Wrench size={14} className={cn("md:w-5 md:h-5", maintenanceRequests.some(r => r.status !== 'resolved') ? "text-rose-500 animate-pulse" : "")} /> البلاغات
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="trucks" className="space-y-6">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-black">قائمة الشاحنات المتاحة</h3>
-              <Button onClick={() => setIsAdding(true)} className="rounded-2xl bg-blue-600 hover:bg-blue-700 font-bold shadow-xl shadow-blue-100">
-                <Plus size={20} className="ml-2" /> تسجيل شاحنة جديدة
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+              <h3 className="text-lg md:text-xl font-black">قائمة الشاحنات المتاحة</h3>
+              <Button onClick={() => setIsAdding(true)} className="w-full sm:w-auto rounded-2xl bg-blue-600 hover:bg-blue-700 font-bold shadow-xl shadow-blue-100 h-12">
+                <Plus size={20} className="ml-2" /> إدراج شاحنة جديدة
               </Button>
             </div>
 

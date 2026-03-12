@@ -202,20 +202,25 @@ export default function AdminLoads() {
   return (
     <AdminLayout>
       <div className="space-y-8 max-w-7xl mx-auto pb-20">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div>
-            <h1 className="text-3xl font-black text-slate-900 tracking-tight">مراقبة الشحنات</h1>
-            <p className="text-muted-foreground font-medium mt-1">تتبع كافة الشحنات في النظام والتدخل عند الحاجة</p>
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 md:w-14 md:h-14 bg-slate-900 text-white rounded-2xl flex items-center justify-center shrink-0">
+               <Package size={24} className="md:w-8 md:h-8" />
+            </div>
+            <div>
+              <h1 className="text-xl md:text-3xl font-black text-slate-900 tracking-tight">مراقبة الشحنات</h1>
+              <p className="text-slate-500 font-bold text-xs md:text-base mt-1">تتبع كافة الشحنات والتحكم فيها</p>
+            </div>
           </div>
-
+ 
           <div className="relative w-full md:w-96">
             <Input
               placeholder="ابحث برقم الشحنة، المدينة، التاجر..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-12 pl-12 pr-4 bg-white border-slate-200 rounded-xl font-bold shadow-sm w-full"
+              className="h-11 md:h-12 pl-12 pr-4 bg-white border-slate-200 rounded-xl md:rounded-2xl font-bold shadow-sm w-full text-sm md:text-base"
             />
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
           </div>
         </div>
 
