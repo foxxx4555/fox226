@@ -25,10 +25,10 @@ export default function DriverAddDriver() {
 
     const inviteLink = typeof window !== 'undefined' ? `${window.location.origin}/register?invite=${userProfile?.id}` : '';
 
-    const handleCopyLink = () => {
-        if (!inviteLink) return;
-        navigator.clipboard.writeText(inviteLink);
-        toast.success("تم نسخ الرابط بنجاح!");
+    const handleCopyCode = () => {
+        if (!userProfile?.id) return;
+        navigator.clipboard.writeText(userProfile.id);
+        toast.success("تم نسخ الرمز بنجاح!");
     };
 
     const handleWhatsAppShare = () => {
@@ -103,10 +103,10 @@ export default function DriverAddDriver() {
                                     
                                     {/* Copy layer */}
                                     <div 
-                                        onClick={handleCopyLink}
+                                        onClick={handleCopyCode}
                                         className="absolute inset-0 bg-blue-600/95 text-white flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 cursor-pointer transition-all duration-300 font-bold text-lg"
                                     >
-                                        <Copy size={20} /> نسخ الرابط
+                                        <Copy size={20} /> نسخ الرمز
                                     </div>
                                 </div>
 

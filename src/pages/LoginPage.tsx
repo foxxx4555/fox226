@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { Loader2, ArrowRight, Mail, Lock, ShieldCheck, Eye, EyeOff, UserCircle2 } from 'lucide-react';
+import { Loader2, ArrowRight, Mail, Lock, ShieldCheck, Eye, EyeOff, UserCircle2, Link2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
@@ -21,9 +21,9 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("user");
 
-  // States
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [inviteCode, setInviteCode] = useState('');
   const [adminEmail, setAdminEmail] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -50,9 +50,15 @@ export default function LoginPage() {
         'carrier_manager', 'vendor_manager', 'support', 'analytics'
       ];
 
-      const userRole = role.toLowerCase();
-
       if (userRole === 'driver') {
+        if (inviteCode) {
+          try {
+            await api.addInvitedSubDriver(inviteCode, { driver_name: profile.full_name || email, driver_phone: profile.phone || '' });
+            toast.success("تم ربط حسابك بأسطول الناقل بنجاح!");
+          } catch (e) {
+            console.warn("Could not handle invite code post-login", e);
+          }
+        }
         navigate('/driver/dashboard');
       } else if (userRole === 'shipper') {
         navigate('/shipper/dashboard');
@@ -193,7 +199,22 @@ export default function LoginPage() {
                         <Link to="/forgot-password" title={t('forgot_password')} className="text-[11px] text-primary font-bold hover:underline underline-offset-4 decoration-2">
                           {t('forgot_password')}
                         </Link>
-                        <div className="relative py-1">
+                        
+                        {/* Invite Code Section for login page if driver */}
+                        <div className="space-y-1 mt-4">
+                          <Label className="text-[10px] font-black text-slate-400 ms-1 uppercase flex items-center justify-center gap-1">
+                            <Link2 size={12} /> رمز الدعوة للسائقين (اختياري)
+                          </Label>
+                          <Input
+                            placeholder="إذا كان لديك رمز دعوة للربط بناقل، أدخله هنا"
+                            value={inviteCode}
+                            onChange={e => setInviteCode(e.target.value)}
+                            dir="ltr"
+                            className="h-10 rounded-xl border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary transition-all font-bold text-xs text-center shadow-sm"
+                          />
+                        </div>
+
+                        <div className="relative py-1 mt-2">
                           <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-slate-100"></span></div>
                           <div className="relative flex justify-center text-[9px] uppercase"><span className="bg-white/50 px-2 text-slate-300 font-black tracking-wider">{t('or')}</span></div>
                         </div>
