@@ -11,6 +11,7 @@ import { Star, Loader2, MapPin, Calendar, FileSearch, User, Phone, DollarSign, C
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { ShipmentLink } from '@/components/utils/ShipmentLink';
 
 export default function ShipperHistory() {
   const { userProfile } = useAuth();
@@ -181,6 +182,7 @@ export default function ShipperHistory() {
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-100">
                     <th className="p-6 font-black text-slate-600 text-sm">الحالة</th>
+                    <th className="p-6 font-black text-slate-600 text-sm">رقم الشحنة</th>
                     <th className="p-6 font-black text-slate-600 text-sm">المسار</th>
                     <th className="p-6 font-black text-slate-600 text-sm">التاريخ</th>
                     <th className="p-6 font-black text-slate-600 text-sm">السعر</th>
@@ -203,6 +205,9 @@ export default function ShipperHistory() {
                             {load.status === 'completed' ? 'مكتمل' : load.status === 'cancelled' ? 'ملغى' : 'قيد التنفيذ'}
                           </span>
                         </div>
+                      </td>
+                      <td className="p-6">
+                        <ShipmentLink id={load.id} />
                       </td>
                       <td className="p-6">
                         <div className="flex items-center gap-2">
@@ -252,8 +257,9 @@ export default function ShipperHistory() {
                 <span>تفاصيل الشحنة السابقة</span>
                 {getStatusIcon(selectedLoad?.status)}
               </DialogTitle>
-              <DialogDescription className="text-slate-500 font-bold mt-2">
-                رقم المرجع: #{selectedLoad?.id?.substring(0, 8).toUpperCase()}
+              <DialogDescription className="text-slate-500 font-bold mt-2 flex items-center justify-center gap-2">
+                <span>رقم المرجع:</span>
+                <ShipmentLink id={selectedLoad?.id} />
               </DialogDescription>
             </DialogHeader>
             {selectedLoad && (

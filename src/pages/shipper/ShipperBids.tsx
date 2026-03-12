@@ -21,6 +21,7 @@ import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
+import { ShipmentLink } from '@/components/utils/ShipmentLink';
 
 export default function ShipperBids() {
     const { userProfile } = useAuth();
@@ -138,9 +139,10 @@ export default function ShipperBids() {
                                                         <Navigation size={18} />
                                                         <span>{bid.loads?.origin || '---'} ← {bid.loads?.destination || '---'}</span>
                                                     </div>
-                                                    <Badge className="bg-slate-100 text-slate-600 border-none font-bold text-[10px]">
-                                                        رقم الشحنة: #{bid.load_id?.slice(0, 8)}
-                                                    </Badge>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-[10px] font-bold text-slate-400">رقم الشحنة:</span>
+                                                        <ShipmentLink id={bid.load_id} />
+                                                    </div>
                                                 </div>
                                                 <div className="text-end">
                                                     <p className="text-3xl font-black text-emerald-600">{bid.price}</p>

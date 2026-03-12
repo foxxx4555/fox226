@@ -12,6 +12,7 @@ import { WaybillPreview } from '@/components/WaybillPreview';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import PaymentModal from '@/components/finance/PaymentModal';
 import { financeApi } from '@/lib/finances';
+import { ShipmentLink } from '@/components/utils/ShipmentLink';
 
 export default function ShipperLoads() {
   const { userProfile } = useAuth();
@@ -199,7 +200,7 @@ export default function ShipperLoads() {
                       <div className="flex flex-col gap-3">
                         <div className="flex flex-wrap items-center gap-3 mb-2">
                           {getStatusBadge(load.status, load.id)}
-                          <span className="font-bold text-xs text-slate-400">ID: #{load.id.substring(0, 8).toUpperCase()}</span>
+                          <ShipmentLink id={load.id} />
                         </div>
                         <div className="flex items-center gap-3">
                           <span className="font-black text-xl md:text-2xl text-slate-800 flex items-center gap-2"><MapPin className="text-primary" size={20} /> {load.origin}</span>

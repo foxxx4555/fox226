@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { Loader2, ArrowRight, Mail, Lock, ShieldCheck, Eye, EyeOff, UserCircle2 } from 'lucide-react';
+import { Loader2, ArrowRight, Mail, Lock, ShieldCheck, Eye, EyeOff, UserCircle2, Link2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 

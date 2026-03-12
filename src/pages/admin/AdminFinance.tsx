@@ -18,6 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from '@/components/ui/label';
 import { motion } from 'framer-motion';
+import { ShipmentLink } from '@/components/utils/ShipmentLink';
 
 export default function AdminFinance() {
     const { userProfile } = useAuth();
@@ -309,13 +310,7 @@ export default function AdminFinance() {
                                                 <td className="px-6 py-5">
                                                     <p className="font-bold text-slate-700 text-sm">{new Date(trx.created_at).toLocaleDateString('ar-SA')}</p>
                                                     {trx.shipment_id && (
-                                                        <a
-                                                            href={`/admin/loads?search=${trx.shipment_id}`}
-                                                            className="inline-flex items-center mt-1 px-2 py-0.5 rounded bg-blue-50 text-blue-700 text-[10px] font-black hover:bg-blue-100 transition-colors"
-                                                        >
-                                                            <ExternalLink size={10} className="ml-1" />
-                                                            {trx.shipment_id.substring(0, 8).toUpperCase()}
-                                                        </a>
+                                                        <ShipmentLink id={trx.shipment_id} className="mt-1" />
                                                     )}
                                                 </td>
                                                 <td className="px-6 py-5">
@@ -462,7 +457,9 @@ export default function AdminFinance() {
                                     <tbody>
                                         {carrierEarningsLedger.map((row, index) => (
                                             <tr key={row.shipment_id || index} className="border-b hover:bg-slate-50">
-                                                <td className="p-4 font-black text-xs">{row.shipment_id?.substring(0, 8).toUpperCase()}</td>
+                                                <td className="p-4 font-black text-xs">
+                                                    <ShipmentLink id={row.shipment_id} />
+                                                </td>
                                                 <td className="p-4 font-bold text-sm">{row.carrier_name}</td>
                                                 <td className="p-4 text-center font-bold">{Number(row.total_amount).toLocaleString()} ر.س</td>
                                                 <td className="p-4 text-center font-black text-rose-600">{Number(row.commission_amount).toLocaleString()} ر.س</td>

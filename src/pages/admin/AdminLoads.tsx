@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { ShipmentLink } from '@/components/utils/ShipmentLink';
 
 // قاموس لترجمة الحالات في الإدارة
 const statusTranslations: Record<string, string> = {
@@ -226,7 +227,7 @@ export default function AdminLoads() {
                   <div>
                     <div className="flex items-center gap-3 mb-2">
                       {getStatusBadge(load.status)}
-                      <span className="text-xs font-black text-slate-400 capitalize">#{load.id.substring(0, 8)}</span>
+                      <ShipmentLink id={load.id} />
                       <span className="text-xs font-bold text-slate-400">{new Date(load.created_at).toLocaleDateString('ar-SA')}</span>
                     </div>
                     <h3 className="text-xl font-black text-slate-800 flex items-center gap-2">
@@ -274,7 +275,7 @@ export default function AdminLoads() {
             <DialogHeader>
               <DialogTitle className="text-3xl font-black text-slate-900 border-b pb-4 mb-4 flex items-center justify-between">
                 <span>تفاصيل الشحنة</span>
-                <span className="text-xl font-mono text-slate-400 bg-slate-50 px-4 py-1 rounded-xl">#{selectedLoad?.id?.substring(0, 8)}</span>
+                <ShipmentLink id={selectedLoad?.id} className="text-lg py-1.5" />
               </DialogTitle>
             </DialogHeader>
 

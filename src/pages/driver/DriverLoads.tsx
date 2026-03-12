@@ -11,6 +11,7 @@ import {
   Banknote, Calendar, Truck, User, Search, Filter, ArrowUpDown, ChevronDown
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { ShipmentLink } from '@/components/utils/ShipmentLink';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
