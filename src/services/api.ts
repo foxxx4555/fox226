@@ -831,20 +831,6 @@ export const api = {
           payment_method: 'bank_transfer',
           reference_number: adminNotes
         });
-
-        // 2. تحديث رصيد المحفظة (خصم)
-        const { data: wallet } = await (supabase as any)
-          .from('wallets')
-          .select('balance')
-          .eq('wallet_id', data.wallet_id)
-          .single();
-
-        if (wallet) {
-          await (supabase as any)
-            .from('wallets')
-            .update({ balance: Number(wallet.balance || 0) - Math.abs(Number(data.amount)) })
-            .eq('wallet_id', data.wallet_id);
-        }
       }
 
       return true;
