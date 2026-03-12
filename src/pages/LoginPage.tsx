@@ -50,6 +50,8 @@ export default function LoginPage() {
         'carrier_manager', 'vendor_manager', 'support', 'analytics'
       ];
 
+      const userRole = role.toLowerCase();
+
       if (userRole === 'driver') {
         if (inviteCode) {
           try {
