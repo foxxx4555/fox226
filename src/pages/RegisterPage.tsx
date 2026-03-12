@@ -94,7 +94,10 @@ export default function RegisterPage() {
     if (role === 'driver') {
       if (!files.license) { toast.error(t('license_required', 'يرجى رفع رخصة القيادة')); return false; }
       if (!files.idDoc) { toast.error(t('id_required', 'يرجى رفع الهوية الوطنية')); return false; }
-      if (!files.truckImg) { toast.error(t('truck_img_required', 'يرجى رفع صورة الشاحنة')); return false; }
+      if (!form.inviteCode && !files.truckImg) { 
+        toast.error(t('truck_img_required', 'يرجى رفع صورة الشاحنة')); 
+        return false; 
+      }
     }
     return true;
   };
@@ -124,16 +127,22 @@ export default function RegisterPage() {
       if (role === 'driver') {
         toast.info(t('uploading_docs', 'جاري رفع المستندات...'));
 
-        const [licenseUrl, idUrl, truckUrl] = await Promise.all([
-          api.uploadImage(files.license!, 'driver-docs'),
-          api.uploadImage(files.idDoc!, 'driver-docs'),
-          api.uploadImage(files.truckImg!, 'driver-docs')
-        ]);
+        const uploadPromises = [
+          api.uploadImage(files.license!, 'documents'),
+          api.uploadImage(files.idDoc!, 'documents'),
+        ];
+
+        let truckUrlTemp = '';
+        if (files.truckImg) {
+          uploadPromises.push(api.uploadImage(files.truckImg!, 'documents'));
+        }
+
+        const resolvedUrls = await Promise.all(uploadPromises);
 
         urls = {
-          driving_license_url: licenseUrl,
-          id_document_url: idUrl,
-          truck_image_url: truckUrl
+          driving_license_url: resolvedUrls[0] || '',
+          id_document_url: resolvedUrls[1] || '',
+          truck_image_url: resolvedUrls[2] || ''
         };
       }
 
@@ -306,28 +315,7 @@ export default function RegisterPage() {
                     />
                   </div>
 
-                  <AnimatePresence>
-                    {role === 'driver' && (
-                      <motion.div
-                        initial={{ opacity: 0, height: 0, marginTop: 0 }}
-                        animate={{ opacity: 1, height: 'auto', marginTop: 12 }}
-                        exit={{ opacity: 0, height: 0, marginTop: 0 }}
-                        className="space-y-1.5 overflow-hidden"
-                      >
-                        <Label className="text-[10px] font-black text-slate-400 ms-1 uppercase">رمز الدعوة (اختياري)</Label>
-                        <div className="relative group">
-                          <Link2 className={cn("absolute top-1/2 -translate-y-1/2 text-slate-300", i18n.language === 'ar' ? "right-4" : "left-4")} size={16} />
-                          <Input
-                            placeholder="إذا كان لديك رمز دعوة، أدخله هنا"
-                            value={form.inviteCode}
-                            onChange={e => setForm(p => ({ ...p, inviteCode: e.target.value }))}
-                            dir="ltr"
-                            className={cn("h-11 rounded-xl border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary transition-all font-bold text-xs shadow-sm", i18n.language === 'ar' ? "pr-11" : "pl-11")}
-                          />
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
+
 
                   {/* Password Grid */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -364,6 +352,29 @@ export default function RegisterPage() {
                       </div>
                     </div>
                   </div>
+
+                  <AnimatePresence>
+                    {role === 'driver' && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0, marginTop: 0 }}
+                        animate={{ opacity: 1, height: 'auto', marginTop: 12 }}
+                        exit={{ opacity: 0, height: 0, marginTop: 0 }}
+                        className="space-y-1.5 overflow-hidden pb-2"
+                      >
+                        <Label className="text-[10px] font-black text-slate-400 ms-1 uppercase">رمز دعوة السائق (اختياري)</Label>
+                        <div className="relative group">
+                          <Link2 className={cn("absolute top-1/2 -translate-y-1/2 text-slate-300", i18n.language === 'ar' ? "right-4" : "left-4")} size={16} />
+                          <Input
+                            placeholder="أدخل رمز الدعوة من الناقل هنا (إن وجد)"
+                            value={form.inviteCode}
+                            onChange={e => setForm(p => ({ ...p, inviteCode: e.target.value }))}
+                            dir="ltr"
+                            className={cn("h-11 rounded-xl border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary transition-all font-bold text-xs shadow-sm", i18n.language === 'ar' ? "pr-11" : "pl-11")}
+                          />
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
 
                   {/* Policies Checkboxes */}
                   <div className="space-y-1.5 bg-slate-50/50 p-3 rounded-xl border border-dashed border-slate-200">
@@ -424,14 +435,18 @@ export default function RegisterPage() {
                             onClick={() => truckRef.current?.click()}
                             className={cn(
                               "relative cursor-pointer group p-3 rounded-2xl border-2 border-dashed transition-all flex flex-col items-center justify-center gap-2",
-                              files.truckImg ? "border-emerald-200 bg-emerald-50/30" : "border-slate-100 bg-slate-50/50 hover:bg-slate-100/80 hover:border-primary/30"
+                              files.truckImg ? "border-emerald-200 bg-emerald-50/30" : "border-slate-100 bg-slate-50/50 hover:bg-slate-100/80 hover:border-primary/30",
+                              form.inviteCode && !files.truckImg ? "opacity-70" : ""
                             )}
                           >
                             <input type="file" ref={truckRef} onChange={e => setFiles(p => ({ ...p, truckImg: e.target.files?.[0] || null }))} className="hidden" accept="image/*" />
                             <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center transition-all", files.truckImg ? "bg-emerald-500 text-white" : "bg-white text-slate-400 group-hover:text-primary")}>
                               {files.truckImg ? <CheckCircle2 size={18} /> : <ImageIcon size={18} />}
                             </div>
-                            <span className="text-[9px] font-black text-slate-700">{t('truck_pic')}</span>
+                            <span className="text-[9px] font-black text-slate-700 text-center">
+                              {t('truck_pic')}
+                              {form.inviteCode && <span className="block text-[7px] text-slate-400 font-bold mt-1">(اختياري هنا)</span>}
+                            </span>
                             {files.truckImg && <span className="text-[7px] text-emerald-600 font-bold truncate max-w-full px-2">{files.truckImg.name}</span>}
                           </div>
                         </div>

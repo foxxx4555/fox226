@@ -3,12 +3,15 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Truck, Home, User, Menu, X, Download } from 'lucide-react';
+import { useAppStore } from '@/store/appStore';
 
 export const Navbar = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const { t, i18n } = useTranslation();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+    const { currentRole } = useAppStore();
 
     const isActive = (path: string) => location.pathname === path;
 
@@ -18,6 +21,22 @@ export const Navbar = () => {
         localStorage.setItem('i18nextLng', newLang);
         document.documentElement.dir = newLang === 'ar' ? 'rtl' : 'ltr';
         document.documentElement.lang = newLang;
+    };
+
+    const getHomeRoute = () => {
+        if (!currentRole) return '/';
+        const normalizedRole = currentRole.toLowerCase();
+        
+        if (normalizedRole === 'driver') return '/driver/dashboard';
+        if (normalizedRole === 'shipper') return '/shipper/dashboard';
+        
+        const adminRoles = [
+            'super_admin', 'admin', 'finance', 'operations',
+            'carrier_manager', 'vendor_manager', 'support', 'analytics'
+        ];
+        if (adminRoles.includes(normalizedRole)) return '/admin/dashboard';
+        
+        return '/';
     };
 
     return (
@@ -78,8 +97,8 @@ export const Navbar = () => {
                         {t('customers', 'العملاء')} <User size={18} />
                     </button>
                     <button
-                        onClick={() => navigate('/')}
-                        className={`font-bold text-sm flex items-center gap-2 transition-colors ${isActive('/') ? 'text-primary border-b-2 border-primary pb-1' : 'text-slate-600 hover:text-primary'}`}
+                        onClick={() => navigate(getHomeRoute())}
+                        className={`font-bold text-sm flex items-center gap-2 transition-colors ${isActive(getHomeRoute()) ? 'text-primary border-b-2 border-primary pb-1' : 'text-slate-600 hover:text-primary'}`}
                     >
                         {t('home_nav', 'الصفحة الرئيسية')} <Home size={18} />
                     </button>
@@ -92,7 +111,7 @@ export const Navbar = () => {
 
             {isMobileMenuOpen && (
                 <div className="fixed inset-0 z-[99] bg-white pt-24 px-8 flex flex-col md:hidden" dir={i18n.language === 'ar' ? 'rtl' : 'ltr'}>
-                    <button onClick={() => { navigate('/'); setIsMobileMenuOpen(false); }} className={`py-4 text-xl font-black border-b border-slate-50 text-right flex items-center justify-end gap-3 ${isActive('/') ? 'text-primary' : 'text-slate-800'}`}>
+                    <button onClick={() => { navigate(getHomeRoute()); setIsMobileMenuOpen(false); }} className={`py-4 text-xl font-black border-b border-slate-50 text-right flex items-center justify-end gap-3 ${isActive(getHomeRoute()) ? 'text-primary' : 'text-slate-800'}`}>
                         {t('home_nav', 'الصفحة الرئيسية')} <Home size={22} />
                     </button>
                     <button onClick={() => { navigate('/drivers'); setIsMobileMenuOpen(false); }} className={`py-4 text-xl font-black border-b border-slate-50 text-right flex items-center justify-end gap-3 ${isActive('/drivers') ? 'text-primary' : 'text-slate-800'}`}>

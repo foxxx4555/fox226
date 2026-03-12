@@ -200,8 +200,6 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     { label: "المراسلات", path: '/shipper/messaging', icon: <MessageSquare size={20} /> },
     { label: "الملف الشخصي", path: '/shipper/account', icon: <Settings size={20} /> },
     { label: "الدعم الفني", path: '/shipper/support', icon: <HelpCircle size={20} /> },
-    { label: "الشروط والأحكام", path: '/terms', icon: <FileText size={20} /> },
-    { label: "سياسة الخصوصية", path: '/privacy', icon: <ShieldCheck size={20} /> },
   ] : [
     { label: "الرئيسية", path: '/driver/dashboard', icon: <LayoutDashboard size={20} /> },
     { label: "الشحنات المتاحة", path: '/driver/loads', icon: <Search size={20} /> },
@@ -215,8 +213,6 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     { label: "المراسلات", path: '/driver/messaging', icon: <MessageSquare size={20} /> },
     { label: "الملف الشخصي", path: '/driver/account', icon: <Settings size={20} /> },
     { label: "الدعم الفني", path: '/driver/support', icon: <HelpCircle size={20} /> },
-    { label: "الشروط والأحكام", path: '/terms', icon: <FileText size={20} /> },
-    { label: "سياسة الخصوصية", path: '/privacy', icon: <ShieldCheck size={20} /> },
   ];
 
   if (currentRole === 'driver' && !(userProfile as any)?.is_verified) {

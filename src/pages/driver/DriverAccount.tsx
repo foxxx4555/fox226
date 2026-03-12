@@ -12,8 +12,9 @@ import { toast } from 'sonner';
 import { Loader2, User, Phone, Mail, ShieldCheck, CheckCircle2, Building, Image as ImageIcon, Briefcase, Truck } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { motion } from 'framer-motion';
-import { FileUp, FileCheck } from 'lucide-react';
+import { FileUp, FileCheck, FileText } from 'lucide-react';
 import { useRef } from 'react';
+import { Link } from 'react-router-dom';
 export default function DriverAccount() {
   const { userProfile } = useAuth();
   const { setUserProfile } = useAppStore();
@@ -339,6 +340,25 @@ export default function DriverAccount() {
                   </div>
                 </div>
               </div>
+              
+              {/* Policy Links Section */}
+              <div className="mt-12 pt-10 border-t border-slate-50">
+                <div className="flex flex-col gap-4">
+                  <Link to="/terms" className="flex items-center gap-4 p-4 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-100 transition-colors group justify-end">
+                    <span className="font-bold text-slate-700 group-hover:text-blue-600 transition-colors">الشروط والأحكام</span>
+                    <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-slate-500 group-hover:text-blue-600 shadow-sm">
+                      <FileText size={20} />
+                    </div>
+                  </Link>
+                  <Link to="/privacy" className="flex items-center gap-4 p-4 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-100 transition-colors group justify-end">
+                    <span className="font-bold text-slate-700 group-hover:text-blue-600 transition-colors">سياسة الخصوصية</span>
+                    <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-slate-500 group-hover:text-blue-600 shadow-sm">
+                      <ShieldCheck size={20} />
+                    </div>
+                  </Link>
+                </div>
+              </div>
+
             </Card>
           </div>
         </div>
