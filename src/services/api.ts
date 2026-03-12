@@ -857,17 +857,49 @@ export const api = {
   // Admin: Get all shipper payment proofs
   async getPendingShipperPayments() {
     try {
-      const { data, error } = await (supabase as any)
+      // 1. Fetch payments
+      const { data: payments, error } = await (supabase as any)
         .from('shipper_payments')
         .select(`
           *,
-          shipper:profiles!shipper_id(full_name, phone, email),
-          auditor:profiles!processed_by(full_name)
+          shipper:profiles!shipper_id(id, full_name, phone, email)
         `)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return data || [];
+      if (!payments || payments.length === 0) return [];
+
+      // 2. Get unique shipper IDs
+      const shipperIds = [...new Set(payments.map((p: any) => p.shipper_id))];
+
+      // 3. Fetch all history for these shippers to calculate real totals
+      const [ allApprovedRes, allLoadsRes ] = await Promise.all([
+        (supabase as any).from('shipper_payments').select('shipper_id, amount').in('shipper_id', shipperIds).eq('status', 'approved'),
+        (supabase as any).from('loads').select('owner_id, price').in('owner_id', shipperIds).in('status', ['completed', 'delivered', 'in_progress'])
+      ]);
+
+      const paidMap = (allApprovedRes.data || []).reduce((acc: any, p: any) => {
+        acc[p.shipper_id] = (acc[p.shipper_id] || 0) + Number(p.amount || 0);
+        return acc;
+      }, {});
+      
+      const debtMap = (allLoadsRes.data || []).reduce((acc: any, l: any) => {
+        acc[l.owner_id] = (acc[l.owner_id] || 0) + Number(l.price || 0);
+        return acc;
+      }, {});
+
+      // 4. Enrich payments with real computed numbers
+      return payments.map((p: any) => {
+        const totalPaid = Number(paidMap[p.shipper_id] || 0);
+        const totalDebt = Number(debtMap[p.shipper_id] || 0);
+        
+        return {
+          ...p,
+          shipper_balance: Math.max(0, totalPaid - totalDebt), 
+          shipper_debt: totalDebt,
+          remaining_debt: Math.max(0, totalDebt - totalPaid)
+        };
+      });
     } catch (e) {
       console.warn("Error fetching shipper payments:", e);
       return [];

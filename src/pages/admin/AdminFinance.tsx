@@ -386,6 +386,8 @@ export default function AdminFinance() {
                                             <th className="px-6 py-5 font-black text-slate-500 text-sm">التاريخ</th>
                                             <th className="px-6 py-5 font-black text-slate-500 text-sm">الشاحن</th>
                                             <th className="px-6 py-5 font-black text-slate-500 text-sm text-center">المبلغ</th>
+                                            <th className="px-6 py-5 font-black text-blue-600 text-sm text-center">الرصيد المتاح</th>
+                                            <th className="px-6 py-5 font-black text-rose-600 text-sm text-center">المتبقي (المديونية)</th>
                                             <th className="px-6 py-5 font-black text-slate-500 text-sm text-center">الحالة</th>
                                             <th className="px-6 py-5 font-black text-slate-500 text-sm text-center">الإجراء</th>
                                         </tr>
@@ -402,6 +404,12 @@ export default function AdminFinance() {
                                                 </td>
                                                 <td className="px-6 py-5 text-center font-black text-slate-900">
                                                     {Number(p.amount).toLocaleString()} ر.س
+                                                </td>
+                                                <td className="px-6 py-5 text-center font-black text-blue-600">
+                                                    {Number(p.shipper_balance || 0).toLocaleString()} ر.س
+                                                </td>
+                                                <td className="px-6 py-5 text-center font-black text-rose-600">
+                                                    {Number(p.remaining_debt || 0).toLocaleString()} ر.س
                                                 </td>
                                                 <td className="px-6 py-5 text-center">
                                                     <Badge className={`rounded-lg px-3 py-1 font-black ${

@@ -113,6 +113,11 @@ export type Database = {
           type: string | null
           updated_at: string
           weight: number | null
+          quantity: number | null
+          unit: string | null
+          goods_value: number | null
+          insurance_value: number | null
+          payment_method: string | null
         }
         Insert: {
           body_type?: Database["public"]["Enums"]["body_type"] | null
@@ -141,6 +146,11 @@ export type Database = {
           type?: string | null
           updated_at?: string
           weight?: number | null
+          quantity?: number | null
+          unit?: string | null
+          goods_value?: number | null
+          insurance_value?: number | null
+          payment_method?: string | null
         }
         Update: {
           body_type?: Database["public"]["Enums"]["body_type"] | null
@@ -169,6 +179,11 @@ export type Database = {
           type?: string | null
           updated_at?: string
           weight?: number | null
+          quantity?: number | null
+          unit?: string | null
+          goods_value?: number | null
+          insurance_value?: number | null
+          payment_method?: string | null
         }
         Relationships: []
       }
