@@ -83,6 +83,14 @@ export default function AdminLoads() {
     return () => { supabase.removeChannel(channel); };
   }, []);
 
+  // تحديث البحث عند تغيير البارامترات في الرابط (للسماح بالتحويل من صفحات أخرى)
+  useEffect(() => {
+    const search = searchParams.get('search');
+    if (search !== null) {
+      setSearchQuery(search);
+    }
+  }, [searchParams]);
+
   const handleForceCancelClick = (id: string) => {
     setLoadToCancel(id);
     setCancelReason("");
@@ -164,10 +172,11 @@ export default function AdminLoads() {
   };
 
   const filteredLoads = loads.filter(load => {
-    const matchesSearch = load.id.includes(searchQuery) ||
-      load.origin.includes(searchQuery) ||
-      load.destination.includes(searchQuery) ||
-      (load.shipper?.full_name || '').includes(searchQuery);
+    const normalizedQuery = searchQuery.replace('#', '').toLowerCase();
+    const matchesSearch = load.id.toLowerCase().includes(normalizedQuery) ||
+      load.origin.toLowerCase().includes(normalizedQuery) ||
+      load.destination.toLowerCase().includes(normalizedQuery) ||
+      (load.shipper?.full_name || '').toLowerCase().includes(normalizedQuery);
     
     const matchesStatus = statusFilter ? load.status === statusFilter : true;
     
@@ -271,89 +280,106 @@ export default function AdminLoads() {
         )}
 
         <Dialog open={showLoadDetails} onOpenChange={setShowLoadDetails}>
-          <DialogContent className="max-w-3xl rounded-[2.5rem] p-8" dir="rtl">
+          <DialogContent className="max-w-3xl w-[95vw] sm:w-full max-h-[90vh] overflow-y-auto rounded-[2rem] sm:rounded-[2.5rem] p-4 sm:p-8" dir="rtl">
             <DialogHeader>
-              <DialogTitle className="text-3xl font-black text-slate-900 border-b pb-4 mb-4 flex items-center justify-between">
+              <DialogTitle className="text-2xl sm:text-3xl font-black text-slate-900 border-b pb-4 mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
                 <span>تفاصيل الشحنة</span>
                 <ShipmentLink id={selectedLoad?.id} className="text-lg py-1.5" />
               </DialogTitle>
             </DialogHeader>
 
             {selectedLoad && (
-              <div className="space-y-8">
-                <div className="flex flex-wrap gap-4">
+              <div className="space-y-6 sm:space-y-8">
+                <div className="flex flex-wrap gap-2 sm:gap-4">
                   {getStatusBadge(selectedLoad.status)}
-                  <Badge variant="outline" className="font-bold text-slate-600 bg-slate-50"><Clock size={16} className="me-2" /> نشرت في {new Date(selectedLoad.created_at).toLocaleDateString('ar-SA')}</Badge>
+                  <Badge variant="outline" className="font-bold text-slate-600 bg-slate-50">
+                    <Clock size={16} className="me-2" /> 
+                    نشرت في {selectedLoad.created_at ? new Date(selectedLoad.created_at).toLocaleDateString('ar-SA') : '---'}
+                  </Badge>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50 p-6 rounded-3xl border border-slate-100">
-                  <div>
-                    <p className="text-xs font-black text-slate-400 mb-2">معلومات النقل</p>
-                    <div className="flex flex-col gap-4">
-                      <div className="flex items-start gap-3">
-                        <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600"><MapPin size={20} /></div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 bg-slate-50 p-4 sm:p-6 rounded-3xl border border-slate-100">
+                  <div className="space-y-4">
+                    <p className="text-xs font-black text-slate-400 uppercase tracking-wider mb-2">معلومات النقل</p>
+                    <div className="flex flex-col gap-5">
+                      <div className="flex items-start gap-4">
+                        <div className="w-10 h-10 shrink-0 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 shadow-sm"><MapPin size={20} /></div>
                         <div>
-                          <p className="font-bold text-slate-800">من: {selectedLoad.origin}</p>
-                          <p className="text-sm text-slate-500">{new Date(selectedLoad.pickup_date).toLocaleDateString('ar-SA')}</p>
+                          <p className="text-xs text-slate-400 font-bold mb-0.5">من (نقطة الانطلاق)</p>
+                          <p className="font-black text-slate-800 text-lg">{selectedLoad.origin}</p>
+                          <p className="text-sm text-slate-500 font-bold">{selectedLoad.pickup_date ? new Date(selectedLoad.pickup_date).toLocaleDateString('ar-SA') : 'غير محدد'}</p>
                         </div>
                       </div>
-                      <div className="flex items-start gap-3">
-                        <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600"><MapPin size={20} /></div>
+                      <div className="flex items-start gap-4">
+                        <div className="w-10 h-10 shrink-0 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 shadow-sm"><MapPin size={20} /></div>
                         <div>
-                          <p className="font-bold text-slate-800">إلى: {selectedLoad.destination}</p>
-                          <p className="text-sm text-slate-500">{new Date(selectedLoad.delivery_date).toLocaleDateString('ar-SA')}</p>
+                          <p className="text-xs text-slate-400 font-bold mb-0.5">إلى (نقطة الوصول)</p>
+                          <p className="font-black text-slate-800 text-lg">{selectedLoad.destination}</p>
+                          <p className="text-sm text-slate-500 font-bold">{selectedLoad.delivery_date ? new Date(selectedLoad.delivery_date).toLocaleDateString('ar-SA') : 'غير محدد'}</p>
                         </div>
                       </div>
                     </div>
                   </div>
-                  <div>
-                    <p className="text-xs font-black text-slate-400 mb-2">تفاصيل إضافية</p>
-                    <div className="space-y-3 font-bold text-slate-700">
-                      <p>نوع الشاحنة: <span className="text-slate-900">{selectedLoad.truck_type?.replace('_', ' ') || 'غير محدد'}</span></p>
-                      <p>الوزن: <span className="text-slate-900">{selectedLoad.weight} كجم</span></p>
-                      <p>السعر: <span className="text-emerald-600 text-xl font-black">{selectedLoad.price} ر.س</span></p>
+                  
+                  <div className="pt-4 md:pt-0 md:border-r md:pr-6 border-slate-200">
+                    <p className="text-xs font-black text-slate-400 uppercase tracking-wider mb-4">تفاصيل الشحنة والوزن</p>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="bg-white p-3 rounded-2xl border border-slate-100">
+                        <p className="text-[10px] font-black text-slate-400 mb-1">نوع الشاحنة</p>
+                        <p className="font-bold text-slate-900 text-sm">{selectedLoad.truck_type?.replace('_', ' ') || 'غير محدد'}</p>
+                      </div>
+                      <div className="bg-white p-3 rounded-2xl border border-slate-100">
+                        <p className="text-[10px] font-black text-slate-400 mb-1">الوزن</p>
+                        <p className="font-bold text-slate-900 text-sm">{selectedLoad.weight || 0} كجم</p>
+                      </div>
+                      <div className="bg-emerald-50 p-3 rounded-2xl border border-emerald-100 col-span-2">
+                        <p className="text-[10px] font-black text-emerald-600 mb-1">إجمالي السعر</p>
+                        <p className="font-black text-emerald-700 text-2xl">{selectedLoad.price} <span className="text-xs">ر.س</span></p>
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="p-5 border border-slate-200 rounded-3xl">
-                    <h4 className="font-black text-slate-800 mb-3 flex items-center gap-2"><Package size={18} /> تفاصيل الشاحن</h4>
-                    <p className="font-bold text-slate-800">{selectedLoad.shipper?.full_name || 'غير معروف'}</p>
-                    <p className="text-slate-500 text-sm font-bold mt-1" dir="ltr">{selectedLoad.shipper?.phone}</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="p-5 border-2 border-slate-50 rounded-3xl bg-white hover:border-blue-100 transition-colors group">
+                    <h4 className="font-black text-slate-800 mb-3 flex items-center gap-2 group-hover:text-blue-600 transition-colors"><Package size={18} /> تفاصيل الشاحن</h4>
+                    <p className="font-black text-slate-800">{selectedLoad.shipper?.full_name || 'غير معروف'}</p>
+                    <p className="text-slate-500 text-sm font-bold mt-1 tracking-tight" dir="ltr">{selectedLoad.shipper?.phone}</p>
                   </div>
-                  <div className="p-5 border border-slate-200 rounded-3xl">
-                    <h4 className="font-black text-slate-800 mb-3 flex items-center gap-2"><Truck size={18} /> تفاصيل الناقل</h4>
-                    <p className="font-bold text-slate-800">{selectedLoad.driver?.full_name || 'لم يتم القبول بعد'}</p>
-                    <p className="text-slate-500 text-sm font-bold mt-1" dir="ltr">{selectedLoad.driver?.phone || '---'}</p>
+                  <div className="p-5 border-2 border-slate-50 rounded-3xl bg-white hover:border-emerald-100 transition-colors group">
+                    <h4 className="font-black text-slate-800 mb-3 flex items-center gap-2 group-hover:text-emerald-600 transition-colors"><Truck size={18} /> تفاصيل الناقل</h4>
+                    <p className="font-black text-slate-800">{selectedLoad.driver?.full_name || 'بانتظار القبول'}</p>
+                    <p className="text-slate-500 text-sm font-bold mt-1 tracking-tight" dir="ltr">{selectedLoad.driver?.phone || '---'}</p>
                   </div>
                 </div>
 
-                <div className="space-y-3">
+                <div className="space-y-3 pt-4 border-t border-slate-100">
                   <Label className="font-black text-slate-800 text-lg flex items-center gap-2">
                     <Edit size={20} className="text-blue-500" />
-                    ملاحظات إدارية (مخفية عن الأطراف)
+                    ملاحظات إدارية (مخفية)
                   </Label>
                   <Textarea
-                    placeholder="أضف ملاحظاتك حول الشحنة، المشاكل المسجلة، وما إلى ذلك..."
+                    placeholder="أضف ملاحظاتك حول الشحنة هنا..."
                     value={adminNotes}
                     onChange={(e) => setAdminNotes(e.target.value)}
-                    className="h-32 rounded-2xl border-2 bg-slate-50 font-bold p-4 resize-none"
+                    className="h-32 rounded-2xl border-2 border-slate-100 focus:border-blue-400 bg-slate-50 font-bold p-4 resize-none transition-all"
                   />
                 </div>
               </div>
             )}
 
-            <DialogFooter className="mt-8 pt-6 border-t border-slate-100 flex-col sm:flex-row gap-3">
-              <Button onClick={() => window.open(`https://maps.google.com/?q=${selectedLoad?.destination}`, '_blank')} variant="outline" className="h-14 flex-1 rounded-2xl font-bold border-2 border-slate-200 hover:bg-slate-50 text-slate-700">
-                <MapPin size={20} className="me-2 text-blue-500" /> تتبع المسار (مباشر)
-              </Button>
-              <Button onClick={() => toast.success('جاري عرض بوليصة الشحن...')} variant="outline" className="h-14 flex-1 rounded-2xl font-bold border-2 border-slate-200 hover:bg-slate-50">
-                <FileSignature size={20} className="me-2 text-slate-600" /> البوليصة
-              </Button>
-              <Button onClick={handleSaveNotes} className="h-14 flex-1 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-black text-lg shadow-lg shadow-blue-500/20">
-                حفظ تعديلاتك
-              </Button>
+            <DialogFooter className="mt-8 pt-6 border-t border-slate-100 flex flex-col sm:flex-row gap-3">
+              <div className="flex flex-col sm:flex-row gap-2 w-full">
+                <Button onClick={() => window.open(`https://maps.google.com/?q=${selectedLoad?.destination}`, '_blank')} variant="outline" className="h-12 flex-1 rounded-xl font-bold border-2 border-slate-100 hover:bg-slate-50 text-slate-700">
+                  <MapPin size={18} className="me-2 text-blue-500" /> الخريطة
+                </Button>
+                <Button onClick={() => toast.success('جاري عرض بوليصة الشحن...')} variant="outline" className="h-12 flex-1 rounded-xl font-bold border-2 border-slate-100 hover:bg-slate-50">
+                  <FileSignature size={18} className="me-2 text-slate-600" /> البوليصة
+                </Button>
+                <Button onClick={handleSaveNotes} className="h-12 flex-[1.5] rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-black text-lg shadow-lg shadow-slate-200">
+                  حفظ التعديلات
+                </Button>
+              </div>
             </DialogFooter>
           </DialogContent>
         </Dialog>

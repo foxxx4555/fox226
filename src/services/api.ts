@@ -872,36 +872,37 @@ export const api = {
       // 2. Get unique shipper IDs
       const shipperIds = [...new Set(payments.map((p: any) => p.shipper_id))];
 
-      // 3. Fetch all history for these shippers to calculate real totals
-      const [ allApprovedRes, allLoadsRes ] = await Promise.all([
-        (supabase as any).from('shipper_payments').select('shipper_id, amount').in('shipper_id', shipperIds).eq('status', 'approved'),
-        (supabase as any).from('loads').select('owner_id, price').in('owner_id', shipperIds).in('status', ['completed', 'delivered', 'in_progress'])
-      ]);
+      // 3. Fetch real financial summary from server (bypasses RLS issues for admin)
+      console.log("Fetching financial summary for shippers:", shipperIds);
+      const { data: summaryData, error: summaryError } = await (supabase as any).rpc('get_shipper_financial_summary', {
+        p_shipper_ids: shipperIds
+      });
 
-      const paidMap = (allApprovedRes.data || []).reduce((acc: any, p: any) => {
-        acc[p.shipper_id] = (acc[p.shipper_id] || 0) + Number(p.amount || 0);
-        return acc;
-      }, {});
-      
-      const debtMap = (allLoadsRes.data || []).reduce((acc: any, l: any) => {
-        acc[l.owner_id] = (acc[l.owner_id] || 0) + Number(l.price || 0);
-        return acc;
-      }, {});
+      if (summaryError) {
+        console.error("RPC Error (get_shipper_financial_summary):", summaryError);
+        // We will continue and use fallback values or 0
+      }
 
-      // 4. Enrich payments with real computed numbers
+      console.log("Financial summary received:", summaryData);
+      const summaryMap = (summaryData || []).reduce((acc: any, s: any) => ({ ...acc, [s.shipper_id]: s }), {});
+
+      // 4. Enrich payments with real computed numbers from the server
       return payments.map((p: any) => {
-        const totalPaid = Number(paidMap[p.shipper_id] || 0);
-        const totalDebt = Number(debtMap[p.shipper_id] || 0);
+        const summary = summaryMap[p.shipper_id];
         
+        if (!summary) {
+          console.warn(`No financial summary found for shipper ${p.shipper_id} (${p.shipper?.full_name})`);
+        }
+
         return {
           ...p,
-          shipper_balance: Math.max(0, totalPaid - totalDebt), 
-          shipper_debt: totalDebt,
-          remaining_debt: Math.max(0, totalDebt - totalPaid)
+          shipper_balance: summary ? Number(summary.net_balance) : 0, 
+          shipper_debt: summary ? Number(summary.total_debt) : 0,
+          remaining_debt: summary ? Number(summary.remaining_debt) : 0
         };
       });
     } catch (e) {
-      console.warn("Error fetching shipper payments:", e);
+      console.error("Critical error in getPendingShipperPayments:", e);
       return [];
     }
   },
@@ -918,7 +919,7 @@ export const api = {
 
       if (fetchError || !payment) throw fetchError || new Error('Payment not found');
 
-      // 2. Update payment status directly
+      // 2. Update payment status
       const { error: updateError } = await (supabase as any)
         .from('shipper_payments')
         .update({
@@ -930,9 +931,8 @@ export const api = {
 
       if (updateError) throw updateError;
 
-      // 3. If approved -> update wallet balance
+      // 3. If approved -> record transaction
       if (status === 'approved') {
-        // Get shipper wallet
         let { data: wallet } = await (supabase as any)
           .from('wallets')
           .select('wallet_id, balance')
@@ -941,7 +941,6 @@ export const api = {
           .maybeSingle();
 
         if (!wallet) {
-          // Create wallet if missing
           const { data: newWallet } = await (supabase as any)
             .from('wallets')
             .insert({ user_id: payment.shipper_id, user_type: 'shipper', balance: 0 })
@@ -951,35 +950,6 @@ export const api = {
         }
 
         if (wallet) {
-          // Compute total approved payments for this shipper
-          const { data: approvedPayments } = await (supabase as any)
-            .from('shipper_payments')
-            .select('amount')
-            .eq('shipper_id', payment.shipper_id)
-            .eq('status', 'approved');
-
-          const totalApproved = (approvedPayments || [])
-            .reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
-
-          // Compute total debt (completed loads)
-          const { data: shipper_loads } = await (supabase as any)
-            .from('loads')
-            .select('price')
-            .eq('owner_id', payment.shipper_id)
-            .in('status', ['completed', 'delivered', 'in_progress']);
-
-          const totalDebt = (shipper_loads || [])
-            .reduce((sum: number, l: any) => sum + Number(l.price || 0), 0);
-
-          // New balance = paid - debt (negative = still owes)
-          const newBalance = totalApproved - totalDebt;
-
-          await (supabase as any)
-            .from('wallets')
-            .update({ balance: newBalance })
-            .eq('wallet_id', wallet.wallet_id);
-
-          // Optional: try to record a financial transaction
           try {
             const txPayload: Record<string, any> = {
               wallet_id: wallet.wallet_id,
@@ -988,13 +958,12 @@ export const api = {
               transaction_type: 'payment',
               description: (adminNotes || 'اعتماد دفعة') + ' - شحنة #' + String(payment.shipment_id || '').slice(0, 8)
             };
-            // Only add shipment_id if it's a valid value
             if (payment.shipment_id && payment.shipment_id !== 'null') {
               txPayload.shipment_id = payment.shipment_id;
             }
             await (supabase as any).from('financial_transactions').insert(txPayload);
-          } catch (_) {
-            // Non-fatal: wallet already updated above
+          } catch (txErr) {
+            console.error("Non-fatal: transaction record error:", txErr);
           }
         }
       }
@@ -1006,7 +975,7 @@ export const api = {
     }
   },
 
-  // Admin/Finance: Approve frozen earnings for a driver (Phase 1/3)
+  // Admin/Finance: Approve frozen earnings for a driver
   async approveShipmentEarnings(shipmentId: string) {
     const { error } = await (supabase as any).rpc('approve_carrier_earnings', {
       p_shipment_id: shipmentId

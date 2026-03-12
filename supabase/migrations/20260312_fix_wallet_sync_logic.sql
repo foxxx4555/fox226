@@ -104,8 +104,8 @@ BEGIN
 
         -- Manually update for immediate effect without waiting for a full sync
         UPDATE public.wallets 
-        SET frozen_balance = frozen_balance - v_amount,
-            balance = balance + v_amount
+        SET frozen_balance = GREATEST(0, COALESCE(frozen_balance, 0) - v_amount),
+            balance = COALESCE(balance, 0) + v_amount
         WHERE wallet_id = v_carrier_wallet_id;
 
         -- Finalize status

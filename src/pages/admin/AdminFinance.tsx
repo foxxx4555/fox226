@@ -49,6 +49,7 @@ export default function AdminFinance() {
     const [paymentAdminNotes, setPaymentAdminNotes] = useState('');
     const [processingPayment, setProcessingPayment] = useState(false);
     const [isApprovingSettlement, setIsApprovingSettlement] = useState(false);
+    const [processingShipmentId, setProcessingShipmentId] = useState<string | null>(null);
 
     const fetchFinanceData = async () => {
         try {
@@ -137,6 +138,7 @@ export default function AdminFinance() {
 
     const handleApproveSettlement = async (shipmentId: string) => {
         setIsApprovingSettlement(true);
+        setProcessingShipmentId(shipmentId);
         try {
             await api.approveShipmentEarnings(shipmentId);
             toast.success("تم اعتماد أرباح الناقل وتحويلها للمحفظة 💰");
@@ -145,6 +147,7 @@ export default function AdminFinance() {
             toast.error("فشل اعتماد الأرباح (تأكد من عدم تكرار العملية)");
         } finally {
             setIsApprovingSettlement(false);
+            setProcessingShipmentId(null);
         }
     };
 
@@ -386,7 +389,7 @@ export default function AdminFinance() {
                                             <th className="px-6 py-5 font-black text-slate-500 text-sm">التاريخ</th>
                                             <th className="px-6 py-5 font-black text-slate-500 text-sm">الشاحن</th>
                                             <th className="px-6 py-5 font-black text-slate-500 text-sm text-center">المبلغ</th>
-                                            <th className="px-6 py-5 font-black text-blue-600 text-sm text-center">الرصيد المتاح</th>
+                                             <th className="px-6 py-5 font-black text-blue-600 text-sm text-center">الرصيد الحالي</th>
                                             <th className="px-6 py-5 font-black text-rose-600 text-sm text-center">المتبقي (المديونية)</th>
                                             <th className="px-6 py-5 font-black text-slate-500 text-sm text-center">الحالة</th>
                                             <th className="px-6 py-5 font-black text-slate-500 text-sm text-center">الإجراء</th>
@@ -405,7 +408,7 @@ export default function AdminFinance() {
                                                 <td className="px-6 py-5 text-center font-black text-slate-900">
                                                     {Number(p.amount).toLocaleString()} ر.س
                                                 </td>
-                                                <td className="px-6 py-5 text-center font-black text-blue-600">
+                                                <td className={`px-6 py-5 text-center font-black ${Number(p.shipper_balance || 0) < 0 ? 'text-rose-600' : 'text-blue-600'}`}>
                                                     {Number(p.shipper_balance || 0).toLocaleString()} ر.س
                                                 </td>
                                                 <td className="px-6 py-5 text-center font-black text-rose-600">
@@ -480,7 +483,7 @@ export default function AdminFinance() {
                                                             onClick={() => handleApproveSettlement(row.shipment_id)}
                                                             disabled={isApprovingSettlement}
                                                         >
-                                                            {isApprovingSettlement ? <Loader2 size={14} className="animate-spin" /> : 'اعتماد وترحيل'}
+                                                            {isApprovingSettlement && processingShipmentId === row.shipment_id ? <Loader2 size={14} className="animate-spin" /> : 'اعتماد وترحيل'}
                                                         </Button>
                                                     ) : (
                                                         <Badge className="bg-emerald-50 text-emerald-600 border-none font-bold">مرحّلة للمحفظة ✅</Badge>
