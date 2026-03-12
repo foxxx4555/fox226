@@ -14,6 +14,7 @@ import {
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
+import { ShipmentLink } from '@/components/utils/ShipmentLink';
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis,
   CartesianGrid, Tooltip
@@ -202,7 +203,7 @@ export default function DriverHistory() {
                     <div className="text-center md:text-left w-full md:w-auto border-t md:border-none pt-4 md:pt-0 flex flex-col items-center md:items-end gap-3">
                       <div>
                         <p className="text-2xl font-black text-emerald-600 tabular-nums">+{formatCurrency(load.price)} <span className="text-xs">ر.س</span></p>
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1 italic text-center md:text-left">ID: {load.id.slice(0, 8)}</p>
+                        <ShipmentLink id={load.id} className="mt-1" />
                       </div>
                       <div className="flex gap-2 w-full md:w-auto">
                         <Button variant="outline" size="sm" onClick={() => setSelectedLoad(load)} className="rounded-xl border-blue-200 text-blue-600 font-bold hover:bg-blue-50 w-full md:w-auto"><Eye size={16} className="ml-1" /> التفاصيل</Button>

@@ -367,7 +367,11 @@ export default function DriverLoads() {
                 <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg"><Package size={22} /></div>
                 <div>
                   <h2 className="text-xl font-black">تفاصيل الشحنة</h2>
-                  <p className="text-[10px] text-slate-400 font-bold uppercase">ID: {selectedLoad?.id?.slice(0, 8)}</p>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-slate-400 font-bold uppercase">رقم الشحنة:</span>
+                    <ShipmentLink id={selectedLoad?.id} />
+                  </div>
+
                 </div>
               </div>
               <Button variant="ghost" size="icon" onClick={() => setSelectedLoad(null)} className="text-white hover:bg-white/10 rounded-full"><X /></Button>
