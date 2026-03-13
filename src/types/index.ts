@@ -23,6 +23,7 @@ export interface UserProfile {
   longitude?: number;
   last_seen_at?: string;
   status?: string;
+  iban?: string;
   user_roles?: { role: UserRole }[];
 }
 

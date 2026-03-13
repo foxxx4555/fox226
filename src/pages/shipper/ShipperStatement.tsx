@@ -141,6 +141,8 @@ export default function ShipperStatement() {
     const [invoices, setInvoices] = useState<any[]>([]);
     const [activeTab, setActiveTab] = useState('activity');
     const [loadBalances, setLoadBalances] = useState<Record<string, { total: number, paid: number, remaining: number }>>({});
+    const [selectedInvoiceIds, setSelectedInvoiceIds] = useState<string[]>([]);
+    const [paymentReference, setPaymentReference] = useState('');
 
     const handleResetAccount = async () => {
         if (!confirm("تنبيه: سيتم حذف كافة الشحنات والعمليات بصفة نهائية. هل أنت متأكد؟")) return;
@@ -413,8 +415,8 @@ export default function ShipperStatement() {
     }, [transactions, userLoads]);
 
     const handlePayDebt = async () => {
-        if (!selectedLoadId || selectedLoadId === 'general') {
-            toast.error("يرجى اختيار الشحنة المراد سدادها");
+        if (selectedInvoiceIds.length === 0 && (!selectedLoadId || selectedLoadId === 'general')) {
+            toast.error("يرجى اختيار الفواتير أو الشحنة المراد سدادها");
             return;
         }
 
@@ -428,27 +430,28 @@ export default function ShipperStatement() {
             return;
         }
 
-        if (selectedLoadId !== 'general') {
-            const selectedLoad = userLoads.find(l => l.id === selectedLoadId);
-            if (selectedLoad && selectedLoad.price) {
-                if (Number(paymentAmount) > selectedLoad.price) {
-                    toast.error(`المبلغ المدفوع يجب أن لا يتجاوز إجمالي الشحنة (${selectedLoad.price} ر.س)`);
-                    return;
-                }
-            }
-        }
-
         setIsSubmitting(true);
         try {
             const proofUrl = await api.uploadImage(paymentImage, 'receipts');
             const loadIdForSubmit = selectedLoadId === 'general' ? undefined : selectedLoadId;
-            await api.submitShipperPayment(userProfile!.id, Number(paymentAmount), proofUrl, paymentNotes, loadIdForSubmit);
+            
+            await api.submitShipperPayment(
+                userProfile!.id, 
+                Number(paymentAmount), 
+                proofUrl, 
+                paymentNotes, 
+                loadIdForSubmit,
+                selectedInvoiceIds,
+                paymentReference
+            );
 
             toast.success("تم إرسال إثبات السداد بنجاح، بانتظار مراجعة الإدارة");
             setIsPaymentModalOpen(false);
             setPaymentAmount('');
             setPaymentImage(null);
             setSelectedLoadId('general');
+            setSelectedInvoiceIds([]);
+            setPaymentReference('');
             loadFinancialData();
         } catch (err) {
             toast.error("فشل إرسال البيانات");
@@ -777,13 +780,29 @@ export default function ShipperStatement() {
                                 <table className="w-full text-right border-collapse">
                                     <thead>
                                         <tr className="bg-slate-50 border-b border-slate-100">
-                                            <th className="px-6 py-4 font-black text-slate-500 text-sm">رقم الشحنة</th>
-                                            <th className="px-6 py-4 font-black text-slate-500 text-sm">الشاحن</th>
-                                            <th className="px-6 py-4 font-black text-slate-500 text-sm">المبلغ لم يتم سداده</th>
-                                            <th className="px-6 py-4 font-black text-slate-500 text-sm">المبلغ تم سداده</th>
-                                            <th className="px-6 py-4 font-black text-slate-500 text-sm">قيمة الشحنة</th>
+                                            <th className="px-4 py-4 w-10">
+                                                <input 
+                                                    type="checkbox" 
+                                                    className="w-4 h-4 rounded border-slate-300"
+                                                    onChange={(e) => {
+                                                        if (e.target.checked) {
+                                                            const allUnpaid = invoices
+                                                                .filter(inv => Number(inv.balance || (inv.total_amount - (inv.amount_paid || 0))) > 0)
+                                                                .map(inv => inv.invoice_id);
+                                                            setSelectedInvoiceIds(allUnpaid);
+                                                        } else {
+                                                            setSelectedInvoiceIds([]);
+                                                        }
+                                                    }}
+                                                    checked={selectedInvoiceIds.length > 0 && selectedInvoiceIds.length === invoices.filter(inv => Number(inv.balance || (inv.total_amount - (inv.amount_paid || 0))) > 0).length}
+                                                />
+                                            </th>
+                                            <th className="px-6 py-4 font-black text-slate-500 text-sm italic">رقم الشحنة</th>
+                                            <th className="px-6 py-4 font-black text-slate-500 text-sm">المبلغ المتبقي</th>
+                                            <th className="px-6 py-4 font-black text-slate-500 text-sm">المسدد</th>
+                                            <th className="px-6 py-4 font-black text-slate-500 text-sm">الإجمالي</th>
                                             <th className="px-6 py-4 font-black text-slate-500 text-sm text-center">الحالة</th>
-                                            <th className="px-6 py-4 font-black text-slate-500 text-sm text-center">إجراء</th>
+                                            <th className="px-6 py-4 font-black text-slate-500 text-sm text-center">الإجراء</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-50">
@@ -827,13 +846,26 @@ export default function ShipperStatement() {
 
                                             return (
                                             <tr key={invoice.invoice_id} className={`border-b border-slate-100/50 ${rowStyle} group`}>
+                                                <td className="px-4 py-5 text-center">
+                                                    {!isFullyPaid && (
+                                                        <input 
+                                                            type="checkbox" 
+                                                            className="w-4 h-4 rounded border-slate-300"
+                                                            checked={selectedInvoiceIds.includes(invoice.invoice_id)}
+                                                            onChange={(e) => {
+                                                                if (e.target.checked) {
+                                                                    setSelectedInvoiceIds(prev => [...prev, invoice.invoice_id]);
+                                                                } else {
+                                                                    setSelectedInvoiceIds(prev => prev.filter(id => id !== invoice.invoice_id));
+                                                                }
+                                                            }}
+                                                        />
+                                                    )}
+                                                </td>
                                                 <td className="px-6 py-5 font-black text-slate-700">
                                                     <a href={`/loads/${invoice.shipment_id || ''}`} target="_blank" rel="noreferrer" className="hover:text-blue-600 transition-colors block">
                                                         {invoice.shipment_id ? formatShortId(invoice.shipment_id, 'SH') : formatShortId(invoice.invoice_id, 'INV')}
                                                     </a>
-                                                </td>
-                                                <td className="px-6 py-5">
-                                                    <span className="font-bold text-slate-800 tracking-tight block">{userProfile?.full_name}</span>
                                                 </td>
                                                 <td className="px-6 py-5 font-black text-rose-600">{unpaidAmount.toLocaleString()} ر.س</td>
                                                 <td className="px-6 py-5 font-black text-slate-900">{Number(invoice.amount_paid || 0).toLocaleString()} ر.س</td>
@@ -891,6 +923,34 @@ export default function ShipperStatement() {
                                 </table>
                             </div>
 
+                            {selectedInvoiceIds.length > 0 && (
+                                <div className="mt-8 flex flex-col md:flex-row items-center justify-between p-6 bg-blue-50 rounded-[2rem] border border-blue-100 gap-4">
+                                    <div className="text-right">
+                                        <p className="text-sm font-bold text-blue-600 mb-1">إجمالي الفواتير المختارة ({selectedInvoiceIds.length})</p>
+                                        <h4 className="text-3xl font-black text-slate-900">
+                                            {invoices
+                                                .filter(inv => selectedInvoiceIds.includes(inv.invoice_id))
+                                                .reduce((sum, inv) => sum + Number(inv.balance || (inv.total_amount - (inv.amount_paid || 0))), 0)
+                                                .toLocaleString()
+                                            } <span className="text-sm">ر.س</span>
+                                        </h4>
+                                    </div>
+                                    <Button
+                                        onClick={() => {
+                                            const total = invoices
+                                                .filter(inv => selectedInvoiceIds.includes(inv.invoice_id))
+                                                .reduce((sum, inv) => sum + Number(inv.balance || (inv.total_amount - (inv.amount_paid || 0))), 0);
+                                            setPaymentAmount(String(total));
+                                            setPaymentReference(`PAY-${Math.random().toString(36).substring(2, 9).toUpperCase()}`);
+                                            setIsPaymentModalOpen(true);
+                                        }}
+                                        className="h-14 px-10 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-black shadow-xl shadow-blue-200"
+                                    >
+                                        إتمام السداد عبر حوالة بنكية
+                                    </Button>
+                                </div>
+                            )}
+
                             <div className="mt-10 pt-6 border-t border-slate-100 space-y-3">
                                 <div className="flex items-start gap-2 text-sm text-slate-500 font-bold">
                                     <span className="text-blue-600 font-black">•</span>
@@ -912,17 +972,66 @@ export default function ShipperStatement() {
                 <DialogContent className="sm:max-w-md bg-white rounded-[2rem] p-0 overflow-hidden border-none text-right shadow-2xl" dir="rtl">
                     <div className="bg-slate-50 p-6 border-b border-slate-100 flex items-center justify-between">
                         <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center">
-                                <Upload size={24} />
+                            <div className="w-12 h-12 bg-blue-600 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-blue-200">
+                                <CreditCard size={24} />
                             </div>
                             <div>
-                                <DialogTitle className="text-xl font-black">إرفاق إيصال سداد</DialogTitle>
-                                <DialogDescription className="font-bold text-slate-500 mt-1">سيتم مراجعة الإيصال وتأكيد السداد</DialogDescription>
+                                <DialogTitle className="text-xl font-black">إتمام السداد البنكي</DialogTitle>
+                                <DialogDescription className="font-bold text-slate-500 mt-1">يرجى التحويل للحساب أدناه ورفع الإيصال</DialogDescription>
                             </div>
                         </div>
                     </div>
 
                     <div className="p-6 space-y-6 bg-slate-50/50 backdrop-blur-sm overflow-y-auto max-h-[80vh] md:max-h-[70vh] custom-scrollbar">
+                        {/* Bank Details Section */}
+                        <div className="bg-white border border-slate-200 rounded-3xl p-6 space-y-4 shadow-sm">
+                            <h4 className="font-black text-slate-800 flex items-center gap-2 border-b pb-3 border-slate-50">
+                                <Info size={18} className="text-blue-500" /> بيانات الحساب البنكي لشركة ساس
+                            </h4>
+                            <div className="grid grid-cols-1 gap-4 text-sm font-bold">
+                                <div className="flex justify-between items-center bg-slate-50 p-3 rounded-xl">
+                                    <span className="text-slate-500">اسم البنك:</span>
+                                    <span className="text-slate-900">البنك الأهلي السعودي (SNB)</span>
+                                </div>
+                                <div className="flex justify-between items-center bg-slate-50 p-3 rounded-xl">
+                                    <span className="text-slate-500">رقم الحساب:</span>
+                                    <span className="text-slate-900 font-black tracking-widest">45200000821510</span>
+                                </div>
+                                <div className="flex justify-between items-center bg-slate-50 p-3 rounded-xl overflow-hidden">
+                                    <span className="text-slate-500 shrink-0">IBAN:</span>
+                                    <span className="text-slate-900 font-black text-[10px] md:text-sm tracking-tighter truncate ml-2">SA5510000045200000821510</span>
+                                </div>
+                                <div className="bg-amber-50 border border-amber-100 p-4 rounded-2xl text-amber-700">
+                                    <p className="text-xs font-black mb-2">⚠️ هام جداً:</p>
+                                    <p className="text-[11px] leading-relaxed">يرجى كتابة رقم المرجع أدناه في "وصف الحوالة" بتطبيقك البنكي لسهولة مطابقة الدفعة.</p>
+                                    <div className="mt-3 flex items-center justify-between bg-white p-2 rounded-lg border border-amber-200">
+                                        <span className="text-[10px] text-slate-400">رقم المرجع:</span>
+                                        <span className="font-black text-blue-600 tracking-wider">{paymentReference || 'GENERAL'}</span>
+                                    </div>
+                                </div>
+
+                                {/* QR Code Tip Section */}
+                                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center gap-4">
+                                    <div className="w-16 h-16 bg-white p-1 rounded-lg border flex items-center justify-center shadow-sm shrink-0">
+                                        <img 
+                                            src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=SA5510000045200000821510`} 
+                                            alt="IBAN QR Code" 
+                                            className="w-full h-full object-contain" 
+                                        />
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-[10px] font-black text-slate-400 mb-1">مسح سريع للآيبان (IBAN QR)</p>
+                                        <p className="text-[11px] text-slate-600 font-bold leading-tight">امسح الكود عبر تطبيقك البنكي لإضافة الآيبان مباشرة وتقليل أخطاء الإدخال.</p>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center gap-2 p-3 bg-blue-50/50 rounded-xl border border-blue-100/50">
+                                    <Info size={14} className="text-blue-500" />
+                                    <p className="text-[10px] font-black text-blue-600">نصيحة للمطور: تم إضافة QR Code يحتوي على بيانات الحساب/الفاتورة.</p>
+                                </div>
+                            </div>
+                        </div>
+
                         <div className="space-y-3">
                             <Label className="text-sm font-black text-slate-700">المبلغ المحول (ر.س) *</Label>
                             <Input
@@ -958,11 +1067,15 @@ export default function ShipperStatement() {
                                         </div>
                                         <div>
                                             <p className="text-[10px] text-slate-400 font-bold mb-1">المدفوع</p>
-                                            <p className="font-black text-sm text-blue-600">{loadBalances[selectedLoadId].paid} <span className="text-[8px]">ر.س</span></p>
+                                            <p className="font-black text-sm text-blue-600">
+                                                {(Number(loadBalances[selectedLoadId]?.paid || 0) + Number(paymentAmount || 0)).toLocaleString()} <span className="text-[8px]">ر.س</span>
+                                            </p>
                                         </div>
                                         <div>
                                             <p className="text-[10px] text-slate-400 font-bold mb-1">المتبقي</p>
-                                            <p className="font-black text-sm text-rose-600">{loadBalances[selectedLoadId].remaining} <span className="text-[8px]">ر.س</span></p>
+                                            <p className="font-black text-sm text-rose-600">
+                                                {Math.max(0, Number(loadBalances[selectedLoadId]?.total || 0) - (Number(loadBalances[selectedLoadId]?.paid || 0) + Number(paymentAmount || 0))).toLocaleString()} <span className="text-[8px]">ر.س</span>
+                                            </p>
                                         </div>
                                     </div>
                                 </div>

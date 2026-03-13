@@ -58,8 +58,24 @@ export default function DriverStatement() {
 
             setWallet(walletData);
             setWithdrawals(userWithdrawals || []);
-            setReceipts(userReceipts || []);
             setPendingEarnings(pendingEarningsData || []);
+
+            // دمج إيصالات الصرف من جدول الإيصالات ومن طلبات السحب المعتمدة التي تحتوي على صورة إثبات
+            const withdrawalReceipts = (userWithdrawals || [])
+                .filter(w => w.status === 'approved' && w.proof_image_url)
+                .map(w => ({
+                    id: w.id,
+                    created_at: w.updated_at || w.created_at,
+                    amount: w.amount,
+                    file_url: w.proof_image_url,
+                    type: 'withdrawal'
+                }));
+
+            const allReceipts = [...(userReceipts || []), ...withdrawalReceipts].sort((a, b) => 
+                new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+            );
+
+            setReceipts(allReceipts);
 
             // ترتيب العمليات من الأقدم للأحدث لحساب الرصيد المتراكم
             const sortedTx = (txHistory || []).sort((a: any, b: any) =>
@@ -69,10 +85,12 @@ export default function DriverStatement() {
             let currentBalance = 0;
             const mappedTransactions = sortedTx.map((t: any) => {
                 const amount = Number(t.amount);
-                const isIncome = amount > 0;
+                // الحساب الصحيح بناءً على نوع العملية (دائن/مدين)
+                // credit = دخل (أرباح)، debit = خارج (مسحوبات)
+                const isIncome = t.type === 'credit';
 
                 // تحديث الرصيد المتراكم
-                currentBalance += amount;
+                currentBalance += isIncome ? amount : -amount;
 
                 return {
                     ...t,
@@ -84,7 +102,7 @@ export default function DriverStatement() {
                     running_balance: currentBalance,
                     status: 'completed'
                 };
-            }).reverse(); // العودة للترتيب الأحدث أولاً للعرض
+            }).reverse();
 
             setTransactions(mappedTransactions);
         } catch (err) {
@@ -99,7 +117,7 @@ export default function DriverStatement() {
         loadFinancialData();
         const channel = supabase
             .channel('db-changes')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'wallets', filter: `profile_id=eq.${userProfile?.id}` }, () => loadFinancialData())
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'wallets', filter: `user_id=eq.${userProfile?.id}` }, () => loadFinancialData())
             .subscribe();
         return () => { supabase.removeChannel(channel); };
     }, [userProfile?.id]);
@@ -122,19 +140,39 @@ export default function DriverStatement() {
 
     const handleWithdrawRequest = async () => {
         const amount = Number(withdrawInputAmount);
+        
+        // 1. التحقق من وجود رقم الآيبان
+        if (!userProfile?.iban) {
+            toast.error("يرجى إضافة رقم الآيبان في ملفك الشخصي أولاً");
+            return;
+        }
+
+        // 2. التحقق من صحة المبلغ وسقفه
         if (!amount || amount <= 0 || amount > (wallet?.balance || 0)) {
             toast.error("يرجى التأكد من المبلغ والرصيد المتاح");
             return;
         }
+
+        // 3. منع الضغط المكرر
+        if (isSubmittingWithdraw) return;
         setIsSubmittingWithdraw(true);
+
         try {
-            await financeApi.requestWithdrawal(userProfile!.id, amount, { method: 'bank_transfer' });
-            toast.success("تم إرسال طلب السحب بنجاح");
+            await financeApi.requestWithdrawal(userProfile!.id, amount, { 
+              method: 'bank_transfer',
+              iban: userProfile.iban,
+              full_name: userProfile.full_name
+            });
+            toast.success("تم إرسال طلب السحب بنجاح ✅");
             setIsWithdrawOpen(false);
             setWithdrawInputAmount('');
             loadFinancialData();
-        } catch (err) {
-            toast.error("حدث خطأ أثناء إرسال الطلب");
+        } catch (err: any) {
+            console.error("Withdraw Error:", err);
+            const msg = err.message?.includes('Insufficient balance') 
+              ? "الرصيد غير كافٍ فعلياً لإتمام العملية" 
+              : "حدث خطأ أثناء إرسال الطلب، يرجى المحاولة لاحقاً";
+            toast.error(msg);
         } finally {
             setIsSubmittingWithdraw(false);
         }
@@ -192,10 +230,10 @@ export default function DriverStatement() {
                         </div>
                     </Card>
                     <Card className="rounded-[2rem] p-6 border-none shadow-sm bg-white flex flex-col justify-center border-r-4 border-blue-500">
-                        <p className="text-slate-400 font-bold text-xs uppercase mb-1">أرباح قيد المراجعة</p>
+                        <p className="text-slate-400 font-bold text-xs uppercase mb-1">رصيد قيد المعالجة</p>
                         <h3 className="text-2xl font-black text-blue-600">{(wallet?.frozen_balance || 0).toLocaleString()} <span className="text-sm">ر.س</span></h3>
                         <div className="mt-2 flex items-center text-[10px] text-blue-500 font-bold bg-blue-50 w-fit px-2 py-0.5 rounded-full">
-                            <Clock size={12} className="ml-1" /> شحنات لم تعتمد بعد
+                            <Clock size={12} className="ml-1" /> أرباح/سحوبات معلقة
                         </div>
                     </Card>
                 </div>
@@ -218,9 +256,9 @@ export default function DriverStatement() {
                 <Tabs defaultValue="ledger" className="w-full">
                     <TabsList className="flex md:grid w-full grid-cols-4 h-14 md:h-16 bg-white p-1.5 md:p-2 rounded-2xl md:rounded-[1.5rem] mb-8 shadow-sm border overflow-x-auto no-scrollbar justify-start md:justify-center">
                         <TabsTrigger value="ledger" className="rounded-xl font-black data-[state=active]:bg-blue-600 data-[state=active]:text-white transition-all whitespace-nowrap px-4 text-xs md:text-sm">كشف الحساب</TabsTrigger>
+                        <TabsTrigger value="receipts" className="rounded-xl font-black whitespace-nowrap px-4 text-xs md:text-sm">إيصالات الصرف</TabsTrigger>
                         <TabsTrigger value="activity" className="rounded-xl font-black whitespace-nowrap px-4 text-xs md:text-sm">طلبات السحب</TabsTrigger>
                         <TabsTrigger value="pending" className="rounded-xl font-black whitespace-nowrap px-4 text-xs md:text-sm">أرباح معلقة</TabsTrigger>
-                        <TabsTrigger value="receipts" className="rounded-xl font-black whitespace-nowrap px-4 text-xs md:text-sm">إيصالات الصرف</TabsTrigger>
                     </TabsList>
 
                     {/* كشف الحساب التفصيلي */}
@@ -279,7 +317,37 @@ export default function DriverStatement() {
 
                     {/* بقية محتوى الـ Tabs (نفس المنطق السابق) */}
                     <TabsContent value="activity">
-                        <TransactionList transactions={filteredTransactions.filter(t => t.type === 'expense')} loading={loading} onViewDetails={(t) => { setSelectedTransaction(t); setIsDetailsModalOpen(true); }} />
+                        {loading ? (
+                            <div className="p-20 flex justify-center"><Loader2 className="animate-spin text-blue-600" size={40} /></div>
+                        ) : (withdrawals || []).length === 0 ? (
+                            <div className="py-20 text-center font-bold text-slate-400">لا توجد طلبات سحب حالياً</div>
+                        ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {(withdrawals || []).map(req => (
+                                    <Card key={req.id} className="p-6 flex justify-between items-center rounded-[2rem] border-none shadow-sm bg-white hover:shadow-md transition-all group">
+                                        <div className="flex items-center gap-4">
+                                            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${req.status === 'pending' ? 'bg-amber-50 text-amber-500' : req.status === 'rejected' ? 'bg-rose-50 text-rose-500' : 'bg-emerald-50 text-emerald-500'}`}>
+                                                <Clock size={28} />
+                                            </div>
+                                            <div>
+                                                <p className="font-black text-slate-800 text-lg">طلب سحب أرباح</p>
+                                                <p className="text-xs text-slate-400 font-bold">{new Date(req.created_at).toLocaleDateString('ar-SA')}</p>
+                                            </div>
+                                        </div>
+                                        <div className="text-left">
+                                            <p className="font-black text-xl text-slate-900 mb-1">{Number(req.amount).toLocaleString()} <span className="text-xs font-bold text-slate-400">ر.س</span></p>
+                                            <Badge className={`rounded-xl px-4 py-1.5 font-black border-none shadow-sm ${
+                                                req.status === 'pending' ? 'bg-amber-500 text-white' : 
+                                                req.status === 'approved' ? 'bg-emerald-500 text-white' : 
+                                                'bg-rose-500 text-white'
+                                            }`}>
+                                                {req.status === 'pending' ? 'بانتظار التحويل' : req.status === 'approved' ? 'تم التحويل ✅' : 'مرفوض'}
+                                            </Badge>
+                                        </div>
+                                    </Card>
+                                ))}
+                            </div>
+                        )}
                     </TabsContent>
 
                     <TabsContent value="pending">

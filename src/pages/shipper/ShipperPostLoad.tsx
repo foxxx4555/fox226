@@ -216,7 +216,7 @@ export default function ShipperPostLoad() {
           long_distance_limit: config.long_distance_limit || DEFAULT_PRICING_CONFIG.long_distance_limit,
           long_distance_price: config.long_distance_price || DEFAULT_PRICING_CONFIG.long_distance_price,
           vat_rate: config.vat_rate ?? DEFAULT_PRICING_CONFIG.vat_rate,
-          commission: config.commission ?? DEFAULT_PRICING_CONFIG.commission,
+          commission: (config.commission && config.commission > 0) ? config.commission : 10, // الضمان بأن النسبة لا تقل عن 10%
         });
       }
 
@@ -375,10 +375,12 @@ export default function ShipperPostLoad() {
             suggestedPrice = Math.round(suggestedPrice);
             setDistance(roundedDistance);
 
-            // تحديث تفاصيل السعر للعرض (إضافة العمولة)
-            const commission = suggestedPrice * (pricingConfig.commission / 100);
-            const priceWithCommission = suggestedPrice + commission;
-            const vat = priceWithCommission * (pricingConfig.vat_rate / 100);
+            // الحسبة المالية الدقيقة
+            const commissionRate = (pricingConfig.commission && pricingConfig.commission > 0) ? pricingConfig.commission : 10;
+            const commission = suggestedPrice * (commissionRate / 100);
+            const subtotal = suggestedPrice + commission;
+            const vat = subtotal * (pricingConfig.vat_rate / 100);
+            const total = subtotal + vat;
 
             setPriceBreakdown({
               base: basePrice,
@@ -386,11 +388,11 @@ export default function ShipperPostLoad() {
               distanceCost: roundedDistance * kmPrice,
               commission: commission,
               vat: vat,
-              total: priceWithCommission + vat,
+              total: total,
               baseRaw: suggestedPrice
             } as any);
 
-            setForm(p => ({ ...p, price: Math.round(priceWithCommission).toString() }));
+            setForm(p => ({ ...p, price: subtotal.toFixed(2) }));
           } catch (err) {
             console.error("Error applying pricing:", err);
             // Fallback to basic calculation
@@ -398,9 +400,13 @@ export default function ShipperPostLoad() {
             const kmRate = roundedDist <= pricingConfig.short_distance_limit ? pricingConfig.short_distance_price : pricingConfig.long_distance_price;
             const fallbackPrice = roundedDist * kmRate;
 
-            const fallbackCommission = fallbackPrice * (pricingConfig.commission / 100);
-            const fallbackPriceWithComm = fallbackPrice + fallbackCommission;
-            const fallbackVat = fallbackPriceWithComm * (pricingConfig.vat_rate / 100);
+            setDistance(roundedDist);
+
+            const commissionRate = (pricingConfig.commission && pricingConfig.commission > 0) ? pricingConfig.commission : 10;
+            const fallbackCommission = fallbackPrice * (commissionRate / 100);
+            const fallbackSubtotal = fallbackPrice + fallbackCommission;
+            const fallbackVat = fallbackSubtotal * (pricingConfig.vat_rate / 100);
+            const fallbackTotal = fallbackSubtotal + fallbackVat;
 
             setPriceBreakdown({
               base: 0,
@@ -408,12 +414,11 @@ export default function ShipperPostLoad() {
               distanceCost: fallbackPrice,
               commission: fallbackCommission,
               vat: fallbackVat,
-              total: fallbackPriceWithComm + fallbackVat,
+              total: fallbackTotal,
               baseRaw: fallbackPrice
             } as any);
 
-            setDistance(roundedDist);
-            setForm(p => ({ ...p, price: Math.round(fallbackPriceWithComm).toString() }));
+            setForm(p => ({ ...p, price: fallbackSubtotal.toFixed(2) }));
           }
         };
 
@@ -491,9 +496,9 @@ export default function ShipperPostLoad() {
       const dbShipmentType = selectedCommodity?.name_ar || 'other';
 
       // حساب السعر النهائي المحمل بالضريبة للتخزين في القاعدة
-      const basePrice = parseSafeNumber(form.price);
-      const vatAmount = basePrice * (pricingConfig.vat_rate / 100);
-      const totalGrossPrice = Math.round(basePrice + vatAmount);
+      const priceBeforeVat = parseSafeNumber(form.price);
+      const vatAmount = priceBeforeVat * (pricingConfig.vat_rate / 100);
+      const totalGrossPrice = Math.round(priceBeforeVat + vatAmount);
 
       const finalPayload = {
         origin: form.origin,
@@ -982,10 +987,10 @@ export default function ShipperPostLoad() {
                             <div className="flex justify-between items-center pt-2">
                               <div className="flex flex-col">
                                 <span className="text-amber-400 font-black text-lg">الإجمالي النهائي</span>
-                                <span className="text-[10px] text-slate-500 font-bold">شامل الضريبة</span>
+                                <span className="text-[10px] text-slate-500 font-bold">شامل الضريبة ({pricingConfig.vat_rate}%)</span>
                               </div>
                               <div className="text-right">
-                                <span className="text-4xl font-black text-white">{Math.round(priceBreakdown.total).toLocaleString()}</span>
+                                <span className="text-4xl font-black text-white">{(Math.ceil(priceBreakdown.total * 100) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                                 <span className="text-xs text-white mr-1">ر.س</span>
                               </div>
                             </div>

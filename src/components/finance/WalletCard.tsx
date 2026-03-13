@@ -70,7 +70,7 @@ const WalletCard: React.FC<WalletCardProps> = ({
                         
                         {type === 'carrier' && (
                             <div className="text-right">
-                                <p className="text-white/60 text-xs font-bold mb-1">الأرباح المجمدة</p>
+                                <p className="text-white/60 text-xs font-bold mb-1">الرصيد المعلق</p>
                                 <div className="bg-white/10 px-3 py-1 rounded-lg border border-white/10">
                                     <span className="text-lg font-black">{frozenBalance.toLocaleString()}</span>
                                     <span className="text-[10px] font-bold text-white/40 ms-1">{currency}</span>

@@ -141,20 +141,6 @@ export const api = {
     }
   },
 
-  /**
-   * Admin: Complete a withdrawal request with bank details (Payout Receipt)
-   */
-  async completeWithdrawalRequest(requestId: string, bankName: string, reference: string, proofUrl?: string) {
-    const { error } = await (supabase as any).from('withdrawal_requests').update({
-      status: 'approved',
-      bank_name_used: bankName,
-      transaction_reference: reference,
-      proof_image_url: proofUrl,
-    }).eq('id', requestId);
-
-    if (error) throw error;
-    return true;
-  },
 
   // ✅ دالة تحديث بيانات البروفايل
   async updateProfile(userId: string, updates: { 
@@ -249,28 +235,20 @@ export const api = {
   },
 
   async acceptLoad(loadId: string, driverId: string, ownerId: string, price: number) {
-    await supabase.from('loads').update({
-      status: 'in_progress',
-      driver_id: driverId,
-      price: price,
-      updated_at: new Date().toISOString()
-    }).eq('id', loadId);
-
-    // Create financial record
     try {
-      const { financeApi } = await import('@/lib/finances');
-      await financeApi.createShipmentFinance({
-        shipment_id: loadId,
-        shipper_id: ownerId,
-        carrier_id: driverId,
-        shipment_price: price,
-        commission_rate: 10
+      const { error } = await (supabase as any).rpc('accept_load_atomic', {
+        p_load_id: loadId,
+        p_driver_id: driverId,
+        p_owner_id: ownerId,
+        p_price: price
       });
-    } catch (e) {
-      console.error('Error creating financial record:', e);
-    }
 
-    return true;
+      if (error) throw error;
+      return true;
+    } catch (e: any) {
+      console.error('Error accepting load:', e);
+      throw new Error(e.message || 'فشل في قبول الشحنة');
+    }
   },
 
   async updateLoad(loadId: string, updates: any) {
@@ -685,7 +663,7 @@ export const api = {
     }
   },
 
-  async submitShipperPayment(shipperId: string, amount: number, proofImageUrl: string, notes?: string, shipmentId?: string) {
+  async submitShipperPayment(shipperId: string, amount: number, proofImageUrl: string, notes?: string, shipmentId?: string, invoiceIds?: string[], referenceNumber?: string) {
     try {
       const { data, error } = await (supabase as any)
         .from('shipper_payments')
@@ -695,7 +673,9 @@ export const api = {
           shipment_id: shipmentId,
           proof_image_url: proofImageUrl,
           shipper_notes: notes,
-          status: 'pending'
+          status: 'pending',
+          invoice_ids: invoiceIds, // New field to track specific invoices being paid
+          reference_number: referenceNumber // New field for bank transfer ref
         })
         .select()
         .single();
@@ -797,6 +777,8 @@ export const api = {
       if (proofUrl) updateData.proof_image_url = proofUrl;
       if (adminNotes) updateData.admin_notes = adminNotes;
 
+      // The status update triggers handle_withdrawal_status_change() in SQL,
+      // which handles all financial transaction movements and balance clearance.
       const { data, error } = await (supabase as any)
         .from('withdrawal_requests')
         .update(updateData)
@@ -806,31 +788,20 @@ export const api = {
 
       if (error) throw error;
 
-      // If approved, create a financial transaction linking to wallet withdrawal
-      if (status === 'approved' && data) {
-        const { data: trx, error: trxError } = await (supabase as any)
-          .from('financial_transactions')
-          .insert([{
-            wallet_id: data.wallet_id,
-            amount: Math.abs(Number(data.amount)), // Amount should be positive for debit type
-            type: 'debit',
-            transaction_type: 'withdrawal',
-            description: adminNotes || 'تم سحب الأرباح لحسابكم البنكي'
-          }])
-          .select()
-          .single();
-
-        if (trxError) throw trxError;
-
-        // 1.5. إنشاء إيصال صرف رسمي
-        const { financeApi } = await import('@/lib/finances');
-        await financeApi.createPayoutReceipt({
-          user_id: data.user_id,
-          amount: Math.abs(Number(data.amount)),
-          transaction_id: trx.transaction_id || trx.id,
-          payment_method: 'bank_transfer',
-          reference_number: adminNotes
-        });
+      // Notify user about withdrawal status
+      if (data && data.user_id) {
+        try {
+          await this.createNotification(
+            data.user_id,
+            status === 'approved' ? 'تم تحويل مستحقاتك' : 'تم رفض طلب السحب',
+            status === 'approved' 
+              ? `تم تحويل مبلغ ${data.amount} ر.س إلى حسابك البنكي بنجاح. رقم العملية: ${adminNotes || 'N/A'}` 
+              : `نعتذر، تم رفض طلب السحب بمبلغ ${data.amount} ر.س. السبب: ${adminNotes || 'غير موضح'}`,
+            'finance'
+          );
+        } catch (notifyErr) {
+          console.warn("Failed to notify user of withdrawal update:", notifyErr);
+        }
       }
 
       return true;
@@ -916,6 +887,18 @@ export const api = {
         .eq('id', paymentId);
 
       if (updateError) throw updateError;
+
+      // Notify shipper about payment status update
+      try {
+        await this.createNotification(
+          payment.shipper_id,
+          status === 'approved' ? 'تم قبول دفعتك' : 'تم رفض دفعتك',
+          status === 'approved' ? `تمت مراجعة وقبول دفعتك بمبلغ ${payment.amount} ر.س بنجاح.` : `تم رفض إيصال السداد المقدم بمبلغ ${payment.amount} ر.س. السبب: ${adminNotes || 'غير محدد'}`,
+          'finance'
+        );
+      } catch (notifyErr) {
+        console.warn("Failed to notify shipper of payment update:", notifyErr);
+      }
 
       // 3. If approved -> record transaction
       if (status === 'approved') {
