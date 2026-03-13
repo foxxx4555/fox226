@@ -324,10 +324,154 @@ export default function DriverStatement() {
                 </Tabs>
             </div>
 
-            {/* Modals (تظل كما هي في كودك الأصلي مع تحسينات طفيفة في التصميم) */}
-            {/* ... Modal: طلب السحب ... */}
-            {/* ... Modal: عرض الإيصال ... */}
-            {/* ... Modal: تفاصيل العملية ... */}
+            {/* Modal: طلب السحب */}
+            <Dialog open={isWithdrawOpen} onOpenChange={setIsWithdrawOpen}>
+                <DialogContent className="max-w-md w-[95vw] rounded-[2rem] p-8 border-none bg-white shadow-2xl">
+                    <DialogHeader>
+                        <DialogTitle className="text-2xl font-black text-slate-900 text-right">طلب سحب أرباح</DialogTitle>
+                        <DialogDescription className="text-slate-500 font-bold text-right mt-2">
+                            سيتم تحويل المبلغ إلى حسابك البنكي المسجل لدينا خلال 24 ساعة عمل.
+                        </DialogDescription>
+                    </DialogHeader>
+                    
+                    <div className="space-y-6 pt-4" dir="rtl">
+                        <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 flex justify-between items-center">
+                            <span className="text-slate-500 font-bold">الرصيد المتاح للسحب</span>
+                            <span className="text-2xl font-black text-emerald-600">{(wallet?.balance || 0).toLocaleString()} <span className="text-sm">ر.س</span></span>
+                        </div>
+
+                        <div className="space-y-3">
+                            <Label className="font-black text-slate-700 pr-1">المبلغ المطلوب سحبه</Label>
+                            <div className="relative">
+                                <Input
+                                    type="number"
+                                    placeholder="0.00"
+                                    className="h-16 text-2xl font-black rounded-2xl border-2 border-slate-100 bg-slate-50/50 pr-6 pl-16 focus:border-blue-500 focus:bg-white transition-all text-right"
+                                    value={withdrawInputAmount}
+                                    onChange={(e) => setWithdrawInputAmount(e.target.value)}
+                                />
+                                <span className="absolute left-6 top-1/2 -translate-y-1/2 font-black text-slate-400">ر.س</span>
+                            </div>
+                        </div>
+
+                        <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100 flex gap-3 text-right">
+                            <Info className="text-blue-500 shrink-0 mt-0.5" size={18} />
+                            <p className="text-[11px] text-blue-700 font-bold leading-relaxed">
+                                يرجى التأكد من صحة بيانات الآيبان (IBAN) في ملفك الشخصي قبل تقديم الطلب لضمان وصول المبلغ بنجاح.
+                            </p>
+                        </div>
+                    </div>
+
+                    <DialogFooter className="flex flex-col sm:flex-row gap-3 pt-6 border-t border-slate-50 mt-4">
+                        <Button 
+                            onClick={handleWithdrawRequest} 
+                            disabled={isSubmittingWithdraw || !withdrawInputAmount}
+                            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-black h-14 rounded-2xl transition-all shadow-lg shadow-blue-100"
+                        >
+                            {isSubmittingWithdraw ? (
+                                <><Loader2 className="ml-2 animate-spin" size={20} /> جاري المعالجة...</>
+                            ) : 'تأكيد طلب السحب'}
+                        </Button>
+                        <Button 
+                            variant="outline" 
+                            onClick={() => setIsWithdrawOpen(false)}
+                            className="flex-1 border-2 border-slate-100 font-black h-14 rounded-2xl text-slate-500"
+                        >
+                            إلغاء
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Modal: عرض الإيصال */}
+            <Dialog open={isReceiptModalOpen} onOpenChange={setIsReceiptModalOpen}>
+                <DialogContent className="max-w-3xl w-[95vw] rounded-[2rem] p-4 sm:p-8 overflow-hidden bg-white border-none shadow-2xl">
+                    <DialogHeader>
+                        <DialogTitle className="text-xl font-black text-slate-900 text-right mb-4">معاينة إيصال الصرف</DialogTitle>
+                    </DialogHeader>
+                    <div className="bg-slate-100 rounded-2xl overflow-hidden min-h-[400px] flex items-center justify-center relative">
+                        {selectedReceipt ? (
+                            <img src={selectedReceipt} alt="Payout Receipt" className="max-w-full max-h-[70vh] object-contain shadow-lg" />
+                        ) : (
+                            <div className="flex flex-col items-center gap-4 text-slate-400">
+                                <FileText size={48} />
+                                <p className="font-bold">جاري تحميل الإيصال...</p>
+                            </div>
+                        )}
+                    </div>
+                    <div className="flex justify-center mt-6">
+                        <Button 
+                            className="bg-blue-600 text-white font-black px-8 h-12 rounded-xl"
+                            onClick={() => selectedReceipt && window.open(selectedReceipt, '_blank')}
+                        >
+                            <Download size={18} className="ml-2" /> تنزيل الإيصال
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* Modal: تفاصيل العملية */}
+            <Dialog open={isDetailsModalOpen} onOpenChange={setIsDetailsModalOpen}>
+                <DialogContent className="max-w-md w-[95vw] rounded-[2rem] p-8 border-none bg-white shadow-2xl">
+                    <DialogHeader>
+                        <DialogTitle className="text-xl font-black text-slate-900 text-right">تفاصيل العملية المالية</DialogTitle>
+                    </DialogHeader>
+                    
+                    {selectedTransaction && (
+                        <div className="space-y-6 pt-4" dir="rtl">
+                            <div className="flex items-center gap-4 mb-2">
+                                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${selectedTransaction.type === 'income' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
+                                    {selectedTransaction.type === 'income' ? <ArrowDownRight size={28} /> : <ArrowUpRight size={28} />}
+                                </div>
+                                <div>
+                                    <p className="font-black text-slate-900 text-lg">{selectedTransaction.description}</p>
+                                    <p className="text-xs text-slate-500 font-bold">{new Date(selectedTransaction.date).toLocaleDateString('ar-SA')} - {new Date(selectedTransaction.date).toLocaleTimeString('ar-SA')}</p>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                                    <p className="text-[10px] text-slate-400 font-bold uppercase mb-1">المبلغ</p>
+                                    <p className={`font-black text-xl ${selectedTransaction.type === 'income' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                        {selectedTransaction.type === 'income' ? '+' : '-'}{selectedTransaction.amount.toLocaleString()} <span className="text-xs">ر.س</span>
+                                    </p>
+                                </div>
+                                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                                    <p className="text-[10px] text-slate-400 font-bold uppercase mb-1">رقم المرجعية</p>
+                                    <p className="font-black text-sm text-slate-700 truncate">{selectedTransaction.id.substring(0, 12)}...</p>
+                                </div>
+                            </div>
+
+                            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                                <p className="text-[10px] text-slate-400 font-bold uppercase mb-1">الرصيد بعد العملية</p>
+                                <p className="font-black text-lg text-slate-800">
+                                    {selectedTransaction.running_balance?.toLocaleString()} <span className="text-xs font-bold text-slate-400">ر.س</span>
+                                </p>
+                            </div>
+
+                            {selectedTransaction.type === 'expense' && (
+                                <div className="p-4 rounded-2x border-2 border-dashed border-slate-100 flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <CheckCircle2 className="text-emerald-500" size={18} />
+                                        <span className="font-bold text-slate-600 text-sm">حالة الطلب: مكتمل</span>
+                                    </div>
+                                    <Badge className="bg-emerald-50 text-emerald-600 border-none font-bold">تم التحويل</Badge>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    <div className="mt-6">
+                        <Button 
+                            variant="outline" 
+                            className="w-full h-12 rounded-xl border-2 border-slate-100 font-black text-slate-500"
+                            onClick={() => setIsDetailsModalOpen(false)}
+                        >
+                            إغلاق
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
 
         </AppLayout>
     );
