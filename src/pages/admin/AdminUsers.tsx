@@ -489,6 +489,12 @@ export default function AdminUsers() {
                         <p className="font-black text-slate-700 flex items-center gap-2 overflow-hidden text-ellipsis" dir="ltr"><Mail size={14} className="shrink-0" /> {userDetails.email}</p>
                       </div>
                     )}
+                    {userDetails.username && (
+                      <div className="space-y-1">
+                        <span className="text-xs font-bold text-slate-400">اسم المستخدم</span>
+                        <p className="font-black text-slate-700 flex items-center gap-2" dir="ltr"><UserSearch size={14} /> {userDetails.username}</p>
+                      </div>
+                    )}
                     {(userDetails.id_number || userDetails.plate_number) && (
                       <>
                         <div className="space-y-1">

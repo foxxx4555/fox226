@@ -33,7 +33,10 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      const { profile, role } = await api.loginByEmail(email, password);
+      const loginIdentity = await api.resolveIdentifierToEmail(email.trim());
+      console.log("Attempting login for:", loginIdentity);
+      
+      const { profile, role } = await api.loginByEmail(loginIdentity, password);
 
       if (profile && role) {
         setAuth(profile, role);
@@ -42,20 +45,7 @@ export default function LoginPage() {
         if (role) setCurrentRole(role);
       }
 
-      // If driver and has invite code, link to fleet
-      if (role?.toLowerCase() === 'driver' && inviteCode.trim() && profile?.id) {
-        try {
-          await api.addInvitedSubDriver(inviteCode.trim(), { 
-            driver_name: profile.full_name, 
-            driver_phone: profile.phone 
-          });
-          toast.success(t('link_fleet_success'));
-        } catch (inviteErr) {
-          console.error("Invite link failed:", inviteErr);
-          // Don't block login if invite fails, just warn
-          toast.error(t('link_fleet_error'));
-        }
-      }
+      // logic for invite code removed as per user request
 
       toast.success(t('success'));
 
@@ -87,7 +77,10 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      await api.loginAdmin(adminEmail, adminPassword);
+      const loginIdentity = await api.resolveIdentifierToEmail(adminEmail.trim());
+      console.log("Attempting admin login for:", loginIdentity);
+      
+      await api.loginAdmin(loginIdentity, adminPassword);
       setCurrentRole('admin' as any);
       toast.success(t('success'));
       navigate('/admin/dashboard');
@@ -121,24 +114,28 @@ export default function LoginPage() {
           </Button>
         </div>
 
-        {/* رأس الصفحة - مضغوط جداً */}
-        <div className="text-center mb-4">
-          <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            className="w-40 h-40 bg-white rounded-[2.5rem] flex items-center justify-center mx-auto shadow-2xl shadow-primary/10 mb-6 border border-slate-50 relative overflow-hidden"
-          >
-            <img src="/logo.png" className="w-32 h-32 object-contain relative z-10 p-2" alt="Logo" />
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent" />
-          </motion.div>
-          <h1 className="text-xl font-black text-slate-900 tracking-tight mb-1">{t('login_title')}</h1>
-          <p className="text-[10px] font-bold text-slate-400">{t('login_subtitle')}</p>
-        </div>
 
         <Card className="shadow-2xl shadow-slate-200/50 border-white/60 bg-white/90 backdrop-blur-xl rounded-[2rem] overflow-hidden border-2">
-          <CardContent className="p-6 md:p-8">
-            <Tabs defaultValue="user" onValueChange={setActiveTab} dir={i18n.language === 'ar' ? 'rtl' : 'ltr'} className="w-full">
-              <TabsList className="w-full grid grid-cols-2 h-11 bg-slate-100/50 p-1 rounded-xl mb-6">
+          <CardContent className="p-0">
+            <div className="flex flex-col md:flex-row items-center">
+              {/* Logo Section - Side Position */}
+              <div className="w-full md:w-1/3 bg-slate-50/50 p-6 flex flex-col items-center justify-center border-b md:border-b-0 md:border-l border-slate-100">
+                <motion.div
+                  initial={{ scale: 0.9, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  className="w-24 h-24 bg-white rounded-2xl flex items-center justify-center shadow-lg border border-slate-50 relative overflow-hidden mb-4"
+                >
+                  <img src="/logo.png" className="w-16 h-16 object-contain relative z-10 p-1" alt="Logo" />
+                  <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent" />
+                </motion.div>
+                <h1 className="text-lg font-black text-slate-900 tracking-tight text-center">{t('login_title')}</h1>
+                <p className="text-[9px] font-bold text-slate-400 text-center">{t('login_subtitle')}</p>
+              </div>
+
+              {/* Form Section */}
+              <div className="w-full md:w-2/3 p-6 md:p-8">
+                <Tabs defaultValue="user" onValueChange={setActiveTab} dir={i18n.language === 'ar' ? 'rtl' : 'ltr'} className="w-full">
+                  <TabsList className="w-full grid grid-cols-2 h-10 bg-slate-100/50 p-1 rounded-xl mb-4">
                 <TabsTrigger value="user" className="rounded-lg font-bold text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm">
                   {t('user_login')}
                 </TabsTrigger>
@@ -158,17 +155,17 @@ export default function LoginPage() {
                   <TabsContent value="user" className="mt-0">
                     <form onSubmit={handleUserLogin} className="space-y-4">
                       <div className="space-y-1.5">
-                        <Label className="text-[10px] font-black text-slate-400 ms-1 uppercase">{t('email')}</Label>
+                        <Label className="text-[10px] font-black text-slate-400 ms-1 uppercase">{t('username_or_email')}</Label>
                         <div className="relative group">
-                          <Mail className={cn("absolute top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-primary transition-colors", i18n.language === 'ar' ? "right-4" : "left-4")} size={16} />
+                          <UserCircle2 className={cn("absolute top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-primary transition-colors", i18n.language === 'ar' ? "right-4" : "left-4")} size={16} />
                           <Input
-                            type="email"
+                            type="text"
                             value={email}
                             onChange={e => setEmail(e.target.value)}
                             required
                             dir="ltr"
                             className={cn("h-12 rounded-xl border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary transition-all font-bold text-sm", i18n.language === 'ar' ? "pr-11" : "pl-11")}
-                            placeholder="name@company.com"
+                            placeholder={t('username_placeholder')}
                           />
                         </div>
                       </div>
@@ -196,20 +193,7 @@ export default function LoginPage() {
                         </div>
                       </div>
 
-                      <div className="space-y-1.5">
-                        <Label className="text-[10px] font-black text-slate-400 ms-1 uppercase">{t('invite_code_label')}</Label>
-                        <div className="relative group">
-                          <Link2 className={cn("absolute top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-primary transition-colors", i18n.language === 'ar' ? "right-4" : "left-4")} size={16} />
-                          <Input
-                            type="text"
-                            value={inviteCode}
-                            onChange={e => setInviteCode(e.target.value)}
-                            dir="ltr"
-                            className={cn("h-12 rounded-xl border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary transition-all font-bold text-sm", i18n.language === 'ar' ? "pr-11" : "pl-11")}
-                            placeholder={t('invite_code_placeholder')}
-                          />
-                        </div>
-                      </div>
+                      {/* Invite Code removed to avoid scroll */}
 
                       <Button
                         type="submit"
@@ -238,17 +222,17 @@ export default function LoginPage() {
                   <TabsContent value="admin" className="mt-0">
                     <form onSubmit={handleAdminLogin} className="space-y-4">
                       <div className="space-y-1.5">
-                        <Label className="text-[10px] font-black text-slate-400 ms-1 uppercase">{t('email')}</Label>
+                        <Label className="text-[10px] font-black text-slate-400 ms-1 uppercase">{t('username_or_email')}</Label>
                         <div className="relative group">
                           <UserCircle2 className={cn("absolute top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-slate-900 transition-colors", i18n.language === 'ar' ? "right-4" : "left-4")} size={16} />
                           <Input
-                            type="email"
+                            type="text"
                             value={adminEmail}
                             onChange={e => setAdminEmail(e.target.value)}
                             required
                             dir="ltr"
                             className={cn("h-12 rounded-xl border-slate-100 bg-slate-50/50 focus:bg-white focus:border-slate-900 transition-all font-bold text-sm", i18n.language === 'ar' ? "pr-11" : "pl-11")}
-                            placeholder="admin@sas-transport.com"
+                            placeholder={t('username_placeholder')}
                           />
                         </div>
                       </div>
@@ -293,7 +277,9 @@ export default function LoginPage() {
                   </TabsContent>
                 </motion.div>
               </AnimatePresence>
-            </Tabs>
+                </Tabs>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </motion.div>

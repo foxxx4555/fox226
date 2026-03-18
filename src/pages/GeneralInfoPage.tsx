@@ -255,60 +255,13 @@ const GeneralInfoPage = () => {
                             transition={{ duration: 1, type: 'spring' }}
                             className="order-1 lg:order-2 relative flex justify-center gap-4 py-12"
                         >
-                            {/* Driver App Mockup */}
-                            <div className="relative z-20 w-[240px] md:w-[280px] aspect-[9/19] bg-slate-950 rounded-[2.5rem] border-[6px] border-slate-800 shadow-2xl overflow-hidden group hover:scale-105 transition-transform duration-500">
-                                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-20 h-5 bg-slate-800 rounded-b-xl z-30" />
-                                <div className="absolute inset-0 bg-slate-50 flex flex-col pt-6">
-                                    <div className="px-4 py-3 flex items-center justify-between bg-white border-b border-slate-100">
-                                        <img src="/logo.png" className="h-8 w-auto object-contain" alt="SAS Logo" />
-                                        <Menu size={16} className="text-slate-400" />
-                                    </div>
-                                    <div className="flex-1 overflow-y-auto p-3 space-y-4">
-                                        <div className="bg-[#005274] p-5 rounded-3xl text-white shadow-xl relative overflow-hidden group/card">
-                                            <div className="absolute top-0 right-0 p-2 opacity-20">
-                                                <Truck size={40} />
-                                            </div>
-                                            <div className="flex justify-between items-center mb-4">
-                                                <span className="text-[9px] bg-white/20 px-2 py-0.5 rounded-full font-bold">{t('active_job_label', 'ACTIVE JOB')}</span>
-                                                <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-                                            </div>
-                                            <p className="text-[10px] font-bold opacity-70 mb-1">Shipment #2941</p>
-                                            <p className="text-[14px] font-black tracking-tight">{t('riyadh_dammam', 'Riyadh → Dammam')}</p>
-                                        </div>
-                                        <div className="space-y-3">
-                                            <div className="flex justify-between items-center px-1">
-                                                <p className="text-[11px] font-black text-slate-800">{t('available_loads_label', 'AVAILABLE LOADS')}</p>
-                                                <div className="w-1.5 h-1.5 rounded-full bg-[#FF9800]" />
-                                            </div>
-                                            {[1, 2].map(i => (
-                                                <div key={i} className="p-4 bg-white rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4 hover:border-[#FF9800]/30 transition-colors">
-                                                    <div className="w-10 h-10 bg-orange-50 rounded-xl flex items-center justify-center text-orange-500">
-                                                        <Zap size={18} />
-                                                    </div>
-                                                    <div className="flex-1 space-y-1.5">
-                                                        <div className="h-2.5 w-24 bg-slate-200 rounded-full" />
-                                                        <div className="h-2 w-16 bg-slate-100 rounded-full" />
-                                                    </div>
-                                                    <ChevronRight size={14} className={`text-slate-300 ${i18n.language === 'ar' ? 'rotate-180' : ''}`} />
-                                                </div>
-                                            ))}
-                                            {/* Logo Item (3rd Slot) */}
-                                            <div className="p-4 bg-white rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
-                                                <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center">
-                                                    <img src="/logo.png" className="w-8 h-8 object-contain opacity-50 grayscale" alt="" />
-                                                </div>
-                                                <div className="flex-1 space-y-1.5">
-                                                    <div className="h-2.5 w-20 bg-slate-100 rounded-full" />
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="h-14 bg-white border-t border-slate-100 flex items-center justify-around px-2 pb-2">
-                                    <div className="p-2 rounded-xl bg-slate-50 text-[#005274]"><Home size={20} /></div>
-                                    <div className="p-2 rounded-xl text-slate-300"><Truck size={20} /></div>
-                                    <div className="p-2 rounded-xl text-slate-300"><User size={20} /></div>
-                                </div>
+                            {/* Driver App Real Screenshot - Frame removed as it is already in the image */}
+                            <div className="relative z-20 w-[240px] md:w-[280px] group hover:scale-105 transition-transform duration-500">
+                                <img
+                                    src="/driver.jpeg"
+                                    className="w-full h-auto drop-shadow-2xl rounded-[2.5rem]"
+                                    alt="Driver App Screenshot"
+                                />
                             </div>
 
                             {/* Decorative Elements */}
@@ -330,15 +283,15 @@ const GeneralInfoPage = () => {
                             whileInView={{ opacity: 1, x: 0 }}
                             viewport={{ once: true }}
                             transition={{ duration: 0.8 }}
-                            className="relative order-2 lg:order-1"
+                            className="relative order-2 lg:order-1 flex justify-center"
                         >
-                            <div className="relative z-10 rounded-[3.5rem] overflow-hidden shadow-2xl border-4 border-white bg-white aspect-square max-w-md mx-auto">
+                            {/* Shipper App Real Screenshot - Frame removed as it is already in the image */}
+                            <div className="relative z-20 w-[240px] md:w-[280px] group hover:scale-105 transition-transform duration-500">
                                 <img
-                                    src="https://naqliat.com/wp-content/uploads/2026/01/shipper-pic-1024x993.webp"
-                                    className="w-full h-full object-cover"
-                                    alt="Shipper"
+                                    src="/shipper.jpeg"
+                                    className="w-full h-auto drop-shadow-2xl rounded-[2.5rem]"
+                                    alt="Shipper App Screenshot"
                                 />
-                                <div className="absolute inset-0 bg-gradient-to-t from-[#005274]/20 to-transparent opacity-60"></div>
                             </div>
                         </motion.div>
 
@@ -504,17 +457,17 @@ const GeneralInfoPage = () => {
                                         <div>
                                             <p className={`mb-2 font-bold text-slate-200 ${i18n.language === 'en' ? 'text-left' : 'text-right'}`}>{t('driver_download_desc', 'إذا كنت سائقًا، يمكنك تحميل التطبيق الآن:')}</p>
                                             <div className="flex gap-4">
-                                                <Button variant="outline" className={`bg-white/10 border-white/20 text-white hover:bg-white hover:text-slate-900 rounded-xl font-bold flex items-center gap-2 ${i18n.language === 'en' ? 'flex-row' : 'flex-row-reverse'}`}>
+                                                <Button variant="outline" className={`bg-[#FF9800]/10 border-[#FF9800]/30 text-[#FF9800] hover:bg-[#FF9800] hover:text-white rounded-xl font-bold flex items-center gap-2 ${i18n.language === 'en' ? 'flex-row' : 'flex-row-reverse'}`} onClick={(e) => e.preventDefault()}>
                                                     {t('android_download', 'تحميل أندرويد')} <Download size={16} />
                                                 </Button>
-                                                <Button variant="outline" className={`bg-white/10 border-white/20 text-white hover:bg-white hover:text-slate-900 rounded-xl font-bold flex items-center gap-2 ${i18n.language === 'en' ? 'flex-row' : 'flex-row-reverse'}`}>
+                                                <Button variant="outline" className={`bg-[#FF9800]/10 border-[#FF9800]/30 text-[#FF9800] hover:bg-[#FF9800] hover:text-white rounded-xl font-bold flex items-center gap-2 ${i18n.language === 'en' ? 'flex-row' : 'flex-row-reverse'}`} onClick={(e) => e.preventDefault()}>
                                                     {t('ios_download', 'تحميل iOS')} <Download size={16} />
                                                 </Button>
                                             </div>
                                         </div>
                                         <div>
                                             <p className={`mb-2 font-bold text-slate-200 ${i18n.language === 'en' ? 'text-left' : 'text-right'}`}>{t('shipper_download_desc', 'إذا كنت عميلاً، يمكنك تحميل التطبيق الآن:')}</p>
-                                            <Button variant="outline" className={`bg-white/10 border-white/20 text-white hover:bg-white hover:text-slate-900 rounded-xl font-bold flex items-center gap-2 ${i18n.language === 'en' ? 'flex-row' : 'flex-row-reverse'}`}>
+                                            <Button variant="outline" className={`bg-[#FF9800]/10 border-[#FF9800]/30 text-[#FF9800] hover:bg-[#FF9800] hover:text-white rounded-xl font-bold flex items-center gap-2 ${i18n.language === 'en' ? 'flex-row' : 'flex-row-reverse'}`} onClick={(e) => e.preventDefault()}>
                                                 {t('download_app', 'تحميل التطبيق')} <Download size={16} />
                                             </Button>
                                         </div>
@@ -546,7 +499,7 @@ const GeneralInfoPage = () => {
                                 a: (
                                     <p className={i18n.language === 'en' ? 'text-left' : 'text-right'}>
                                         {t('contact_support_a', 'يمكنك التواصل مع الدعم عبر واتساب على الرقم:')}
-                                        <span className={`text-slate-400 ${i18n.language === 'en' ? 'ml-2' : 'mr-2'}`} dir="ltr">+966 55 025 8358</span>
+                                        <span className={`text-[#FF9800] font-black ${i18n.language === 'en' ? 'ml-2' : 'mr-2'}`} dir="ltr">+966 55 025 8358</span>
                                     </p>
                                 )
                             }

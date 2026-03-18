@@ -26,8 +26,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ChevronDown, MoreVertical, Ban, FileUp, Filter, Users as UsersIcon } from 'lucide-react';
+import { ChevronDown, MoreVertical, Ban, FileUp, Filter, Users as UsersIcon, FileSpreadsheet } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { exportToExcel } from '@/lib/exportUtils';
 
 export default function AdminShippersDrivers() {
   const [users, setUsers] = useState<any[]>([]);
@@ -340,6 +341,39 @@ export default function AdminShippersDrivers() {
     }
   };
 
+  const handleExportUsers = () => {
+    if (filteredUsers.length === 0) {
+      toast.error("لا توجد بيانات لتصديرها");
+      return;
+    }
+
+    const exportData = filteredUsers.map(u => ({
+      'الاسم': u.full_name || 'غير متوفر',
+      'رقم الهاتف': u.phone || 'غير متوفر',
+      'الدور': u.adminRole ? getAdminRoleLabel(u.adminRole) : (u.role === 'shipper' ? 'شاحن' : u.role === 'driver' ? 'سائق' : 'مستلم'),
+      'رقم الهوية': u.id_number || '-',
+      'رقم اللوحة': u.plate_number || '-',
+      'الحالة': u.status === 'suspended' ? 'محظور' : 'نشط',
+      'موثق': u.is_verified ? 'نعم' : 'لا',
+      'تاريخ التسجيل': u.created_at ? new Date(u.created_at).toLocaleDateString('ar-SA') : 'غير متوفر'
+    }));
+
+    // Set column widths
+    const colWidths = [
+      { wch: 25 }, // الاسم
+      { wch: 15 }, // رقم الهاتف
+      { wch: 15 }, // الدور
+      { wch: 15 }, // رقم الهوية
+      { wch: 15 }, // رقم اللوحة
+      { wch: 10 }, // الحالة
+      { wch: 10 }, // موثق
+      { wch: 15 }  // تاريخ التسجيل
+    ];
+
+    exportToExcel(exportData, `قائمة_المستخدمين_${new Date().toISOString().split('T')[0]}`, 'المستخدمين', colWidths);
+    toast.success("تم تصدير قائمة المستخدمين بنجاح");
+  };
+
   const filteredUsers = users.filter((user: any) => {
     const searchLower = searchQuery.toLowerCase();
     const phoneStr = user?.phone || '';
@@ -460,7 +494,11 @@ export default function AdminShippersDrivers() {
                   className="pr-12 h-12 w-full md:w-[350px] rounded-2xl bg-slate-50 border-slate-200 font-bold focus:ring-blue-500"
                 />
               </div>
-              <Button variant="outline" className="h-12 rounded-2xl font-black text-slate-600 gap-2 border-slate-200 hover:bg-slate-50">
+              <Button 
+                variant="outline" 
+                className="h-12 rounded-2xl font-black text-slate-600 gap-2 border-slate-200 hover:bg-slate-50"
+                onClick={handleExportUsers}
+              >
                 <Download size={18} /> تصدير
               </Button>
             </div>

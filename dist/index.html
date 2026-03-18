@@ -8,8 +8,8 @@
   <meta name="description" content="SAS Transport - أسرع وأسهل طريقة لإدارة شحناتك ونقل بضائعك" />
 
   <!-- 🖼️ الأيقونة الجديدة PNG -->
-  <link rel="icon" type="image/png" href="/favicon.png?v=2" />
-  <link rel="apple-touch-icon" href="/favicon.png?v=2">
+  <link rel="icon" type="image/png" href="./favicon.png?v=2" />
+  <link rel="apple-touch-icon" href="./favicon.png?v=2">
 
   <!-- خط القاهرة للفخامة -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -29,7 +29,12 @@
   <script>
     window.OneSignalDeferred = window.OneSignalDeferred || [];
     window.OneSignalDeferred.push(async function (OneSignal) {
-      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') return;
+      const hostname = window.location.hostname;
+      if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === 'sasgoo.com' || hostname === 'www.sasgoo.com') {
+        // Continue initialization
+      } else {
+        return;
+      }
       await OneSignal.init({
         appId: "79ca45f2-a2b2-4135-8a83-11e3e9f8b5a8",
         allowLocalhostAsSecureOrigin: true,
@@ -123,14 +128,26 @@
       }
     })();
   </script>
-  <script type="module" crossorigin src="/assets/index-MjQ70eiM.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/index-BjJEw1SM.css">
+
+
+  <script type="module" crossorigin src="./assets/index-bvtjbFdM.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-DX8Ugv_X.css">
 </head>
 
 <body>
   <div id="root"></div>
 
   <!-- تحميل ملف المشروع الرئيسي -->
+
+  <!-- Crisp Chat Integration -->
+  <script type="text/javascript">
+    window.$crisp=[];window.CRISP_WEBSITE_ID="7fe6d90b-7026-4752-a60b-82b3e4c26d3d";
+    (function(){
+      d=document;s=d.createElement("script");
+      s.src="https://client.crisp.chat/l.js";
+      s.async=1;d.getElementsByTagName("head")[0].appendChild(s);
+    })();
+  </script>
 </body>
 
 </html>

@@ -8,6 +8,7 @@ export type BodyType = 'flatbed' | 'curtain' | 'box' | 'refrigerated' | 'lowboy'
 export interface UserProfile {
   id: string;
   full_name: string;
+  username?: string;
   email?: string;
   phone?: string;
   country_code?: string;

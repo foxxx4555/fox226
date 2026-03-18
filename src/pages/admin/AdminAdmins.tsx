@@ -34,7 +34,8 @@ const mapRoleForDB = (role: string) => {
         'إدارة التجار': 'vendor_manager',
         'دعم العملاء': 'support',
         'المالية': 'finance',
-        'التحليلات': 'analytics'
+        'التحليلات': 'analytics',
+        'التاجر': 'shipper'
     };
     return mapping[role] || 'admin';
 };
@@ -48,6 +49,7 @@ export default function AdminAdmins() {
     const [newAdmin, setNewAdmin] = useState({
         full_name: '',
         phone: '',
+        username: '',
         email: '',
         password: '',
         role: 'العمليات'
@@ -87,6 +89,7 @@ export default function AdminAdmins() {
                         'support': 'دعم العملاء',
                         'finance': 'المالية',
                         'analytics': 'التحليلات',
+                        'shipper': 'التاجر',
                         'admin': 'مسؤول نظام'
                     };
                     return {
@@ -156,7 +159,26 @@ export default function AdminAdmins() {
 
         setIsAdding(true);
         try {
-            const adminEmail = newAdmin.email || `${newAdmin.phone.replace(/\+/g, '')}@sasgo.com`;
+            const adminUsername = newAdmin.username.trim();
+            if (!adminUsername) {
+                toast.error('اسم المستخدم مطلوب');
+                setIsAdding(false);
+                return;
+            }
+
+            // التحقق من توفر اسم المستخدم قبل البدء لتجنب تعليق الحساب في Auth
+            const exists = await api.checkUsernameExists(adminUsername);
+            if (exists) {
+                toast.error('اسم المستخدم هذا محجوز مسبقاً، يرجى اختيار اسم آخر.');
+                setIsAdding(false);
+                return;
+            }
+
+            const hasEmail = !!newAdmin.email.trim();
+            // نستخدم رقم الهاتف الخام كجزء من الهوية التقنية لضمان المطابقة مع كود تسجيل الدخول
+            const adminEmail = hasEmail 
+                ? newAdmin.email.trim() 
+                : `${newAdmin.phone.trim()}@sasgo.com`;
 
             const mappedRole = mapRoleForDB(newAdmin.role);
             setDbRole(mappedRole);
@@ -165,11 +187,15 @@ export default function AdminAdmins() {
             const { user } = await api.registerUser(adminEmail, newAdmin.password, {
                 full_name: newAdmin.full_name,
                 phone: newAdmin.phone,
+                username: adminUsername,
+                email: hasEmail ? newAdmin.email.trim() : 'NA', // سيتم تخزينها كـ NA كما طلبت
                 role: mappedRole as any
             });
 
-            toast.success('تم إرسال رمز التحقق إلى البريد الإلكتروني');
-            setOtpStep(true); // الانتقال لخطوة الـ OTP
+            toast.success('تم إنشاء حساب المسؤول بنجاح');
+            setShowAddAdmin(false);
+            setNewAdmin({ full_name: '', phone: '', username: '', email: '', password: '', role: 'العمليات' });
+            fetchAdmins();
         } catch (e: any) {
             // تجاهل خطأ استبدال الجلسة إذا حدث بسبب قيود Supabase للمتصفح (بدون سيرفر)
             if (e.message?.includes('already registered')) {
@@ -259,19 +285,23 @@ export default function AdminAdmins() {
                                 <div className="space-y-2">
                                     <div className="space-y-1">
                                         <Label className="font-bold text-slate-700 text-xs">الاسم الكامل</Label>
-                                        <Input value={newAdmin.full_name} onChange={e => setNewAdmin({ ...newAdmin, full_name: e.target.value })} className="h-9 rounded-xl bg-slate-50 font-bold text-sm" />
+                                        <Input value={newAdmin.full_name} onChange={e => setNewAdmin({ ...newAdmin, full_name: e.target.value })} className="h-9 rounded-xl bg-slate-50 font-bold text-sm" placeholder="الاسم الكامل" />
                                     </div>
                                     <div className="space-y-1">
                                         <Label className="font-bold text-slate-700 text-xs">رقم الجوال</Label>
                                         <Input value={newAdmin.phone} onChange={e => setNewAdmin({ ...newAdmin, phone: e.target.value })} className="h-9 rounded-xl bg-slate-50 font-bold text-left text-sm" dir="ltr" placeholder="+966" />
                                     </div>
                                     <div className="space-y-1">
-                                        <Label className="font-bold text-slate-700 text-xs">البريد (مطلوب للتحقق)</Label>
-                                        <Input type="email" value={newAdmin.email} onChange={e => setNewAdmin({ ...newAdmin, email: e.target.value })} className="h-9 rounded-xl bg-slate-50 font-bold text-left text-sm" dir="ltr" placeholder="admin@domain.com" />
+                                        <Label className="font-bold text-slate-700 text-xs">البريد الإلكتروني (اختياري)</Label>
+                                        <Input value={newAdmin.email} onChange={e => setNewAdmin({ ...newAdmin, email: e.target.value })} className="h-9 rounded-xl bg-slate-50 font-bold text-left text-sm" dir="ltr" placeholder="admin@sasgo.com" />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <Label className="font-bold text-slate-700 text-xs">اسم المستخدم</Label>
+                                        <Input value={newAdmin.username} onChange={e => setNewAdmin({ ...newAdmin, username: e.target.value })} className="h-9 rounded-xl bg-slate-50 font-bold text-left text-sm" dir="ltr" placeholder="username" />
                                     </div>
                                     <div className="space-y-1">
                                         <Label className="font-bold text-slate-700 text-xs">كلمة المرور المؤقتة</Label>
-                                        <Input type="password" value={newAdmin.password} onChange={e => setNewAdmin({ ...newAdmin, password: e.target.value })} className="h-9 rounded-xl bg-slate-50 font-bold text-sm" />
+                                        <Input type="password" value={newAdmin.password} onChange={e => setNewAdmin({ ...newAdmin, password: e.target.value })} className="h-9 rounded-xl bg-slate-50 font-bold text-sm" placeholder="••••••••" />
                                     </div>
                                     <div className="space-y-1">
                                         <Label className="font-bold text-slate-700 text-xs">قطاع الصلاحية</Label>
@@ -287,6 +317,7 @@ export default function AdminAdmins() {
                                                 <SelectItem value="دعم العملاء">دعم المشترين</SelectItem>
                                                 <SelectItem value="المالية">المالية والحسابات</SelectItem>
                                                 <SelectItem value="التحليلات">البيانات والتحليلات</SelectItem>
+                                                <SelectItem value="التاجر">التاجر / صاحب الشحنات</SelectItem>
                                             </SelectContent>
                                         </Select>
                                     </div>
@@ -344,6 +375,7 @@ export default function AdminAdmins() {
                                                 <SelectItem value="دعم العملاء">دعم المشترين</SelectItem>
                                                 <SelectItem value="المالية">المالية والحسابات</SelectItem>
                                                 <SelectItem value="التحليلات">البيانات والتحليلات</SelectItem>
+                                                <SelectItem value="التاجر">التاجر / صاحب الشحنات</SelectItem>
                                             </SelectContent>
                                         </Select>
                                     </div>

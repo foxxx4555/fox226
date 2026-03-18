@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import AdminLayout from '@/components/AdminLayout';
+import { exportToExcel } from '@/lib/exportUtils';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2, TrendingUp, Users, Truck, PackageCheck, BarChart4, TrendingDown, Download, PieChart as PieChartIcon } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -21,6 +22,7 @@ import {
 } from 'recharts';
 
 const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+const BG_COLORS_CLASSES = ['bg-[#6366f1]', 'bg-[#10b981]', 'bg-[#f59e0b]', 'bg-[#ef4444]', 'bg-[#8b5cf6]'];
 
 export default function AdminReports() {
     const [loading, setLoading] = useState(true);
@@ -86,29 +88,22 @@ export default function AdminReports() {
         }
     };
 
-    const exportToCSV = () => {
-        // 1. ضيف الـ BOM عشان الإكسيل يفهم اللغة العربية والترميز صح
-        const BOM = '\uFEFF';
+    const exportToExcelData = () => {
+        // Prepare data for export
+        const exportData = chartData.map(row => ({
+            'الشهر': row.name,
+            'عدد الشحنات': row.الشحنات,
+            'الأرباح (ر.س)': row.الأرباح
+        }));
 
-        // 2. العناوين (تأكد إن الفاصلة هي فاصلة منقوطة ";" لأنها أفضل مع الإكسيل العربي)
-        let csvContent = "الشهر;عدد الشحنات;الأرباح (ر.س)\n";
+        // Set column widths to 15
+        const colWidths = [
+            { wch: 15 }, // الشهر
+            { wch: 15 }, // عدد الشحنات
+            { wch: 15 }  // الأرباح (ر.س)
+        ];
 
-        // 3. إضافة البيانات من الـ chartData
-        chartData.forEach(row => {
-            csvContent += `${row.name};${row.الشحنات};${row.الأرباح}\n`;
-        });
-
-        // 4. إنشاء الملف وتحميله
-        const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.setAttribute("href", url);
-        link.setAttribute("download", `تقرير_أداء_المنصة_${new Date().toLocaleDateString('en-GB').replace(/\//g, '-')}.csv`);
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
+        exportToExcel(exportData, `تقرير_أداء_المنصة_${new Date().toLocaleDateString('en-GB').replace(/\//g, '-')}`, 'تقرير الأداء', colWidths);
     };
 
     useEffect(() => {
@@ -128,8 +123,8 @@ export default function AdminReports() {
                     </div>
 
                     {/* أزرار التصدير */}
-                    <Button onClick={exportToCSV} className="h-12 rounded-xl font-bold bg-white text-slate-700 border-2 border-slate-200 hover:bg-slate-50 transition-all shadow-sm">
-                        <Download size={18} className="me-2 text-indigo-500" /> تصدير التقرير (CSV)
+                    <Button onClick={exportToExcelData} className="h-12 rounded-xl font-bold bg-white text-slate-700 border-2 border-slate-200 hover:bg-slate-50 transition-all shadow-sm">
+                        <Download size={18} className="me-2 text-indigo-500" /> تصدير التقرير (Excel)
                     </Button>
                 </div>
 
@@ -301,7 +296,7 @@ export default function AdminReports() {
                                         {truckTypesData.map((entry, index) => (
                                             <div key={index} className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 border border-slate-100 hover:border-slate-300 transition-all font-bold">
                                                 <div className="flex items-center gap-3">
-                                                    <span className="w-4 h-4 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }}></span>
+                                                    <span className={`w-4 h-4 rounded-full ${BG_COLORS_CLASSES[index % BG_COLORS_CLASSES.length]}`}></span>
                                                     <span className="text-slate-700 capitalize">{entry.name}</span>
                                                 </div>
                                                 <span className="text-slate-400 bg-white px-3 py-1 rounded-xl shadow-sm text-sm">{entry.value} طلب</span>

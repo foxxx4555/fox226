@@ -20,6 +20,7 @@ import {
   CartesianGrid, Tooltip
 } from 'recharts';
 import { Load } from '@/types';
+import { exportToExcel } from '@/lib/exportUtils';
 
 export default function DriverHistory() {
   const { userProfile } = useAuth();
@@ -94,6 +95,36 @@ export default function DriverHistory() {
     };
   }, [loads]);
 
+  const handleExportData = () => {
+    const completedLoads = loads.filter(l => l.status === 'completed');
+    if (completedLoads.length === 0) {
+      toast.error("لا توجد رحلات مكتملة لتصديرها");
+      return;
+    }
+
+    const exportData = completedLoads.map(l => ({
+      'المصدر': l.origin,
+      'الوجهة': l.destination,
+      'الشاحن': l.owner?.full_name || 'غير متوفر',
+      'التاريخ': new Date(l.updated_at).toLocaleDateString('ar-SA'),
+      'المسافة (كم)': l.distance || '-',
+      'الأجر (ر.س)': l.price
+    }));
+
+    // Set column widths
+    const colWidths = [
+      { wch: 20 }, // المصدر
+      { wch: 20 }, // الوجهة
+      { wch: 20 }, // الشاحن
+      { wch: 15 }, // التاريخ
+      { wch: 12 }, // المسافة (كم)
+      { wch: 12 }  // الأجر (ر.س)
+    ];
+
+    exportToExcel(exportData, `سجل_الرحلات_${new Date().toISOString().split('T')[0]}`, 'الرحلات', colWidths);
+    toast.success("تم تصدير سجل الرحلات بنجاح");
+  };
+
   const formatCurrency = (val: number) => new Intl.NumberFormat('ar-SA').format(val);
 
   return (
@@ -106,7 +137,10 @@ export default function DriverHistory() {
             <h1 className="text-3xl font-black text-slate-900 mb-1">الأرباح والمحفظة</h1>
             <p className="text-slate-500 font-bold text-sm flex items-center gap-2 justify-end">تتبع أداءك المالي وإجمالي دخلك <TrendingUp size={16} className="text-primary" /></p>
           </div>
-          <Button className="rounded-2xl bg-emerald-500 hover:bg-emerald-600 h-14 px-8 gap-3 shadow-xl shadow-emerald-200 font-black text-white transition-all transform hover:scale-105">
+          <Button 
+            className="rounded-2xl bg-emerald-500 hover:bg-emerald-600 h-14 px-8 gap-3 shadow-xl shadow-emerald-200 font-black text-white transition-all transform hover:scale-105"
+            onClick={handleExportData}
+          >
             <Download size={20} /> تصدير التقرير
           </Button>
         </div>

@@ -5,7 +5,7 @@ import "./index.css";
 
 // 🔐 نظام قفل الدومين (Domain Lock)
 const allowedDomains = [
-  "sas4pl.com",      // بدون https وبدون / في النهاية
+  "sasgoo.com",      // بدون https وبدون / في النهاية
   "fox226.vercel.app",  // أضف هذه أيضاً احتياطاً
   "fox3-nu.vercel.app",
   "localhost",

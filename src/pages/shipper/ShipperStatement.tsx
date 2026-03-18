@@ -38,6 +38,7 @@ import {
 import WalletCard from '@/components/finance/WalletCard';
 import TransactionList from '@/components/finance/TransactionList';
 import InvoiceTemplate from '@/components/finance/InvoiceTemplate';
+import ReceiptTemplate from '@/components/finance/ReceiptTemplate';
 import { toast } from 'sonner';
 import { formatShortId } from '@/lib/formatters';
 import { generateReceiptPdf } from '@/lib/receipts';
@@ -108,6 +109,8 @@ function PaymentLoadDetails({ linkedLoad, payment }: { linkedLoad: any, payment:
 export default function ShipperStatement() {
     const { userProfile } = useAuth();
     const printRef = useRef<HTMLDivElement>(null);
+    const receiptRef = useRef<HTMLDivElement>(null);
+    const [selectedReceiptData, setSelectedReceiptData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [transactions, setTransactions] = useState<any[]>([]);
     const [wallet, setWallet] = useState<any>(null);
@@ -690,13 +693,24 @@ export default function ShipperStatement() {
                                                                 size="sm"
                                                                 variant="outline"
                                                                 className="w-full h-10 rounded-xl font-bold border-emerald-200 text-emerald-600 bg-emerald-50 hover:bg-emerald-100 shadow-sm"
-                                                                onClick={() => generateReceiptPdf({
-                                                                    invoice_id: payment.id, // Using payment ID as unique reference
-                                                                    shipment_id: payment.shipment_id,
-                                                                    shipper_name: userProfile?.full_name || 'Shipper',
-                                                                    amount: Number(payment.amount),
-                                                                    date: payment.created_at
-                                                                })}
+                                                                 onClick={async () => {
+                                                                    setSelectedReceiptData({
+                                                                        invoice_id: payment.id,
+                                                                        shipment_id: payment.shipment_id,
+                                                                        shipper_name: userProfile?.full_name || 'Shipper',
+                                                                        amount: Number(payment.amount),
+                                                                        date: payment.created_at
+                                                                    });
+                                                                    setTimeout(() => {
+                                                                        generateReceiptPdf({
+                                                                            invoice_id: payment.id,
+                                                                            shipment_id: payment.shipment_id,
+                                                                            shipper_name: userProfile?.full_name || 'Shipper',
+                                                                            amount: Number(payment.amount),
+                                                                            date: payment.created_at
+                                                                        }, receiptRef);
+                                                                    }, 100);
+                                                                }}
                                                             >
                                                                 <Download size={16} className="ml-2" />
                                                                 تحميل السند (PDF)
@@ -782,8 +796,10 @@ export default function ShipperStatement() {
                                         <tr className="bg-slate-50 border-b border-slate-100">
                                             <th className="px-4 py-4 w-10">
                                                 <input 
+                                                    title="تحديد كل الفواتير"
+                                                    aria-label="تحديد كل الفواتير"
                                                     type="checkbox" 
-                                                    className="w-4 h-4 rounded border-slate-300"
+                                                    className="w-4 h-4 rounded border-slate-300 cursor-pointer"
                                                     onChange={(e) => {
                                                         if (e.target.checked) {
                                                             const allUnpaid = invoices
@@ -849,8 +865,10 @@ export default function ShipperStatement() {
                                                 <td className="px-4 py-5 text-center">
                                                     {!isFullyPaid && (
                                                         <input 
+                                                            title={`تحديد الفاتورة ${invoice.invoice_id}`}
+                                                            aria-label={`تحديد الفاتورة ${invoice.invoice_id}`}
                                                             type="checkbox" 
-                                                            className="w-4 h-4 rounded border-slate-300"
+                                                            className="w-4 h-4 rounded border-slate-300 cursor-pointer"
                                                             checked={selectedInvoiceIds.includes(invoice.invoice_id)}
                                                             onChange={(e) => {
                                                                 if (e.target.checked) {
@@ -902,13 +920,24 @@ export default function ShipperStatement() {
                                                                     size="sm"
                                                                     variant="outline"
                                                                     className="h-9 rounded-xl border-emerald-200 text-emerald-600 hover:bg-emerald-50 font-black text-xs px-3 cursor-pointer"
-                                                                    onClick={() => generateReceiptPdf({
-                                                                        invoice_id: invoice.invoice_id,
-                                                                        shipment_id: invoice.shipment_id,
-                                                                        shipper_name: userProfile?.full_name || 'Shipper',
-                                                                        amount: Number(invoice.amount_paid),
-                                                                        date: new Date().toISOString()
-                                                                    })}
+                                                                    onClick={async () => {
+                                                                        setSelectedReceiptData({
+                                                                            invoice_id: invoice.invoice_id,
+                                                                            shipment_id: invoice.shipment_id,
+                                                                            shipper_name: userProfile?.full_name || 'Shipper',
+                                                                            amount: Number(invoice.amount_paid),
+                                                                            date: new Date().toISOString()
+                                                                        });
+                                                                        setTimeout(() => {
+                                                                            generateReceiptPdf({
+                                                                                invoice_id: invoice.invoice_id,
+                                                                                shipment_id: invoice.shipment_id,
+                                                                                shipper_name: userProfile?.full_name || 'Shipper',
+                                                                                amount: Number(invoice.amount_paid),
+                                                                                date: new Date().toISOString()
+                                                                            }, receiptRef);
+                                                                        }, 100);
+                                                                    }}
                                                                 >
                                                                     <Download size={14} className="ml-1" /> تحميل السند
                                                                 </Button>
@@ -1170,8 +1199,7 @@ export default function ShipperStatement() {
                             <img
                                 src={selectedReceipt}
                                 alt="إيصال التحويل"
-                                className="max-w-full rounded-2xl shadow-sm border border-slate-200 object-contain"
-                                style={{ maxHeight: '60vh' }}
+                                className="max-w-full rounded-2xl shadow-sm border border-slate-200 object-contain max-h-[60vh]"
                             />
                         ) : (
                             <div className="flex items-center justify-center h-full w-full text-slate-400 font-bold">جاري تحميل الإيصال...</div>
@@ -1236,6 +1264,8 @@ export default function ShipperStatement() {
                 </DialogContent>
             </Dialog>
 
+            {/* Hidden Templates for PDF Generation */}
+            <ReceiptTemplate data={selectedReceiptData} printRef={receiptRef} />
         </AppLayout>
     );
 }

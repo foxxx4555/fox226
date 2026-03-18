@@ -8,9 +8,11 @@ import {
     Search, Download, TrendingUp, DollarSign, CreditCard,
     ArrowUpRight, ArrowDownRight, FileText, CheckCircle2,
     Clock, Loader2, Pencil, History, ShieldCheck,
-    Calendar, Calculator, Printer, RotateCcw, ExternalLink
+    Calendar, Calculator, Printer, RotateCcw, ExternalLink,
+    FileSpreadsheet
 } from 'lucide-react';
 import { api } from '@/services/api';
+import { exportToExcel } from '@/lib/exportUtils';
 import { AdminStats } from '@/types';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
@@ -202,6 +204,37 @@ export default function AdminFinance() {
         }
     };
 
+    const handleExportData = () => {
+        if (filteredLedger.length === 0) {
+            toast.error("لا توجد بيانات لتصديرها");
+            return;
+        }
+
+        const exportData = filteredLedger.map(t => ({
+            'التاريخ': new Date(t.created_at).toLocaleDateString('ar-SA'),
+            'المستفيد': t.wallet?.profiles?.full_name || 'النظام',
+            'نوع العملية': t.transaction_type === 'commission' ? 'عمولة منصة' :
+                           t.transaction_type === 'withdrawal' ? 'صرف مستحقات ناقل' :
+                           t.transaction_type === 'collection' ? 'تحصيل دفعة شاحن' : t.description,
+            'المبلغ': t.amount,
+            'الاتجاه': t.isIncome ? 'إيداع (+)' : 'سحب (-)',
+            'رصيد الصندوق': t.running_balance
+        }));
+
+        // Set column widths to 10 as requested (wch: 12 approx 10 chars with some padding)
+        const colWidths = [
+            { wch: 12 }, // التاريخ
+            { wch: 20 }, // المستفيد
+            { wch: 25 }, // نوع العملية
+            { wch: 10 }, // المبلغ
+            { wch: 12 }, // الاتجاه
+            { wch: 15 }  // رصيد الصندوق
+        ];
+
+        exportToExcel(exportData, `سجل_الدفتر_العام_${new Date().toISOString().split('T')[0]}`, 'كشف الحساب', colWidths);
+        toast.success("تم تصدير البيانات بنجاح");
+    };
+
     const filteredLedger = useMemo(() => {
         return transactions.filter(t => {
             const matchesSearch = (t.profiles?.full_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -216,6 +249,40 @@ export default function AdminFinance() {
 
     return (
         <AdminLayout>
+            <style dangerouslySetInnerHTML={{ __html: `
+                @media print {
+                    body * {
+                        visibility: hidden;
+                    }
+                    #printable-ledger, #printable-ledger * {
+                        visibility: visible;
+                    }
+                    #printable-ledger {
+                        position: absolute;
+                        left: 0;
+                        top: 0;
+                        width: 100%;
+                        display: block !important;
+                    }
+                    .no-print {
+                        display: none !important;
+                    }
+                    @page {
+                        size: landscape;
+                        margin: 1cm;
+                    }
+                    table {
+                        width: 100% !important;
+                        border: 1px solid #e2e8f0 !important;
+                    }
+                    th, td {
+                        padding: 8px !important;
+                        font-size: 10pt !important;
+                    }
+                    .text-emerald-600 { color: #059669 !important; }
+                    .text-rose-600 { color: #e11d48 !important; }
+                }
+            ` }} />
             <div className="space-y-8 max-w-7xl mx-auto pb-20 p-4" dir="rtl">
 
                 {/* Header */}
@@ -229,7 +296,7 @@ export default function AdminFinance() {
                             <p className="text-slate-500 font-bold text-xs md:text-base">موائمة السيولة، العمولات، وصافي الأرباح</p>
                         </div>
                     </div>
-                    <div className="flex flex-wrap gap-2 md:gap-3 w-full md:w-auto">
+                    <div className="flex flex-wrap gap-2 md:gap-3 w-full md:w-auto no-print">
                         <Button 
                             variant="outline" 
                             className="h-10 md:h-12 rounded-xl md:rounded-2xl font-bold border-rose-200 text-rose-600 hover:bg-rose-50 text-xs flex-1 md:flex-none" 
@@ -240,7 +307,10 @@ export default function AdminFinance() {
                         <Button variant="outline" className="h-10 md:h-12 rounded-xl md:rounded-2xl font-bold border-slate-200 text-xs flex-1 md:flex-none" onClick={() => window.print()}>
                             <Printer size={16} className="md:ml-2" /> طباعة
                         </Button>
-                        <Button className="h-10 md:h-12 rounded-xl md:rounded-2xl bg-blue-600 hover:bg-blue-700 font-bold px-4 md:px-6 text-white shadow-lg text-xs flex-1 md:flex-none">
+                        <Button 
+                            className="h-10 md:h-12 rounded-xl md:rounded-2xl bg-blue-600 hover:bg-blue-700 font-bold px-4 md:px-6 text-white shadow-lg text-xs flex-1 md:flex-none"
+                            onClick={handleExportData}
+                        >
                             <Download size={16} className="md:ml-2" /> تصدير
                         </Button>
                     </div>
@@ -316,7 +386,7 @@ export default function AdminFinance() {
                     </TabsList>
 
                     {/* Master Ledger */}
-                    <TabsContent value="ledger">
+                    <TabsContent value="ledger" id="printable-ledger">
                         <Card className="rounded-[2.5rem] border-none shadow-2xl bg-white overflow-hidden">
                             <div className="overflow-x-auto">
                                 <table className="w-full text-right border-collapse">
@@ -551,7 +621,7 @@ export default function AdminFinance() {
             {/* Modals - Same logic but with RTL and improved UI */}
             <Dialog open={isApproveModalOpen} onOpenChange={setIsApproveModalOpen}>
                 <DialogContent className="sm:max-w-xl bg-white rounded-[2.5rem] p-0 overflow-hidden border-none text-right shadow-2xl" dir="rtl">
-                    <div className="bg-slate-900 p-8 text-white relative">
+                    <div className="bg-slate-900 p-6 md:p-8 text-white relative">
                         <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl -mr-16 -mt-16"></div>
                         <div className="flex items-center gap-5 relative z-10">
                             <div className="w-16 h-16 bg-white/10 text-white rounded-[1.5rem] flex items-center justify-center backdrop-blur-md border border-white/20">
@@ -694,7 +764,7 @@ export default function AdminFinance() {
             {/* Modal: مراجعة واعتماد دفعة شاحن (Review Modal) */}
             <Dialog open={isApprovePaymentModalOpen} onOpenChange={setIsApprovePaymentModalOpen}>
                 <DialogContent className="sm:max-w-xl bg-white rounded-[2.5rem] p-0 overflow-hidden border-none text-right shadow-2xl" dir="rtl">
-                    <div className="bg-slate-900 p-8 text-white relative">
+                    <div className="bg-slate-900 p-6 md:p-8 text-white relative">
                         <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl -mr-16 -mt-16"></div>
                         <div className="flex items-center gap-5 relative z-10">
                             <div className="w-16 h-16 bg-white/10 text-white rounded-[1.5rem] flex items-center justify-center backdrop-blur-md border border-white/20">
@@ -707,23 +777,23 @@ export default function AdminFinance() {
                         </div>
                     </div>
 
-                    <div className="p-8 space-y-6">
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                                <p className="text-[10px] font-black text-slate-400 uppercase mb-1">رقم المرجع</p>
-                                <p className="font-black text-blue-600 text-lg tracking-widest">{selectedShipperPayment?.reference_number || '—'}</p>
+                    <div className="p-4 md:p-8 space-y-4 md:space-y-6 max-h-[75vh] overflow-y-auto custom-scrollbar">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
+                            <div className="bg-slate-50 p-3 md:p-4 rounded-xl md:rounded-2xl border border-slate-100">
+                                <p className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase mb-0.5 md:mb-1">رقم المرجع</p>
+                                <p className="font-black text-blue-600 text-base md:text-lg tracking-widest">{selectedShipperPayment?.reference_number || '—'}</p>
                             </div>
-                            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                                <p className="text-[10px] font-black text-slate-400 uppercase mb-1">اسم العميل</p>
-                                <p className="font-black text-slate-800">{selectedShipperPayment?.shipper?.full_name || '—'}</p>
+                            <div className="bg-slate-50 p-3 md:p-4 rounded-xl md:rounded-2xl border border-slate-100">
+                                <p className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase mb-0.5 md:mb-1">اسم العميل</p>
+                                <p className="font-black text-slate-800 text-sm md:text-base">{selectedShipperPayment?.shipper?.full_name || '—'}</p>
                             </div>
-                            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                                <p className="text-[10px] font-black text-slate-400 uppercase mb-1">القيمة المطلوبة</p>
-                                <p className="font-black text-slate-800 text-lg">{Number(selectedShipperPayment?.amount).toLocaleString()} ر.س</p>
+                            <div className="bg-slate-50 p-3 md:p-4 rounded-xl md:rounded-2xl border border-slate-100">
+                                <p className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase mb-0.5 md:mb-1">القيمة المطلوبة</p>
+                                <p className="font-black text-slate-800 text-base md:text-lg">{Number(selectedShipperPayment?.amount).toLocaleString()} ر.س</p>
                             </div>
-                            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                                <p className="text-[10px] font-black text-slate-400 uppercase mb-1">تاريخ الرفع</p>
-                                <p className="font-black text-slate-800 text-sm">
+                            <div className="bg-slate-50 p-3 md:p-4 rounded-xl md:rounded-2xl border border-slate-100">
+                                <p className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase mb-0.5 md:mb-1">تاريخ الرفع</p>
+                                <p className="font-black text-slate-800 text-xs md:text-sm">
                                     {selectedShipperPayment?.created_at ? new Date(selectedShipperPayment.created_at).toLocaleString('ar-SA') : '—'}
                                 </p>
                             </div>
@@ -731,7 +801,7 @@ export default function AdminFinance() {
 
                         {/* Receipt Preview */}
                         <div className="space-y-3">
-                            <Label className="font-black text-slate-700">مرفق الإيصال (قابلة للتكبير)</Label>
+                            <Label className="font-black text-slate-700 text-sm md:text-base">مرفق الإيصال (قابلة للتكبير)</Label>
                             <div className="relative group rounded-3xl overflow-hidden border-2 border-slate-100 aspect-video bg-slate-50 flex items-center justify-center">
                                 {(selectedShipperPayment?.proof_image_url || selectedShipperPayment?.proof_url) ? (
                                     <button 
@@ -756,32 +826,32 @@ export default function AdminFinance() {
                         </div>
 
                         {/* Rejection/Notes Reason */}
-                        <div className="space-y-3 mt-6">
-                            <Label className="font-black text-slate-700">ملاحظات الإدارة / سبب الرفض</Label>
+                        <div className="space-y-3 mt-4 md:mt-6">
+                            <Label className="font-black text-slate-700 text-sm md:text-base">ملاحظات الإدارة / سبب الرفض</Label>
                             <Input
                                 value={paymentAdminNotes}
                                 onChange={e => setPaymentAdminNotes(e.target.value)}
-                                className="h-14 rounded-2xl bg-slate-50 font-bold focus:ring-blue-500 border-slate-200"
+                                className="h-12 md:h-14 rounded-xl md:rounded-2xl bg-slate-50 font-bold focus:ring-blue-500 border-slate-200 text-sm"
                                 placeholder="اكتب السبب هنا في حال الرفض"
                             />
                         </div>
                     </div>
 
-                    <DialogFooter className="bg-slate-50 p-6 flex flex-col sm:flex-row gap-4 border-t border-slate-100" dir="rtl">
+                    <DialogFooter className="bg-slate-50 p-4 md:p-6 flex flex-col sm:flex-row gap-3 md:gap-4 border-t border-slate-100" dir="rtl">
                         <Button 
                             onClick={() => handleProcessShipperPayment('approved')}
                             disabled={processingPayment}
-                            className="flex-1 h-14 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-lg shadow-xl shadow-emerald-100"
+                            className="flex-1 h-12 md:h-14 rounded-xl md:rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-base md:text-lg shadow-xl shadow-emerald-100"
                         >
-                            {processingPayment ? <Loader2 className="animate-spin ml-2" /> : <><CheckCircle2 size={24} className="ml-2" /> تأكيد الاستلام</>}
+                            {processingPayment ? <Loader2 className="animate-spin ml-2" /> : <><CheckCircle2 size={20} className="ml-2" /> تأكيد الاستلام</>}
                         </Button>
                         <Button 
                             variant="outline"
                             onClick={() => handleProcessShipperPayment('rejected')}
                             disabled={processingPayment}
-                            className="flex-1 h-14 rounded-2xl border-2 border-rose-200 text-rose-600 hover:bg-rose-50 font-black text-lg"
+                            className="flex-1 h-12 md:h-14 rounded-xl md:rounded-2xl border-2 border-rose-200 text-rose-600 hover:bg-rose-50 font-black text-base md:text-lg"
                         >
-                            {processingPayment ? <Loader2 className="animate-spin ml-2" /> : <><RotateCcw className="ml-2" size={20} /> رفض الطلب</>}
+                            {processingPayment ? <Loader2 className="animate-spin ml-2" /> : <><RotateCcw className="ml-2" size={18} /> رفض الطلب</>}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

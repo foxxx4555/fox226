@@ -16,6 +16,13 @@ import { motion } from 'framer-motion';
 import { FileUp, FileCheck, FileText } from 'lucide-react';
 import { useRef } from 'react';
 import { Link } from 'react-router-dom';
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
+
 export default function DriverAccount() {
   const { t, i18n } = useTranslation();
   const { userProfile } = useAuth();
@@ -23,7 +30,7 @@ export default function DriverAccount() {
   const [form, setForm] = useState({
     full_name: userProfile?.full_name || '',
     phone: userProfile?.phone || '',
-    email: userProfile?.email || '',
+    email: userProfile?.email === 'NA' ? '' : (userProfile?.email || ''),
     id_number: (userProfile as any)?.id_number || '',
     plate_number: (userProfile as any)?.plate_number || '',
     password: '',
@@ -35,6 +42,79 @@ export default function DriverAccount() {
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [uploadingDoc, setUploadingDoc] = useState<string | null>(null);
+
+  // Verification states
+  const [isVerified, setIsVerified] = useState(false);
+  const [showVerifyModal, setShowVerifyModal] = useState(false);
+  const [verifyStep, setVerifyStep] = useState<'email' | 'otp'>('email');
+  const [otpCode, setOtpCode] = useState('');
+  const [verifying, setVerifying] = useState(false);
+
+  // Load user data and verification status
+  import { useEffect } from 'react';
+  useEffect(() => {
+    if (userProfile?.id) {
+      setForm(prev => ({
+        ...prev,
+        full_name: userProfile.full_name || '',
+        phone: userProfile.phone || '',
+        email: userProfile.email === 'NA' ? '' : (userProfile.email || ''),
+        id_number: (userProfile as any).id_number || '',
+        plate_number: (userProfile as any).plate_number || '',
+        bank_name: (userProfile as any).bank_name || '',
+        account_name: (userProfile as any).account_name || '',
+        account_number: (userProfile as any).account_number || '',
+        iban: (userProfile as any).iban || '',
+      }));
+
+      // Check verification status
+      supabase.auth.getUser().then(({ data: { user } }) => {
+        setIsVerified(!!user?.email_confirmed_at && userProfile?.email !== 'NA');
+      });
+    }
+  }, [userProfile]);
+
+  const handleSendOtp = async () => {
+    if (!form.email || form.email === 'NA') {
+      toast.error('يرجى إدخال بريد إلكتروني صالح أولاً');
+      return;
+    }
+    setVerifying(true);
+    try {
+      if (form.email !== userProfile?.email) {
+        const { error } = await supabase.auth.updateUser({ email: form.email });
+        if (error) throw error;
+        toast.success('تم إرسال رمز التحقق للبريد الجديد');
+      } else {
+        await api.resendOtp(form.email);
+        toast.success('تم إعادة إرسال رمز التحقق');
+      }
+      setVerifyStep('otp');
+    } catch (err: any) {
+      toast.error(err.message || 'فشل إرسال رمز التحقق');
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    if (!otpCode) {
+      toast.error('يرجى إدخال رمز التحقق');
+      return;
+    }
+    setVerifying(true);
+    try {
+      await api.verifyEmailOtp(form.email, otpCode);
+      toast.success('تم توثيق الحساب بنجاح');
+      setIsVerified(true);
+      setShowVerifyModal(false);
+    } catch (err: any) {
+      toast.error(err.message || 'رمز التحقق غير صحيح');
+    } finally {
+      setVerifying(false);
+    }
+  };
+
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const licenseInputRef = useRef<HTMLInputElement>(null);
@@ -102,6 +182,7 @@ export default function DriverAccount() {
       const updatedData = await api.updateProfile(userProfile.id, {
         full_name: form.full_name,
         phone: form.phone,
+        email: form.email || 'NA',
         id_number: form.id_number,
         plate_number: form.plate_number,
         bank_name: form.bank_name,
@@ -116,7 +197,13 @@ export default function DriverAccount() {
 
       if (form.password) {
         const { error } = await supabase.auth.updateUser({ password: form.password });
-        if (error) throw error;
+        if (error) {
+            if (error.message?.includes('same_password') || error.message?.includes('different from the old')) {
+                toast.info('كلمة المرور الجديدة مطابقة للقديمة، لم يتم تغييرها.');
+            } else {
+                throw error;
+            }
+        }
       }
 
       toast.success("تم تحديث بيانات ملفك الشخصي بنجاح ✅");
@@ -170,6 +257,20 @@ export default function DriverAccount() {
                   <Badge className={`border-none py-1.5 px-4 rounded-xl flex items-center gap-2 font-bold shadow-lg ${(userProfile as any)?.status === 'suspended' ? 'bg-rose-500 text-white shadow-rose-500/20' : 'bg-emerald-500 text-white shadow-emerald-500/20'}`}>
                     <CheckCircle2 size={14} /> {(userProfile as any)?.status === 'suspended' ? t('suspended') : t('active_account')}
                   </Badge>
+                  {isVerified ? (
+                    <Badge className="bg-emerald-500 text-white border-none py-1.5 px-4 rounded-xl flex items-center gap-2 font-bold shadow-lg shadow-emerald-500/20">
+                      <ShieldCheck size={14} /> حساب موثق
+                    </Badge>
+                  ) : (
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => setShowVerifyModal(true)}
+                      className="h-9 px-4 bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100 font-bold rounded-xl flex items-center gap-2"
+                    >
+                      <Mail size={14} /> توثيق الآن
+                    </Button>
+                  )}
                   <span className="text-slate-400 font-bold">{form.email}</span>
                 </div>
               </div>
@@ -229,8 +330,8 @@ export default function DriverAccount() {
                 </div>
                 <div className="space-y-3 md:col-span-2">
                   <Label className="font-black text-sm text-slate-700 mr-2 uppercase tracking-wide">{t('email')}</Label>
-                  <Input value={form.email} disabled className="h-14 rounded-2xl bg-slate-50 border-slate-100 font-bold px-6 opacity-60" dir="ltr" />
-                  <p className="text-[10px] text-slate-400 mr-2 mt-1 font-bold">{t('email_change_restricted')}</p>
+                  <Input value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} className="h-14 rounded-2xl bg-slate-50 border-slate-100 font-bold px-6" dir="ltr" />
+                  <p className="text-[10px] text-slate-400 mr-2 mt-1 font-bold">يمكنك تغيير وتوثيق البريد الإلكتروني في أي وقت</p>
                 </div>
               </div>
 
@@ -379,6 +480,44 @@ export default function DriverAccount() {
           </div>
         </div>
       </div>
+
+      {/* Verification Modal */}
+      <Dialog open={showVerifyModal} onOpenChange={setShowVerifyModal}>
+        <DialogContent className="max-w-sm rounded-[2rem] p-6" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-black text-slate-900 border-b pb-3 mb-3">توثيق الحساب</DialogTitle>
+          </DialogHeader>
+          
+          {verifyStep === 'email' ? (
+            <div className="space-y-4">
+              <p className="text-slate-500 font-bold text-sm text-center">سيتم إرسال رمز تحقق عشوائي إلى بريدك الإلكتروني لضمان ملكيتك للحساب.</p>
+              <div className="space-y-1.5">
+                <Label className="font-bold text-slate-700">البريد الإلكتروني</Label>
+                <Input value={form.email} readOnly className="h-12 rounded-xl bg-slate-50 border-slate-100 font-black px-4" dir="ltr" />
+              </div>
+              <Button onClick={handleSendOtp} disabled={verifying} className="w-full h-12 rounded-xl bg-blue-600 text-white font-black shadow-lg">
+                {verifying ? <Loader2 className="animate-spin" /> : "إرسال الرمز"}
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <p className="text-slate-500 font-bold text-sm text-center">أدخل الرمز المكون من 6 أرقام المرسل إلى {form.email}</p>
+              <Input 
+                value={otpCode} 
+                onChange={e => setOtpCode(e.target.value)} 
+                className="h-14 text-center text-2xl tracking-[0.5em] font-black rounded-xl bg-slate-50 border-2" 
+                placeholder="------"
+                maxLength={6}
+                dir="ltr"
+              />
+              <Button onClick={handleVerifyOtp} disabled={verifying} className="w-full h-12 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black shadow-lg">
+                {verifying ? <Loader2 className="animate-spin" /> : "تأكيد التوثيق"}
+              </Button>
+              <Button variant="ghost" onClick={() => setVerifyStep('email')} className="w-full font-bold">رجوع</Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }

@@ -12,31 +12,47 @@ import { toast } from 'sonner';
 import { Loader2, User, Building, Shield, Image as ImageIcon, CheckCircle2, Trash2, FileText, ShieldCheck } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Link } from 'react-router-dom';
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogFooter,
+} from "@/components/ui/dialog";
 
 export default function ShipperAccount() {
   const { userProfile } = useAuth();
   const { setUserProfile } = useAppStore();
   const [form, setForm] = useState({
     full_name: userProfile?.full_name || '',
+    username: userProfile?.username || '',
     company_name: (userProfile as any)?.company_name || '',
     commercial_register: (userProfile as any)?.commercial_register || '',
     tax_number: (userProfile as any)?.tax_number || '',
     phone: userProfile?.phone || '',
-    email: userProfile?.email || '',
+    email: userProfile?.email === 'NA' ? '' : (userProfile?.email || ''),
     password: '',
   });
   const [saving, setSaving] = useState(false);
   const [stats, setStats] = useState({ totalLoads: 0, totalPayments: 0, joinDate: '' });
+  
+  // Verification states
+  const [isVerified, setIsVerified] = useState(false);
+  const [showVerifyModal, setShowVerifyModal] = useState(false);
+  const [verifyStep, setVerifyStep] = useState<'email' | 'otp'>('email');
+  const [otpCode, setOtpCode] = useState('');
+  const [verifying, setVerifying] = useState(false);
 
   useEffect(() => {
     if (userProfile?.id) {
       setForm({
         full_name: userProfile.full_name || '',
+        username: userProfile.username || '',
         company_name: (userProfile as any).company_name || '',
         commercial_register: (userProfile as any).commercial_register || '',
         tax_number: (userProfile as any).tax_number || '',
         phone: userProfile.phone || '',
-        email: userProfile.email || '',
+        email: userProfile.email === 'NA' ? '' : (userProfile.email || ''),
         password: '',
       });
 
@@ -49,8 +65,55 @@ export default function ShipperAccount() {
         const joinDate = new Date(userProfile.created_at || new Date()).toLocaleDateString('ar-SA', { month: 'long', year: 'numeric' });
         setStats({ totalLoads, totalPayments, joinDate });
       });
+
+      // Check verification status
+      supabase.auth.getUser().then(({ data: { user } }) => {
+        setIsVerified(!!user?.email_confirmed_at && userProfile?.email !== 'NA');
+      });
     }
   }, [userProfile]);
+
+  const handleSendOtp = async () => {
+    if (!form.email || form.email === 'NA') {
+      toast.error('يرجى إدخال بريد إلكتروني صالح أولاً');
+      return;
+    }
+    setVerifying(true);
+    try {
+      // إذا كان البريد المدخل مختلف عن البريد الحالي، نقوم بتحديثه أولاً
+      if (form.email !== userProfile?.email) {
+        const { error } = await supabase.auth.updateUser({ email: form.email });
+        if (error) throw error;
+        toast.success('تم إرسال رابط التوثيق للبريد الجديد');
+      } else {
+        await api.resendOtp(form.email);
+        toast.success('تم إعادة إرسال رمز التحقق');
+      }
+      setVerifyStep('otp');
+    } catch (err: any) {
+      toast.error(err.message || 'فشل إرسال رمز التحقق');
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    if (!otpCode) {
+      toast.error('يرجى إدخال رمز التحقق');
+      return;
+    }
+    setVerifying(true);
+    try {
+      await api.verifyEmailOtp(form.email, otpCode);
+      toast.success('تم توثيق الحساب بنجاح');
+      setIsVerified(true);
+      setShowVerifyModal(false);
+    } catch (err: any) {
+      toast.error(err.message || 'رمز التحقق غير صحيح');
+    } finally {
+      setVerifying(false);
+    }
+  };
 
   const handleSave = async () => {
     if (!userProfile?.id) return;
@@ -58,8 +121,9 @@ export default function ShipperAccount() {
     try {
       const updatedData = await api.updateProfile(userProfile.id, {
         full_name: form.full_name,
+        username: form.username,
         phone: form.phone,
-        email: form.email,
+        email: form.email || 'NA',
         company_name: form.company_name,
         commercial_register: form.commercial_register,
         tax_number: form.tax_number,
@@ -72,7 +136,13 @@ export default function ShipperAccount() {
 
       if (form.password) {
         const { error } = await supabase.auth.updateUser({ password: form.password });
-        if (error) throw error;
+        if (error) {
+            if (error.message?.includes('same_password') || error.message?.includes('different from the old')) {
+                toast.info('كلمة المرور الجديدة مطابقة للقديمة، لم يتم تغييرها.');
+            } else {
+                throw error;
+            }
+        }
       }
 
       toast.success('تم حفظ التغييرات بنجاح');
@@ -118,10 +188,23 @@ export default function ShipperAccount() {
               <div className="text-right">
                 <h1 className="text-4xl font-black mb-2">{form.full_name || 'اكمل بياناتك'}</h1>
                 <div className="flex items-center gap-3">
-                  <Badge className="bg-emerald-500 text-white border-none py-1.5 px-4 rounded-xl flex items-center gap-2 font-bold shadow-lg shadow-emerald-500/20">
-                    <Shield size={14} /> حساب موثق
-                  </Badge>
+                <div className="flex items-center gap-3">
+                  {isVerified ? (
+                    <Badge className="bg-emerald-500 text-white border-none py-1.5 px-4 rounded-xl flex items-center gap-2 font-bold shadow-lg shadow-emerald-500/20">
+                      <Shield size={14} /> حساب موثق
+                    </Badge>
+                  ) : (
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => setShowVerifyModal(true)}
+                      className="h-9 px-4 bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100 font-bold rounded-xl flex items-center gap-2"
+                    >
+                      <ShieldCheck size={14} /> توثيق الآن
+                    </Button>
+                  )}
                   <span className="text-slate-400 font-bold">{form.email}</span>
+                </div>
                 </div>
               </div>
             </div>
@@ -166,6 +249,10 @@ export default function ShipperAccount() {
                 <div className="space-y-3">
                   <Label className="font-black text-sm text-slate-700 mr-2 uppercase tracking-wide">الاسم الكامل</Label>
                   <Input value={form.full_name} onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))} className="h-14 rounded-2xl bg-slate-50 border-slate-100 font-bold px-6 focus:ring-primary/20" />
+                </div>
+                <div className="space-y-3">
+                  <Label className="font-black text-sm text-slate-700 mr-2 uppercase tracking-wide">اسم المستخدم</Label>
+                  <Input value={form.username} onChange={e => setForm(p => ({ ...p, username: e.target.value }))} className="h-14 rounded-2xl bg-slate-50 border-slate-100 font-bold px-6" />
                 </div>
                 <div className="space-y-3">
                   <Label className="font-black text-sm text-slate-700 mr-2 uppercase tracking-wide">اسم المنشأة / الشركة</Label>
@@ -242,6 +329,44 @@ export default function ShipperAccount() {
           </div>
         </div>
       </div>
+
+      {/* Verification Modal */}
+      <Dialog open={showVerifyModal} onOpenChange={setShowVerifyModal}>
+        <DialogContent className="max-w-sm rounded-[2rem] p-6" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-black text-slate-900 border-b pb-3 mb-3">توثيق الحساب</DialogTitle>
+          </DialogHeader>
+          
+          {verifyStep === 'email' ? (
+            <div className="space-y-4">
+              <p className="text-slate-500 font-bold text-sm text-center">سيتم إرسال رمز تحقق عشوائي إلى بريدك الإلكتروني لضمان ملكيتك للحساب.</p>
+              <div className="space-y-1.5">
+                <Label className="font-bold text-slate-700">البريد الإلكتروني</Label>
+                <Input value={form.email} readOnly className="h-12 rounded-xl bg-slate-50 border-slate-100 font-black px-4" dir="ltr" />
+              </div>
+              <Button onClick={handleSendOtp} disabled={verifying} className="w-full h-12 rounded-xl bg-primary text-white font-black shadow-lg">
+                {verifying ? <Loader2 className="animate-spin" /> : "إرسال الرمز"}
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <p className="text-slate-500 font-bold text-sm text-center">أدخل الرمز المكون من 6 أرقام المرسل إلى {form.email}</p>
+              <Input 
+                value={otpCode} 
+                onChange={e => setOtpCode(e.target.value)} 
+                className="h-14 text-center text-2xl tracking-[0.5em] font-black rounded-xl bg-slate-50 border-2" 
+                placeholder="------"
+                maxLength={6}
+                dir="ltr"
+              />
+              <Button onClick={handleVerifyOtp} disabled={verifying} className="w-full h-12 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black shadow-lg">
+                {verifying ? <Loader2 className="animate-spin" /> : "تأكيد التوثيق"}
+              </Button>
+              <Button variant="ghost" onClick={() => setVerifyStep('email')} className="w-full font-bold">رجوع</Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }

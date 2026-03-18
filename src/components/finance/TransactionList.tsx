@@ -12,6 +12,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import html2canvas from 'html2canvas';
 import * as XLSX from 'xlsx';
 import { cairoBase64 } from './cairo-base64';
 
@@ -91,6 +92,7 @@ const TransactionTable: React.FC<{
 const TransactionList: React.FC<TransactionListProps> = ({ transactions, loading, onViewDetails }) => {
     const [search, setSearch] = React.useState('');
     const { userProfile } = useAuth();
+    const tableRef = React.useRef<HTMLDivElement>(null);
 
     const filtered = transactions.filter(t =>
         t.description.toLowerCase().includes(search.toLowerCase()) ||
@@ -132,56 +134,45 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, loading
     };
 
     const handleExportPDF = async () => {
-        if (filtered.length === 0) {
+        if (!tableRef.current || filtered.length === 0) {
             toast.error("لا توجد بيانات لتصديرها");
             return;
         }
 
         try {
             toast.loading("يتم الآن تجهيز كشف الحساب PDF...", { id: 'pdf-gen' });
-            const doc = new jsPDF('p', 'pt', 'a4');
-
-            // تم تضمين الخط كـ Base64 لضمان عمل التصدير حتى عند انقطاع الإنترنت
-            // تم التأكد من ترميز الملف بشكل سليم لتجنب TypeError
-            doc.addFileToVFS('Cairo-Regular.ttf', cairoBase64);
-            doc.addFont('Cairo-Regular.ttf', 'Cairo', 'normal');
-            doc.setFont('Cairo', 'normal');
-
-            const tableColumn = ["المبلغ", "البيان / الوصف", "نوع العملية", "رقم المرجع", "تاريخ العملية"];
-            const tableRows = filtered.map(trx => [
-                `${trx.type === 'debit' ? '-' : '+'}${Number(trx.amount).toLocaleString()} ر.س`,
-                trx.description || 'لا يوجد وصف',
-                trx.type === 'debit' ? 'سحب / مصاريف' : 'إيداع / إيراد',
-                (trx.transaction_id || trx.id || '').substring(0, 10).toUpperCase(),
-                new Date(trx.created_at).toLocaleDateString('ar-SA', { year: 'numeric', month: 'long', day: 'numeric' })
-            ]);
-
-            autoTable(doc, {
-                head: [tableColumn],
-                body: tableRows,
-                styles: { font: 'Cairo', fontStyle: 'normal', halign: 'right', fontSize: 10, cellPadding: 8 },
-                headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], font: 'Cairo', fontStyle: 'normal', fontSize: 11 },
-                columnStyles: {
-                    0: { cellWidth: 80, halign: 'left' }, // المبلغ (English/Numbers often left-aligned even in RTL for readability)
-                    1: { cellWidth: 'auto' },            // الوصف
-                    2: { cellWidth: 80 },              // النوع
-                    3: { cellWidth: 80 },              // رقم العملية
-                    4: { cellWidth: 100 }              // التاريخ
-                },
-                margin: { top: 60 },
-                didDrawPage: (data) => {
-                    doc.setFont('Cairo', 'normal');
-                    doc.setFontSize(16);
-                    doc.setTextColor(15, 23, 42);
-                    doc.text("كشف حساب المعاملات المالية - Fox Logistics", data.settings.margin.left, 40);
-                }
+            
+            const canvas = await html2canvas(tableRef.current, {
+                scale: 2,
+                useCORS: true,
+                logging: false,
+                backgroundColor: '#ffffff'
             });
-
-            doc.save(`كشف_حساب_${new Date().toISOString().split('T')[0]}.pdf`);
+            
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            
+            const imgProps = pdf.getImageProperties(imgData);
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+            
+            // Add Title
+            pdf.addFileToVFS('Cairo-Regular.ttf', cairoBase64);
+            pdf.addFont('Cairo-Regular.ttf', 'Cairo', 'normal');
+            pdf.setFont('Cairo', 'normal');
+            pdf.setFontSize(16);
+            pdf.setTextColor(15, 23, 42);
+            // Note: Title still might have issues, but the table itself (screenshot) will be perfect.
+            // Using a simple English title as fallback or English/Arabic mix.
+            pdf.text("Account Statement / كشف حساب", pdfWidth / 2, 15, { align: 'center' });
+            
+            pdf.addImage(imgData, 'PNG', 0, 25, pdfWidth, Math.min(pdfHeight, 260));
+            
+            pdf.save(`Account_Statement_${new Date().toISOString().split('T')[0]}.pdf`);
             toast.success("تم إصدار كشف الحساب PDF بنجاح", { id: 'pdf-gen' });
         } catch (error) {
             console.error("PDF generation error:", error);
-            toast.error("فشل تصدير PDF، تأكد من اتصال الإنترنت لتحميل الخطوط", { id: 'pdf-gen' });
+            toast.error("فشل تصدير PDF", { id: 'pdf-gen' });
         }
     };
 
@@ -270,11 +261,13 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, loading
                     <div className="py-20 text-center text-slate-400 font-bold">لا يوجد سجل معاملات حالياً</div>
                 ) : (
                     <>
-                        <TransactionTable
-                            data={mainDisplayList}
-                            onViewDetails={onViewDetails}
-                            handleDispute={handleDispute}
-                        />
+                        <div ref={tableRef}>
+                            <TransactionTable
+                                data={mainDisplayList}
+                                onViewDetails={onViewDetails}
+                                handleDispute={handleDispute}
+                            />
+                        </div>
 
                         {filtered.length > 10 && (
                             <div className="p-4 border-t border-slate-50 flex justify-center bg-slate-50/30">

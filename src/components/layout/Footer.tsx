@@ -46,10 +46,10 @@ export const Footer = () => {
 
                 {/* App Download Buttons */}
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full mt-4">
-                    <button className="w-full sm:w-auto bg-slate-900 text-white rounded-3xl px-12 py-4 flex items-center justify-center gap-3 hover:bg-slate-800 transition-all">
+                    <button className="w-full sm:w-auto bg-slate-900 text-white rounded-3xl px-12 py-4 flex items-center justify-center gap-3 hover:bg-slate-800 transition-all" onClick={(e) => e.preventDefault()}>
                         <span className="font-bold text-lg">{t('shipper_app', 'تطبيق SAS للعملاء')}</span>
                     </button>
-                    <button className="w-full sm:w-auto bg-[#FF7A00] text-white rounded-3xl px-12 py-4 flex items-center justify-center gap-3 hover:bg-[#e66e00] transition-all">
+                    <button className="w-full sm:w-auto bg-[#FF7A00] text-white rounded-3xl px-12 py-4 flex items-center justify-center gap-3 hover:bg-[#e66e00] transition-all" onClick={(e) => e.preventDefault()}>
                         <span className="font-bold text-lg">{t('driver_app', 'تطبيق SAS للسائقين')}</span>
                     </button>
                 </div>

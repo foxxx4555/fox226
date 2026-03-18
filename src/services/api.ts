@@ -81,12 +81,44 @@ export const api = {
       password,
       options: {
         data: { ...profile },
-        // أضف هذا السطر لمنع تضارب الجلسات وتسجيل الخروج التلقائي
         // @ts-ignore
         persistSession: false
       },
     });
+
     if (error) throw error;
+
+    // استخدام upsert لضمان إنشاء أو تحديث البروفايل بالبيانات الصحيحة
+    if (data.user) {
+      // 1. تحديث بيانات البروفايل
+      const { error: upsertError } = await supabase.from('profiles').upsert({
+        id: data.user.id,
+        full_name: profile.full_name,
+        phone: profile.phone,
+        username: profile.username || null,
+        status: profile.status || 'active',
+        email: profile.email || email,
+        updated_at: new Date().toISOString()
+      });
+      
+      if (upsertError) {
+        console.error("⚠️ Profiles Upsert Error:", upsertError);
+        if (upsertError.code === '23505' && upsertError.message?.includes('username')) {
+            throw new Error("اسم المستخدم هذا محجوز مسبقاً، يرجى اختيار اسم آخر.");
+        }
+        throw new Error(`فشل حفظ بيانات البروفايل: ${upsertError.message}`);
+      }
+
+      // 2. إدراج الدور يدوياً للتأكد من ظهوره في القوائم
+      if (profile.role) {
+        const { error: roleError } = await supabase.from('user_roles').upsert({
+          user_id: data.user.id,
+          role: profile.role
+        } as any);
+        if (roleError) console.error("⚠️ User Role Insert Error:", roleError);
+      }
+    }
+
     return data;
   },
 
@@ -129,6 +161,18 @@ export const api = {
   },
 
   // ✅ دالة تحديث كلمة المرور الجديدة
+  async checkUsernameExists(username: string) {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('username')
+      .eq('username', username)
+      .maybeSingle();
+    
+    if (error) return false;
+    return !!data;
+  },
+
+  // ✅ دالة تحديث كلمة المرور الجديدة
   async updatePassword(newPassword: string) {
     try {
       const { data, error } = await supabase.auth.updateUser({
@@ -142,9 +186,30 @@ export const api = {
   },
 
 
+  // ✅ دالة البحث عن البريد الإلكتروني باستخدام اسم المستخدم أو الهاتف
+  async resolveIdentifierToEmail(identifier: string) {
+    if (identifier.includes('@')) return identifier;
+    
+    const { data, error: resolveError } = await supabase
+      .from('profiles')
+      .select('email, phone')
+      .or(`username.eq."${identifier}",phone.eq."${identifier}"`)
+      .maybeSingle();
+
+    if (resolveError) console.error("⚠️ Resolve Identity Error:", resolveError);
+    
+    // إذا كان البريد مخزناً كـ NA، نستخدم الهوية التقنية (رقم الهاتف) لتسجيل الدخول
+    if (data?.email === 'NA') return `${data.phone}@sasgo.com`;
+    if (data?.email) return data.email;
+    
+    // Fallback: إذا لم نجد في البروفايل، نجرّب الصيغة الافتراضية اللاتينية
+    return `${identifier.trim().replace(/\s+/g, '.')}@sasgo.com`;
+  },
+
   // ✅ دالة تحديث بيانات البروفايل
   async updateProfile(userId: string, updates: { 
     full_name?: string; 
+    username?: string;
     phone?: string; 
     email?: string; 
     company_name?: string; 

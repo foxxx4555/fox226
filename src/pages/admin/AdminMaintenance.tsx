@@ -313,7 +313,7 @@ export default function AdminMaintenance() {
                                                 <div className="grid grid-cols-2 gap-4">
                                                     {selectedRequest.images.map((img: string, i: number) => (
                                                         <div key={i} className="rounded-2xl overflow-hidden shadow-lg aspect-square border-2 border-slate-100">
-                                                            <img src={img} className="w-full h-full object-cover cursor-zoom-in" onClick={() => window.open(img, '_blank')} />
+                                                            <img src={img} alt={`صورة صيانة - ${i + 1}`} className="w-full h-full object-cover cursor-zoom-in" onClick={() => window.open(img, '_blank')} />
                                                         </div>
                                                     ))}
                                                 </div>
@@ -332,7 +332,7 @@ export default function AdminMaintenance() {
                                             <div className="space-y-4">
                                                 <Label className="font-black text-lg">صورة الفاتورة المرفرفة</Label>
                                                 <div className="rounded-3xl overflow-hidden shadow-2xl border-4 border-white aspect-[3/4] relative group">
-                                                    <img src={selectedRequest.invoice_image} className="w-full h-full object-cover" />
+                                                    <img src={selectedRequest.invoice_image} alt="صورة الفاتورة" className="w-full h-full object-cover" />
                                                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                                         <Button variant="outline" className="text-white border-white font-black" onClick={() => window.open(selectedRequest.invoice_image, '_blank')}>عرض الصورة كاملة</Button>
                                                     </div>

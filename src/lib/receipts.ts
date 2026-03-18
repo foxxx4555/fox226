@@ -1,4 +1,5 @@
 import { jsPDF } from 'jspdf';
+import html2canvas from 'html2canvas';
 import { formatShortId } from './formatters';
 
 export interface ReceiptData {
@@ -10,10 +11,37 @@ export interface ReceiptData {
     receipt_number?: string;
 }
 
-export const generateReceiptPdf = async (data: ReceiptData) => {
-    // Note: Arabic support in jsPDF requires a font that supports Arabic glyphs.
-    // We will use standard fonts for now and structure the layout professionally.
-    
+export const generateReceiptPdf = async (data: ReceiptData, printRef?: React.RefObject<HTMLDivElement>) => {
+    if (printRef?.current) {
+        try {
+            const canvas = await html2canvas(printRef.current, {
+                scale: 2,
+                useCORS: true,
+                logging: false,
+                backgroundColor: '#ffffff'
+            });
+            
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jsPDF({
+                orientation: 'portrait',
+                unit: 'mm',
+                format: 'a4'
+            });
+            
+            const imgProps = pdf.getImageProperties(imgData);
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+            
+            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+            pdf.save(`Receipt_${formatShortId(data.shipment_id, 'SH')}.pdf`);
+            return;
+        } catch (error) {
+            console.error('Error generating PDF with html2canvas:', error);
+            // Fallback to standard generation if needed, but standard is broken for Arabic
+        }
+    }
+
+    // Fallback or Old Method (Not recommended for Arabic but kept for compatibility)
     const doc = new jsPDF({
         orientation: 'p',
         unit: 'mm',

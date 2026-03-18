@@ -36,6 +36,7 @@ export default function RegisterPage() {
   const [searchParams] = useSearchParams();
   const [form, setForm] = useState({
     full_name: '',
+    username: '',
     email: '',
     phone: '',
     password: '',
@@ -85,7 +86,9 @@ export default function RegisterPage() {
   const validateForm = () => {
     if (!role) { toast.error(t('select_account_type')); return false; }
     if (form.full_name.length < 3) { toast.error(t('name_too_short')); return false; }
-    if (!/^\S+@\S+\.\S+$/.test(form.email)) { toast.error(t('invalid_email')); return false; }
+    if (form.username.length < 3) { toast.error(t('username_too_short')); return false; }
+    if (!/^[a-zA-Z0-9_\.]+$/.test(form.username)) { toast.error(t('username_invalid_chars')); return false; }
+    if (form.email && !/^\S+@\S+\.\S+$/.test(form.email)) { toast.error(t('invalid_email')); return false; }
     if (form.phone.length < 8) { toast.error(t('invalid_phone')); return false; }
     if (form.password.length < 6) { toast.error(t('pass_too_short')); return false; }
     if (form.password !== form.confirmPassword) { toast.error(t('pass_mismatch')); return false; }
@@ -118,6 +121,14 @@ export default function RegisterPage() {
 
     setLoading(true);
     try {
+      // التحقق من توفر اسم المستخدم قبل البدء لتقليل احتمالية فشل عملية الـ Auth
+      const usernameExists = await api.checkUsernameExists(form.username);
+      if (usernameExists) {
+        toast.error(t('username_exists'));
+        setLoading(false);
+        return;
+      }
+
       let urls = {
         driving_license_url: '',
         id_document_url: '',
@@ -146,18 +157,27 @@ export default function RegisterPage() {
         };
       }
 
-      await api.registerUser(form.email, form.password, {
+      const hasEmail = !!form.email.trim();
+      const authEmail = hasEmail ? form.email.trim() : `${form.phone.trim()}@sasgo.com`;
+
+      await api.registerUser(authEmail, form.password, {
         full_name: form.full_name,
-        email: form.email,
+        username: form.username,
+        email: hasEmail ? form.email.trim() : 'NA',
         phone: form.phone,
         role: role as UserRole,
         ...urls
       });
 
-      localStorage.setItem('pending_email', form.email);
-      toast.success(t('otp_sent'));
-      setShowOtp(true);
-      setTimer(60);
+      if (hasEmail) {
+        localStorage.setItem('pending_email', authEmail);
+        toast.success(t('otp_sent'));
+        setShowOtp(true);
+        setTimer(60);
+      } else {
+        toast.success(t('success_activate') || 'تم التسجيل بنجاح');
+        setTimeout(() => navigate('/login'), 1500);
+      }
     } catch (err: any) {
       toast.error(err.message || t('error'));
     } finally {
@@ -217,27 +237,31 @@ export default function RegisterPage() {
         animate={{ opacity: 1, y: 0 }}
         className="w-full max-w-xl relative z-10"
       >
-        {/* رأس الصفحة - مضغوط */}
-        <div className="text-center mb-4">
-          <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto shadow-xl shadow-primary/5 mb-3 border border-slate-50 relative overflow-hidden"
-          >
-            <img src="/logo.png" className="w-12 h-12 object-contain relative z-10 p-1" alt="Logo" />
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent" />
-          </motion.div>
-          <h1 className="text-xl font-black text-slate-900 tracking-tight mb-1">
-            {showOtp ? t('verify_title') : t('register_title')}
-          </h1>
-          <p className="text-[10px] font-bold text-slate-400">
-            {showOtp ? t('verify_subtitle') : t('register_subtitle')}
-          </p>
-        </div>
 
         <Card className="shadow-2xl shadow-slate-200/50 border-white/60 bg-white/90 backdrop-blur-xl rounded-[2rem] overflow-hidden border-2">
-          <CardContent className="p-6 md:p-8">
-            <AnimatePresence mode="wait">
+          <CardContent className="p-0">
+            <div className="flex flex-col md:flex-row items-stretch">
+              {/* Header/Side Info */}
+              <div className="w-full md:w-[30%] bg-slate-50/50 p-6 flex flex-col items-center justify-center border-b md:border-b-0 md:border-l border-slate-100">
+                 <motion.div
+                  initial={{ scale: 0.9, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  className="w-16 h-16 bg-white rounded-xl flex items-center justify-center shadow-md border border-slate-50 relative overflow-hidden mb-3"
+                >
+                  <img src="/logo.png" className="w-11 h-11 object-contain relative z-10 p-1" alt="Logo" />
+                  <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent" />
+                </motion.div>
+                <h1 className="text-lg font-black text-slate-900 tracking-tight text-center">
+                  {showOtp ? t('verify_title') : t('register_title')}
+                </h1>
+                <p className="text-[9px] font-bold text-slate-400 text-center">
+                  {showOtp ? t('verify_subtitle') : t('register_subtitle')}
+                </p>
+              </div>
+
+              {/* Form Content */}
+              <div className="w-full md:w-[70%] p-6 md:p-8">
+                <AnimatePresence mode="wait">
               {!showOtp ? (
                 <motion.form
                   key="register-form"
@@ -287,6 +311,35 @@ export default function RegisterPage() {
                       </div>
                     </div>
                     <div className="space-y-1.5">
+                      <Label className="text-[10px] font-black text-slate-400 ms-1 uppercase">{t('username')}</Label>
+                      <div className="relative group">
+                        <UserCircle2 className={cn("absolute top-1/2 -translate-y-1/2 text-slate-300", i18n.language === 'ar' ? "right-4" : "left-4")} size={16} />
+                        <Input
+                          placeholder={t('username_placeholder_only')}
+                          value={form.username}
+                          onChange={e => setForm(p => ({ ...p, username: e.target.value }))}
+                          dir="ltr"
+                          className={cn("h-11 rounded-xl border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary transition-all font-bold text-xs", i18n.language === 'ar' ? "pr-11" : "pl-11")}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-[10px] font-black text-slate-400 ms-1 uppercase">
+                        {t('email')} <span className="text-gray-300 font-normal normal-case ml-1">- اختياري</span>
+                      </Label>
+                      <Input
+                        type="email"
+                        placeholder={t('email_placeholder')}
+                        value={form.email}
+                        onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
+                        dir="ltr"
+                        className="h-11 rounded-xl border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary transition-all font-bold text-xs shadow-sm"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
                       <Label className="text-[10px] font-black text-slate-400 ms-1 uppercase">{t('phone')}</Label>
                       <div className="relative group">
                         <Phone className={cn("absolute top-1/2 -translate-y-1/2 text-slate-300", i18n.language === 'ar' ? "right-4" : "left-4")} size={16} />
@@ -302,19 +355,6 @@ export default function RegisterPage() {
                     </div>
                   </div>
 
-                  <div className="space-y-1.5">
-                    <Label className="text-[10px] font-black text-slate-400 ms-1 uppercase">{t('email')}</Label>
-                    <Input
-                      type="email"
-                      placeholder={t('email_placeholder')}
-                      value={form.email}
-                      onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
-                      required
-                      dir="ltr"
-                      className="h-11 rounded-xl border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary transition-all font-bold text-xs shadow-sm"
-                    />
-                  </div>
-
 
 
                   {/* Password Grid */}
@@ -328,6 +368,7 @@ export default function RegisterPage() {
                           onChange={e => setForm(p => ({ ...p, password: e.target.value }))}
                           required
                           dir="ltr"
+                          placeholder="••••••••"
                           className={cn("h-11 rounded-xl border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary transition-all font-bold text-xs", i18n.language === 'ar' ? "pr-4 pl-12" : "pl-4 pr-12")}
                         />
                         <button type="button" onClick={() => setShowPassword(!showPassword)} className={cn("absolute top-1/2 -translate-y-1/2 text-slate-300", i18n.language === 'ar' ? "left-4" : "right-4")}>
@@ -344,6 +385,7 @@ export default function RegisterPage() {
                           onChange={e => setForm(p => ({ ...p, confirmPassword: e.target.value }))}
                           required
                           dir="ltr"
+                          placeholder="••••••••"
                           className={cn("h-11 rounded-xl border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary transition-all font-bold text-xs", i18n.language === 'ar' ? "pr-4 pl-12" : "pl-4 pr-12")}
                         />
                         <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className={cn("absolute top-1/2 -translate-y-1/2 text-slate-300", i18n.language === 'ar' ? "left-4" : "right-4")}>
@@ -406,7 +448,7 @@ export default function RegisterPage() {
                               files.license ? "border-emerald-200 bg-emerald-50/30" : "border-slate-100 bg-slate-50/50 hover:bg-slate-100/80 hover:border-primary/30"
                             )}
                           >
-                            <input type="file" ref={licenseRef} onChange={e => setFiles(p => ({ ...p, license: e.target.files?.[0] || null }))} className="hidden" accept="image/*,application/pdf" />
+                            <input type="file" ref={licenseRef} onChange={e => setFiles(p => ({ ...p, license: e.target.files?.[0] || null }))} className="hidden" accept="image/*,application/pdf" title={t('driving_license')} />
                             <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center transition-all", files.license ? "bg-emerald-500 text-white" : "bg-white text-slate-400 group-hover:text-primary")}>
                               {files.license ? <CheckCircle2 size={18} /> : <FileUp size={18} />}
                             </div>
@@ -422,7 +464,7 @@ export default function RegisterPage() {
                               files.idDoc ? "border-emerald-200 bg-emerald-50/30" : "border-slate-100 bg-slate-50/50 hover:bg-slate-100/80 hover:border-primary/30"
                             )}
                           >
-                            <input type="file" ref={idRef} onChange={e => setFiles(p => ({ ...p, idDoc: e.target.files?.[0] || null }))} className="hidden" accept="image/*,application/pdf" />
+                            <input type="file" ref={idRef} onChange={e => setFiles(p => ({ ...p, idDoc: e.target.files?.[0] || null }))} className="hidden" accept="image/*,application/pdf" title={t('id_card')} />
                             <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center transition-all", files.idDoc ? "bg-emerald-500 text-white" : "bg-white text-slate-400 group-hover:text-primary")}>
                               {files.idDoc ? <CheckCircle2 size={18} /> : <FileUp size={18} />}
                             </div>
@@ -439,7 +481,7 @@ export default function RegisterPage() {
                               form.inviteCode && !files.truckImg ? "opacity-70" : ""
                             )}
                           >
-                            <input type="file" ref={truckRef} onChange={e => setFiles(p => ({ ...p, truckImg: e.target.files?.[0] || null }))} className="hidden" accept="image/*" />
+                            <input type="file" ref={truckRef} onChange={e => setFiles(p => ({ ...p, truckImg: e.target.files?.[0] || null }))} className="hidden" accept="image/*" title={t('truck_pic')} />
                             <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center transition-all", files.truckImg ? "bg-emerald-500 text-white" : "bg-white text-slate-400 group-hover:text-primary")}>
                               {files.truckImg ? <CheckCircle2 size={18} /> : <ImageIcon size={18} />}
                             </div>
@@ -543,7 +585,9 @@ export default function RegisterPage() {
                   </div>
                 </motion.form>
               )}
-            </AnimatePresence>
+                </AnimatePresence>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </motion.div>

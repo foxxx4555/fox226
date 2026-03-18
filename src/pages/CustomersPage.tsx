@@ -111,18 +111,18 @@ export default function CustomersPage() {
 
                         {/* Action Buttons */}
                         <div className="flex flex-wrap gap-4 items-center">
-                            <a href="https://app.sas3pl.com/shipper" target="_blank" rel="noopener noreferrer">
+                            <a href="#" onClick={(e) => e.preventDefault()}>
                                 <img
                                     src="https://naqliat.com/wp-content/uploads/2026/02/Store-download-button-1.png"
                                     alt={t('app_store_label', 'متجر التطبيقات')}
-                                    className="h-14 w-auto hover:opacity-90 transition-opacity"
+                                    className="h-14 w-auto hover:opacity-90 transition-opacity grayscale opacity-50 cursor-not-allowed"
                                 />
                             </a>
-                            <a href="https://shipper.sas3pl.com/login" target="_blank" rel="noopener noreferrer">
+                            <a href="#" onClick={(e) => e.preventDefault()}>
                                 <img
                                     src="https://naqliat.com/wp-content/uploads/2026/02/PWA-button.png"
                                     alt={t('browser_version', 'نسخة المتصفح')}
-                                    className="h-14 w-auto hover:opacity-90 transition-opacity"
+                                    className="h-14 w-auto hover:opacity-90 transition-opacity grayscale opacity-50 cursor-not-allowed"
                                 />
                             </a>
                         </div>
@@ -313,10 +313,14 @@ export default function CustomersPage() {
                         {t('cta_customers_desc', 'نحن نغطي جميع الدول العربية، مما يوفر لك أكبر شبكة لوجستية لضمان وصول شحنتك إلى وجهتها في الوقت المحدد وبأفضل الأسعار.')}
                     </p>
                     <div className="flex flex-col sm:flex-row gap-6 justify-center w-full max-w-md">
-                        <Button className="h-16 px-10 rounded-2xl bg-[#FFC107] hover:bg-[#ffb300] text-slate-900 font-black text-xl shadow-lg hover:shadow-[#FFC107]/40 transition-all w-full sm:w-auto">
+                        <Button className="h-16 px-10 rounded-2xl bg-[#FFC107] hover:bg-[#ffb300] text-slate-900 font-black text-xl shadow-lg hover:shadow-[#FFC107]/40 transition-all w-full sm:w-auto" onClick={(e) => e.preventDefault()}>
                             {t('start_shipping_now', 'ابدأ الشحن الآن')}
                         </Button>
-                        <Button variant="outline" className="h-16 px-10 rounded-2xl border-white/20 hover:bg-white/10 text-white font-black text-xl transition-all w-full sm:w-auto" onClick={() => navigate('/contact')}>
+                        <Button 
+                            className="h-16 px-10 rounded-2xl bg-white/10 hover:bg-white/20 border-2 border-[#FFC107] text-[#FFC107] font-black text-xl transition-all w-full sm:w-auto flex items-center gap-2" 
+                            onClick={() => window.open('https://wa.me/966550258358', '_blank')}
+                        >
+                            <MessageCircle size={24} />
                             {t('contact_us', 'تواصل معنا')}
                         </Button>
                     </div>
