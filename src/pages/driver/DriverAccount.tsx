@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/store/appStore';
@@ -14,7 +14,6 @@ import { Loader2, User, Phone, Mail, ShieldCheck, CheckCircle2, Building, Image 
 import { Badge } from '@/components/ui/badge';
 import { motion } from 'framer-motion';
 import { FileUp, FileCheck, FileText } from 'lucide-react';
-import { useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
     Dialog,
@@ -51,7 +50,6 @@ export default function DriverAccount() {
   const [verifying, setVerifying] = useState(false);
 
   // Load user data and verification status
-  import { useEffect } from 'react';
   useEffect(() => {
     if (userProfile?.id) {
       setForm(prev => ({
@@ -230,6 +228,7 @@ export default function DriverAccount() {
               >
                 <input
                   type="file"
+                  title="Upload avatar"
                   ref={fileInputRef}
                   onChange={handleAvatarUpload}
                   accept="image/*"
@@ -406,7 +405,7 @@ export default function DriverAccount() {
                     className={`p-6 rounded-[2rem] border-2 border-dashed ${uploadingDoc === 'driving_license_url' ? 'border-blue-400 bg-blue-50' : (userProfile as any)?.driving_license_url ? 'border-emerald-200 bg-emerald-50/50' : 'border-slate-200 bg-slate-50'} hover:bg-slate-100 transition-colors flex flex-col justify-center items-center gap-3 cursor-pointer group`}
                     onClick={() => licenseInputRef.current?.click()}
                   >
-                    <input type="file" ref={licenseInputRef} onChange={(e) => handleDocumentUpload(e, 'driving_license_url')} accept=".pdf,image/*" className="hidden" />
+                    <input type="file" title="Upload driving license" ref={licenseInputRef} onChange={(e) => handleDocumentUpload(e, 'driving_license_url')} accept=".pdf,image/*" className="hidden" />
                     <div className={`w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-sm transition-colors ${uploadingDoc === 'driving_license_url' ? 'text-blue-500' : (userProfile as any)?.driving_license_url ? 'text-emerald-500' : 'text-slate-400 group-hover:text-blue-600'}`}>
                       {uploadingDoc === 'driving_license_url' ? <Loader2 className="animate-spin" size={24} /> : (userProfile as any)?.driving_license_url ? <CheckCircle2 size={24} /> : <FileUp size={24} />}
                     </div>
@@ -420,7 +419,7 @@ export default function DriverAccount() {
                     className={`p-6 rounded-[2rem] border-2 border-dashed ${uploadingDoc === 'id_document_url' ? 'border-amber-400 bg-amber-50' : (userProfile as any)?.id_document_url ? 'border-emerald-200 bg-emerald-50/50' : 'border-slate-200 bg-slate-50'} hover:bg-slate-100 transition-colors flex flex-col justify-center items-center gap-3 cursor-pointer group`}
                     onClick={() => idInputRef.current?.click()}
                   >
-                    <input type="file" ref={idInputRef} onChange={(e) => handleDocumentUpload(e, 'id_document_url')} accept=".pdf,image/*" className="hidden" />
+                    <input type="file" title="Upload ID document" ref={idInputRef} onChange={(e) => handleDocumentUpload(e, 'id_document_url')} accept=".pdf,image/*" className="hidden" />
                     <div className={`w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-sm transition-colors ${uploadingDoc === 'id_document_url' ? 'text-amber-500' : (userProfile as any)?.id_document_url ? 'text-emerald-500' : 'text-slate-400 group-hover:text-amber-600'}`}>
                       {uploadingDoc === 'id_document_url' ? <Loader2 className="animate-spin" size={24} /> : (userProfile as any)?.id_document_url ? <CheckCircle2 size={24} /> : <FileUp size={24} />}
                     </div>
@@ -434,7 +433,7 @@ export default function DriverAccount() {
                     className={`p-6 rounded-[2rem] border-2 border-dashed ${uploadingDoc === 'vehicle_insurance_url' ? 'border-emerald-400 bg-emerald-100' : (userProfile as any)?.vehicle_insurance_url ? 'border-emerald-200 bg-emerald-50/50' : 'border-slate-200 bg-slate-50'} hover:bg-slate-100 transition-colors flex flex-col justify-center items-center gap-3 cursor-pointer group`}
                     onClick={() => insuranceInputRef.current?.click()}
                   >
-                    <input type="file" ref={insuranceInputRef} onChange={(e) => handleDocumentUpload(e, 'vehicle_insurance_url')} accept=".pdf,image/*" className="hidden" />
+                    <input type="file" title="Upload vehicle insurance" ref={insuranceInputRef} onChange={(e) => handleDocumentUpload(e, 'vehicle_insurance_url')} accept=".pdf,image/*" className="hidden" />
                     <div className={`w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-sm transition-colors ${uploadingDoc === 'vehicle_insurance_url' ? 'text-emerald-500' : (userProfile as any)?.vehicle_insurance_url ? 'text-emerald-500' : 'text-slate-400 group-hover:text-emerald-600'}`}>
                       {uploadingDoc === 'vehicle_insurance_url' ? <Loader2 className="animate-spin" size={24} /> : (userProfile as any)?.vehicle_insurance_url ? <CheckCircle2 size={24} /> : <FileUp size={24} />}
                     </div>
@@ -448,7 +447,7 @@ export default function DriverAccount() {
                     className={`p-6 rounded-[2rem] border-2 border-dashed ${uploadingDoc === 'truck_image_url' ? 'border-primary/40 bg-primary/5' : (userProfile as any)?.truck_image_url ? 'border-emerald-200 bg-emerald-50/50' : 'border-slate-200 bg-slate-50'} hover:bg-slate-100 transition-colors flex flex-col justify-center items-center gap-3 cursor-pointer group`}
                     onClick={() => truckImageInputRef.current?.click()}
                   >
-                    <input type="file" ref={truckImageInputRef} onChange={(e) => handleDocumentUpload(e, 'truck_image_url')} accept="image/*" className="hidden" />
+                    <input type="file" title="Upload truck image" ref={truckImageInputRef} onChange={(e) => handleDocumentUpload(e, 'truck_image_url')} accept="image/*" className="hidden" />
                     <div className={`w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-sm transition-colors ${uploadingDoc === 'truck_image_url' ? 'text-primary' : (userProfile as any)?.truck_image_url ? 'text-emerald-500' : 'text-slate-400 group-hover:text-primary'}`}>
                       {uploadingDoc === 'truck_image_url' ? <Loader2 className="animate-spin" size={24} /> : (userProfile as any)?.truck_image_url ? <CheckCircle2 size={24} /> : <ImageIcon size={24} />}
                     </div>
