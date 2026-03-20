@@ -1,9 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-// استدعاء القيم من ملف البيئة .env
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+import { _url, _key } from './secrets.js';
+
+// استدعاء القيم من ملف الأسرار المشفر
+const supabaseUrl = _url;
+const supabaseAnonKey = _key;
 
 // تصدير نسخة واحدة ثابتة (Singleton) لمنع تحذير Multiple Instances
 export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
