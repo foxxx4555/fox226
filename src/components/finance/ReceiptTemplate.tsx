@@ -18,7 +18,7 @@ export default function ReceiptTemplate({ data, printRef }: ReceiptTemplateProps
     const formatCurrency = (val: number) => new Intl.NumberFormat('ar-SA').format(val);
 
     return (
-        <div className="hidden print:block fixed inset-0 bg-white z-[9999] p-12 overflow-y-auto" ref={printRef}>
+        <div className="absolute -left-[9999px] top-0 w-[800px] bg-white p-12 print:static print:w-auto print:left-0" ref={printRef}>
             <div className="max-w-4xl mx-auto space-y-10 text-right font-sans" dir="rtl">
                 
                 {/* Header */}
@@ -28,7 +28,7 @@ export default function ReceiptTemplate({ data, printRef }: ReceiptTemplateProps
                         <p className="text-xl text-slate-500 font-bold">رقم السند: {data.receipt_number || data.invoice_id?.substring(0, 8).toUpperCase()}</p>
                     </div>
                     <div className="text-left">
-                        <div className="text-4xl font-black tracking-tighter text-blue-600">FOX LOGISTICS</div>
+                        <div className="text-4xl font-black tracking-tighter text-blue-600">SAS TRANSPORT</div>
                         <div className="text-sm text-slate-400 font-bold uppercase tracking-widest">Smart Logistics Solutions</div>
                     </div>
                 </div>
@@ -91,8 +91,8 @@ export default function ReceiptTemplate({ data, printRef }: ReceiptTemplateProps
                 </div>
 
                 <div className="text-center pt-8 border-t border-slate-100">
-                    <p className="text-slate-400 font-bold mb-2">شكراً لثقتكم بمنصة FOX LOGISTICS لخدمات النقل الذكي</p>
-                    <p className="text-xs text-slate-300 tracking-widest font-mono">WWW.FOX-LOGISTICS.COM</p>
+                    <p className="text-slate-400 font-bold mb-2">شكراً لثقتكم بمنصة SAS TRANSPORT لخدمات النقل الذكي</p>
+                    <p className="text-xs text-slate-300 tracking-widest font-mono">WWW.SASGOO.COM</p>
                 </div>
 
             </div>

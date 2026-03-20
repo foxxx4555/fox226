@@ -46,6 +46,7 @@ export default function DriverAccount() {
   const [isVerified, setIsVerified] = useState(false);
   const [showVerifyModal, setShowVerifyModal] = useState(false);
   const [verifyStep, setVerifyStep] = useState<'email' | 'otp'>('email');
+  const [otpType, setOtpType] = useState<'signup' | 'email_change'>('signup');
   const [otpCode, setOtpCode] = useState('');
   const [verifying, setVerifying] = useState(false);
 
@@ -80,16 +81,22 @@ export default function DriverAccount() {
     setVerifying(true);
     try {
       if (form.email !== userProfile?.email) {
+        setOtpType('email_change');
         const { error } = await supabase.auth.updateUser({ email: form.email });
         if (error) throw error;
         toast.success('تم إرسال رمز التحقق للبريد الجديد');
       } else {
+        setOtpType('signup');
         await api.resendOtp(form.email);
         toast.success('تم إعادة إرسال رمز التحقق');
       }
       setVerifyStep('otp');
     } catch (err: any) {
-      toast.error(err.message || 'فشل إرسال رمز التحقق');
+      if (err.code === 'over_email_send_rate_limit' || err.message?.includes('rate limit')) {
+        toast.error('لقد تجاوزت الحد المسموح به لإرسال رسائل البريد. يرجى المحاولة بعد قليل.');
+      } else {
+        toast.error(err.message || 'فشل إرسال رمز التحقق');
+      }
     } finally {
       setVerifying(false);
     }
@@ -102,12 +109,16 @@ export default function DriverAccount() {
     }
     setVerifying(true);
     try {
-      await api.verifyEmailOtp(form.email, otpCode);
+      await api.verifyEmailOtp(form.email, otpCode, otpType);
       toast.success('تم توثيق الحساب بنجاح');
       setIsVerified(true);
       setShowVerifyModal(false);
     } catch (err: any) {
-      toast.error(err.message || 'رمز التحقق غير صحيح');
+      if (err.code === 'otp_expired' || err.message?.includes('expired')) {
+        toast.error('رمز التحقق منتهي الصلاحية أو غير صحيح');
+      } else {
+        toast.error(err.message || 'رمز التحقق غير صحيح');
+      }
     } finally {
       setVerifying(false);
     }
@@ -492,7 +503,13 @@ export default function DriverAccount() {
               <p className="text-slate-500 font-bold text-sm text-center">سيتم إرسال رمز تحقق عشوائي إلى بريدك الإلكتروني لضمان ملكيتك للحساب.</p>
               <div className="space-y-1.5">
                 <Label className="font-bold text-slate-700">البريد الإلكتروني</Label>
-                <Input value={form.email} readOnly className="h-12 rounded-xl bg-slate-50 border-slate-100 font-black px-4" dir="ltr" />
+                <Input 
+                  value={form.email} 
+                  onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
+                  className="h-12 rounded-xl bg-slate-50 border-slate-100 font-black px-4" 
+                  dir="ltr" 
+                  placeholder="name@example.com"
+                />
               </div>
               <Button onClick={handleSendOtp} disabled={verifying} className="w-full h-12 rounded-xl bg-blue-600 text-white font-black shadow-lg">
                 {verifying ? <Loader2 className="animate-spin" /> : "إرسال الرمز"}

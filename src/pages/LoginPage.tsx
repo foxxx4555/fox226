@@ -67,6 +67,7 @@ export default function LoginPage() {
         navigate('/');
       }
     } catch (err: any) {
+      console.error("❌ Login Error Details:", err);
       toast.error(err.message || t('error'));
     } finally {
       setLoading(false);
@@ -85,6 +86,7 @@ export default function LoginPage() {
       toast.success(t('success'));
       navigate('/admin/dashboard');
     } catch (err: any) {
+      console.error("❌ Admin Login Error:", err);
       toast.error(err.message || t('error'));
     } finally {
       setLoading(false);

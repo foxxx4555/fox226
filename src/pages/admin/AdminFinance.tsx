@@ -13,6 +13,8 @@ import {
 } from 'lucide-react';
 import { api } from '@/services/api';
 import { exportToExcel } from '@/lib/exportUtils';
+import { generateReceiptPdf } from '@/lib/receipts';
+import ReceiptTemplate from '@/components/finance/ReceiptTemplate';
 import { AdminStats } from '@/types';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
@@ -48,6 +50,8 @@ export default function AdminFinance() {
 
     const [selectedShipperPayment, setSelectedShipperPayment] = useState<any | null>(null);
     const [isApprovePaymentModalOpen, setIsApprovePaymentModalOpen] = useState(false);
+    const receiptRef = useRef<HTMLDivElement>(null);
+    const [selectedReceiptData, setSelectedReceiptData] = useState<any>(null);
     const [paymentAdminNotes, setPaymentAdminNotes] = useState('');
     const [processingPayment, setProcessingPayment] = useState(false);
     const [isApprovingSettlement, setIsApprovingSettlement] = useState(false);
@@ -249,6 +253,7 @@ export default function AdminFinance() {
 
     return (
         <AdminLayout>
+             <ReceiptTemplate data={selectedReceiptData} printRef={receiptRef} />
             <style dangerouslySetInnerHTML={{ __html: `
                 @media print {
                     body * {
@@ -487,7 +492,7 @@ export default function AdminFinance() {
                                             <th className="px-6 py-5 font-black text-slate-500 text-sm">الشاحن</th>
                                             <th className="px-6 py-5 font-black text-blue-600 text-sm italic">رقم المرجع</th>
                                             <th className="px-6 py-5 font-black text-slate-500 text-sm text-center">المبلغ</th>
-                                             <th className="px-6 py-5 font-black text-blue-600 text-sm text-center">الرصيد الحالي</th>
+                                            <th className="px-6 py-5 font-black text-blue-600 text-sm text-center">رصيد المحفظة (الرصيد الدائن)</th>
                                             <th className="px-6 py-5 font-black text-rose-600 text-sm text-center">المتبقي (المديونية)</th>
                                             <th className="px-6 py-5 font-black text-slate-500 text-sm text-center">الفواتير</th>
                                             <th className="px-6 py-5 font-black text-slate-500 text-sm text-center">الحالة</th>
@@ -510,8 +515,8 @@ export default function AdminFinance() {
                                                 <td className="px-6 py-5 text-center font-black text-slate-900">
                                                     {Number(p.amount).toLocaleString()} ر.س
                                                 </td>
-                                                <td className={`px-6 py-5 text-center font-black ${Number(p.shipper_balance || 0) < 0 ? 'text-rose-600' : 'text-blue-600'}`}>
-                                                    {Number(p.shipper_balance || 0).toLocaleString()} ر.س
+                                                <td className={`px-6 py-5 text-center font-black ${Number(p.shipper_balance || 0) < 0 ? 'text-rose-600' : 'text-emerald-600'}`} dir="ltr">
+                                                    {Number(p.shipper_balance || 0) > 0 ? '+' : ''}{Number(p.shipper_balance || 0).toLocaleString()} ر.س
                                                 </td>
                                                 <td className="px-6 py-5 text-center font-black text-rose-600">
                                                     {Number(p.remaining_debt || 0).toLocaleString()} ر.س
@@ -551,8 +556,36 @@ export default function AdminFinance() {
                                                             </Button>
                                                         )}
                                                         {p.status === 'pending' && (
-                                                            <Button variant="ghost" size="icon" className="rounded-full bg-emerald-50 text-emerald-600" onClick={() => { setSelectedShipperPayment(p); setIsApprovePaymentModalOpen(true); }}>
+                                                            <Button variant="ghost" size="icon" className="rounded-full bg-emerald-50 text-emerald-600" onClick={() => { setSelectedShipperPayment(p); setIsApprovePaymentModalOpen(true); }} title="مراجعة واعتماد">
                                                                 <CheckCircle2 size={16} />
+                                                            </Button>
+                                                        )}
+                                                        {p.status === 'approved' && (
+                                                            <Button 
+                                                                variant="ghost" 
+                                                                size="icon" 
+                                                                className="rounded-full bg-emerald-50 text-emerald-600" 
+                                                                title="تحميل السند"
+                                                                onClick={() => {
+                                                                    setSelectedReceiptData({
+                                                                        invoice_id: p.id,
+                                                                        shipment_id: p.shipment_id,
+                                                                        shipper_name: p.shipper?.full_name || 'Shipper',
+                                                                        amount: Number(p.amount),
+                                                                        date: p.created_at
+                                                                    });
+                                                                    setTimeout(() => {
+                                                                        generateReceiptPdf({
+                                                                            invoice_id: p.id,
+                                                                            shipment_id: p.shipment_id,
+                                                                            shipper_name: p.shipper?.full_name || 'Shipper',
+                                                                            amount: Number(p.amount),
+                                                                            date: p.created_at
+                                                                        }, receiptRef);
+                                                                    }, 100);
+                                                                }}
+                                                            >
+                                                                <Download size={16} />
                                                             </Button>
                                                         )}
                                                     </div>

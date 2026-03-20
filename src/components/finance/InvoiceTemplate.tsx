@@ -16,7 +16,7 @@ export default function InvoiceTemplate({ invoice, userProfile, printRef }: Invo
     const formatCurrency = (val: number) => new Intl.NumberFormat('ar-SA').format(val);
 
     return (
-        <div className="hidden print:block fixed inset-0 bg-white z-[9999] p-12 overflow-y-auto" ref={printRef}>
+        <div className="absolute -left-[9999px] top-0 w-[800px] bg-white p-12 print:static print:w-auto print:left-0" ref={printRef}>
             <div className="space-y-8 text-right" dir="rtl">
                 <div className="flex justify-between items-start border-b-4 border-slate-900 pb-8">
                     <div>
@@ -25,7 +25,7 @@ export default function InvoiceTemplate({ invoice, userProfile, printRef }: Invo
                         <p className="text-sm text-slate-400 font-bold mt-1">الرقم الضريبي: 300000000000003</p>
                     </div>
                     <div className="text-left font-black">
-                        <div className="text-3xl tracking-tighter text-blue-600">FOX LOGISTICS</div>
+                        <div className="text-3xl tracking-tighter text-blue-600">SAS TRANSPORT</div>
                         <div className="text-sm text-slate-400">المنصة المالية اللوجستية</div>
                     </div>
                 </div>
@@ -75,7 +75,7 @@ export default function InvoiceTemplate({ invoice, userProfile, printRef }: Invo
                 </table>
 
                 <div className="mt-16 text-center text-slate-400 font-bold border-t pt-8">
-                    هذه الفاتورة مصدرة إلكترونياً من منصة Fox Logistics وموثقة لدى هيئة الزكاة والضريبة والجمارك.
+                    هذه الفاتورة مصدرة إلكترونياً من منصة SAS TRANSPORT وموثقة لدى هيئة الزكاة والضريبة والجمارك.
                 </div>
             </div>
         </div>

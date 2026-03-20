@@ -390,6 +390,8 @@ export default function ShipperStatement() {
     [userLoads]);
 
     const realRemainingDebt = Math.max(0, realTotalDebt - realTotalPaid);
+    const realTotalPaidToDebt = Math.min(realTotalPaid, realTotalDebt);
+    const realWalletCredit = Math.max(0, realTotalPaid - realTotalDebt);
 
     const chartData = useMemo(() => {
         const last7Days = Array.from({ length: 7 }, (_, i) => {
@@ -508,6 +510,7 @@ export default function ShipperStatement() {
 
                 {/* Print Template (Hidden) */}
                 <InvoiceTemplate invoice={selectedInvoice} userProfile={userProfile} printRef={printRef} />
+                <ReceiptTemplate data={selectedReceiptData} printRef={receiptRef} />
 
                 {/* Main Header */}
                 <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -563,27 +566,37 @@ export default function ShipperStatement() {
                             />
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
-                            <Card className="rounded-[2rem] border-none shadow-xl bg-white p-6">
-                                <div className="w-10 h-10 rounded-xl bg-orange-50 text-orange-500 flex items-center justify-center mb-4">
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-6">
+                            <Card className="rounded-[2rem] border-none shadow-xl bg-white p-4 md:p-5">
+                                <div className="w-10 h-10 rounded-xl bg-orange-50 text-orange-500 flex items-center justify-center mb-3">
                                     <ArrowUpRight size={20} />
                                 </div>
-                                <p className="text-slate-400 font-bold text-xs uppercase tracking-wider">المديونية الحالية</p>
-                                <h4 className="text-2xl font-black text-slate-800 mt-1">{formatCurrency(realRemainingDebt)} <span className="text-xs text-slate-400">ر.س</span></h4>
+                                <p className="text-slate-400 font-bold text-[10px] md:text-xs uppercase tracking-wider">المديونية الحالية</p>
+                                <h4 className="text-xl md:text-2xl font-black text-slate-800 mt-1">{formatCurrency(realRemainingDebt)} <span className="text-[10px] md:text-xs text-slate-400">ر.س</span></h4>
                             </Card>
-                            <Card className="rounded-[2rem] border-none shadow-xl bg-white p-6">
-                                <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-500 flex items-center justify-center mb-4">
-                                    <Clock size={20} />
+
+                            <Card className="rounded-[2rem] border-none shadow-xl bg-white p-4 md:p-5">
+                                <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-500 flex items-center justify-center mb-3">
+                                    <Wallet size={20} />
                                 </div>
-                                <p className="text-slate-400 font-bold text-xs uppercase tracking-wider">قيد المراجعة</p>
-                                <h4 className="text-2xl font-black text-slate-800 mt-1">{formatCurrency(pendingAmountTotal)} <span className="text-xs text-slate-400">ر.س</span></h4>
+                                <p className="text-slate-400 font-bold text-[10px] md:text-xs uppercase tracking-wider">رصيد المحفظة</p>
+                                <h4 className="text-xl md:text-2xl font-black text-slate-800 mt-1">{formatCurrency(realWalletCredit)} <span className="text-[10px] md:text-xs text-slate-400">ر.س</span></h4>
                             </Card>
-                            <Card className="rounded-[2rem] border-none shadow-xl bg-white p-6">
-                                <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-500 flex items-center justify-center mb-4">
+
+                            <Card className="rounded-[2rem] border-none shadow-xl bg-white p-4 md:p-5">
+                                <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-500 flex items-center justify-center mb-3">
                                     <ArrowDownRight size={20} />
                                 </div>
-                                <p className="text-slate-400 font-bold text-xs uppercase tracking-wider">تم سداده</p>
-                                <h4 className="text-2xl font-black text-slate-800 mt-1">{formatCurrency(realTotalPaid)} <span className="text-xs text-slate-400">ر.س</span></h4>
+                                <p className="text-slate-400 font-bold text-[10px] md:text-xs uppercase tracking-wider">تم السداد</p>
+                                <h4 className="text-xl md:text-2xl font-black text-slate-800 mt-1">{formatCurrency(realTotalPaidToDebt)} <span className="text-[10px] md:text-xs text-slate-400">ر.س</span></h4>
+                            </Card>
+
+                            <Card className="rounded-[2rem] border-none shadow-xl bg-white p-4 md:p-5">
+                                <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-500 flex items-center justify-center mb-3">
+                                    <Clock size={20} />
+                                </div>
+                                <p className="text-slate-400 font-bold text-[10px] md:text-xs uppercase tracking-wider">قيد المراجعة</p>
+                                <h4 className="text-xl md:text-2xl font-black text-slate-800 mt-1">{formatCurrency(pendingAmountTotal)} <span className="text-[10px] md:text-xs text-slate-400">ر.س</span></h4>
                             </Card>
                         </div>
                     </div>
@@ -827,7 +840,9 @@ export default function ShipperStatement() {
                                                 <td colSpan={7} className="px-6 py-20 text-center text-slate-400 font-bold">لا توجد فواتير صادرة حالياً</td>
                                             </tr>
                                         ) : invoices.map((invoice) => {
-                                            const unpaidAmount = Number(invoice.balance || (invoice.total_amount - (invoice.amount_paid || 0)));
+                                            const totalAmount = Number(invoice.total_amount);
+                                            const paidAmount = loadBalances[invoice.shipment_id]?.paid || Number(invoice.amount_paid || 0);
+                                            const unpaidAmount = Math.max(0, totalAmount - paidAmount);
                                             const isFullyPaid = unpaidAmount <= 0;
                                             const invoicePendingPayments = shipperPayments.filter(p => p.shipment_id === invoice.shipment_id && p.status === 'pending');
                                             const pendingAmountForInvoice = invoicePendingPayments.reduce((acc, curr) => acc + Number(curr.amount), 0);
@@ -850,8 +865,8 @@ export default function ShipperStatement() {
                                                 }
                                                 rowStyle = 'bg-amber-50/10 hover:bg-amber-50/40 transition-colors';
                                                 statusBadgeStyle = 'bg-amber-500 text-white font-black px-4 py-1.5 rounded-full text-xs shadow-sm w-full inline-block min-w-[120px] leading-tight';
-                                            } else if (Number(invoice.amount_paid) > 0) {
-                                                statusText = 'سديد جزئي';
+                                            } else if (paidAmount > 0) {
+                                                statusText = 'سداد جزئي';
                                                 rowStyle = 'bg-blue-50/10 hover:bg-blue-50/40 transition-colors';
                                                 statusBadgeStyle = 'bg-blue-500 text-white font-black px-4 py-1.5 rounded-full text-xs shadow-sm w-full inline-block min-w-[120px]';
                                             } else {
@@ -886,8 +901,8 @@ export default function ShipperStatement() {
                                                     </a>
                                                 </td>
                                                 <td className="px-6 py-5 font-black text-rose-600">{unpaidAmount.toLocaleString()} ر.س</td>
-                                                <td className="px-6 py-5 font-black text-slate-900">{Number(invoice.amount_paid || 0).toLocaleString()} ر.س</td>
-                                                <td className="px-6 py-5 font-black text-slate-900">{Number(invoice.total_amount).toLocaleString()} ر.س</td>
+                                                <td className="px-6 py-5 font-black text-slate-900">{paidAmount.toLocaleString()} ر.س</td>
+                                                <td className="px-6 py-5 font-black text-slate-900">{totalAmount.toLocaleString()} ر.س</td>
                                                 <td className="px-6 py-5 text-center align-middle">
                                                     <div className={statusBadgeStyle}>
                                                         {statusText}
@@ -915,7 +930,7 @@ export default function ShipperStatement() {
                                                         </Button>
                                                     ) : (
                                                         <div className="flex items-center justify-center gap-2">
-                                                            {Number(invoice.amount_paid || 0) > 0 && (
+                                                            {(paidAmount > 0) && (
                                                                 <Button
                                                                     size="sm"
                                                                     variant="outline"
@@ -925,7 +940,7 @@ export default function ShipperStatement() {
                                                                             invoice_id: invoice.invoice_id,
                                                                             shipment_id: invoice.shipment_id,
                                                                             shipper_name: userProfile?.full_name || 'Shipper',
-                                                                            amount: Number(invoice.amount_paid),
+                                                                            amount: paidAmount,
                                                                             date: new Date().toISOString()
                                                                         });
                                                                         setTimeout(() => {

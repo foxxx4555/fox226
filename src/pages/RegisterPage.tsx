@@ -179,7 +179,11 @@ export default function RegisterPage() {
         setTimeout(() => navigate('/login'), 1500);
       }
     } catch (err: any) {
-      toast.error(err.message || t('error'));
+      if (err.code === 'over_email_send_rate_limit' || err.message?.includes('rate limit')) {
+        toast.error('لقد تجاوزت الحد المسموح به لإرسال رسائل البريد. يرجى المحاولة بعد قليل.');
+      } else {
+        toast.error(err.message || t('error'));
+      }
     } finally {
       setLoading(false);
     }
@@ -206,7 +210,11 @@ export default function RegisterPage() {
       toast.success(t('success_activate'));
       setTimeout(() => navigate('/login'), 1500);
     } catch (err: any) {
-      toast.error(t('invalid_otp'));
+      if (err.code === 'otp_expired' || err.message?.includes('expired')) {
+        toast.error('رمز التحقق منتهي الصلاحية أو غير صحيح');
+      } else {
+        toast.error(t('invalid_otp'));
+      }
     } finally {
       setLoading(false);
     }
@@ -220,7 +228,11 @@ export default function RegisterPage() {
       setTimer(60);
       toast.success(t('otp_resent'));
     } catch (err: any) {
-      toast.error(t('resend_failed'));
+      if (err.code === 'over_email_send_rate_limit' || err.message?.includes('rate limit')) {
+        toast.error('لقد تجاوزت الحد المسموح به لإرسال رسائل البريد. يرجى المحاولة بعد قليل.');
+      } else {
+        toast.error(t('resend_failed'));
+      }
     } finally {
       setLoading(false);
     }

@@ -26,7 +26,11 @@ export default function ForgotPasswordPage() {
       setSubmitted(true);
       toast.success(t('success'));
     } catch (err: any) {
-      toast.error(err.message || t('error'));
+      if (err.code === 'over_email_send_rate_limit' || err.message?.includes('rate limit')) {
+        toast.error('لقد تجاوزت الحد المسموح به لإرسال رسائل البريد. يرجى المحاولة بعد قليل.');
+      } else {
+        toast.error(err.message || t('error'));
+      }
     } finally {
       setLoading(false);
     }

@@ -109,26 +109,33 @@ export const api = {
         throw new Error(`فشل حفظ بيانات البروفايل: ${upsertError.message}`);
       }
 
-      // 2. إدراج الدور يدوياً للتأكد من ظهوره في القوائم
+      // 2. إدراج الدور يدوياً مع تجاهل الخطأ إذا كان موجوداً (Conflict)
       if (profile.role) {
-        const { error: roleError } = await supabase.from('user_roles').upsert({
-          user_id: data.user.id,
-          role: profile.role
-        } as any);
-        if (roleError) console.error("⚠️ User Role Insert Error:", roleError);
+        try {
+          // نستخدم insert مع إهمال أخطاء التعارض لأن الدور قد ينشأ بواسطة Trigger
+          const { error: roleError } = await supabase.from('user_roles').insert({
+            user_id: data.user.id,
+            role: profile.role as any
+          });
+          
+          if (roleError && roleError.code !== '23505') {
+            console.error("⚠️ User Role Insert Warning:", roleError);
+          }
+        } catch (e) {
+          console.warn("User role might have been inserted by trigger already.");
+        }
       }
     }
 
     return data;
   },
 
-  // ✅ إضافة الدالة ال
-  // فقودة للتحقق من الكود (OTP)
-  async verifyEmailOtp(email: string, token: string) {
+  // ✅ إضافة الدالة الفقودة للتحقق من الكود (OTP)
+  async verifyEmailOtp(email: string, token: string, type: 'signup' | 'email_change' | 'email' | 'recovery' = 'signup') {
     const { data, error } = await supabase.auth.verifyOtp({
       email,
       token,
-      type: 'email'
+      type
     });
     if (error) throw error;
     return data;
@@ -188,22 +195,34 @@ export const api = {
 
   // ✅ دالة البحث عن البريد الإلكتروني باستخدام اسم المستخدم أو الهاتف
   async resolveIdentifierToEmail(identifier: string) {
-    if (identifier.includes('@')) return identifier;
+    if (identifier.includes('@')) return identifier.trim().toLowerCase();
     
+    const cleanId = identifier.trim();
+    
+    // البحث في البروفايلات باستخدام اسم المستخدم أو الهاتف (تجاهل حالة الأحرف للاسم)
+    // نستخدم ilike لضمان العثور على اسم المستخدم بغض النظر عن حالة الأحرف
     const { data, error: resolveError } = await supabase
       .from('profiles')
-      .select('email, phone')
-      .or(`username.eq."${identifier}",phone.eq."${identifier}"`)
+      .select('email, phone, username')
+      .or(`username.ilike.${cleanId},phone.eq.${cleanId}`)
       .maybeSingle();
 
     if (resolveError) console.error("⚠️ Resolve Identity Error:", resolveError);
     
-    // إذا كان البريد مخزناً كـ NA، نستخدم الهوية التقنية (رقم الهاتف) لتسجيل الدخول
-    if (data?.email === 'NA') return `${data.phone}@sasgo.com`;
-    if (data?.email) return data.email;
+    // سجل تتبع لمعرفة ما تم العثور عليه بالتفصيل
+    console.log(`🔍 [Auth] Debug Profile Data for "${cleanId}":`, data);
+
+    // إذا كان البريد موجوداً وصحيحاً (ليس NA)
+    if (data?.email && data.email !== 'NA') return data.email;
+    
+    // إذا كان البريد مخزناً كـ NA أو غير موجود ولكن الهاتف موجود، نستخدم البريد التقني
+    if (data?.phone) return `${data.phone}@sasgo.com`;
     
     // Fallback: إذا لم نجد في البروفايل، نجرّب الصيغة الافتراضية اللاتينية
-    return `${identifier.trim().replace(/\s+/g, '.')}@sasgo.com`;
+    // ملاحظة: قد لا يعمل هذا إذا كان المستخدم مسجلاً بهاتف مختلف
+    const fallbackEmail = `${cleanId.replace(/\s+/g, '.')}@sasgo.com`;
+    console.warn(`⚠️ [Auth] Fallback email used: ${fallbackEmail}`);
+    return fallbackEmail;
   },
 
   // ✅ دالة تحديث بيانات البروفايل
