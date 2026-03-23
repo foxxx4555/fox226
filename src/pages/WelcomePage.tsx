@@ -200,14 +200,10 @@ export default function WelcomePage() {
             />
           </motion.div>
 
-          <h1 className="text-xl md:text-3xl font-black text-slate-900 mb-1 leading-[1.1] tracking-tighter">
+          <h1 className="text-2xl md:text-5xl font-black text-slate-900 mb-4 leading-[1.1] tracking-tighter">
             SASGO <br />
             <span className="text-primary italic">{t('everywhere', 'في كل طريق')}</span>
           </h1>
-
-          <p className="text-sm md:text-base font-black text-slate-500 mb-6 max-w-2xl mx-auto leading-relaxed px-4">
-            {t('welcome_desc', 'منصة النقل الذكية.. أسرع وأسهل طريقة لإدارة شحناتك ونقل بضائعك')}
-          </p>
 
           {/* 🔍 صندوق بحث تتبع مباشر */}
           <motion.form
@@ -234,49 +230,9 @@ export default function WelcomePage() {
             </div>
           </motion.form>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 max-w-3xl mx-auto mt-4">
-            {[
-              { icon: <Shield className="text-primary" size={14} />, text: t('safe_reliable', "آمن وموثوق") },
-              { icon: <Zap className="text-amber-500" size={14} />, text: t('super_fast', "سرعة فائقة") },
-              { icon: <Globe className="text-emerald-500" size={14} />, text: t('global_coverage', "تغطية شاملة") },
-              { icon: <Truck className="text-primary" size={14} />, text: t('large_fleet', "أسطول ضخم") },
-            ].map((item, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.5 + i * 0.1 }}
-                className="bg-white/40 backdrop-blur-md border border-white p-2 rounded-xl flex flex-col items-center gap-1 hover:scale-105 transition-all shadow-sm"
-              >
-                <div className="p-1 bg-white rounded-lg shadow-sm">{item.icon}</div>
-                <span className="text-[9px] font-black text-slate-800">{item.text}</span>
-              </motion.div>
-            ))}
-          </div>
+          {/* Features grid removed per user request */}
 
-          {/* 🔘 أزرار العمل السريع (Call to Action) */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.8 }}
-            className="flex flex-wrap justify-center gap-4 mt-8"
-          >
-            <Button
-              onClick={() => navigate('/login')}
-              className="h-14 px-8 rounded-2xl bg-slate-900 text-white font-black text-base shadow-xl hover:scale-105 transition-all flex items-center gap-2 group"
-            >
-              <UserCircle2 size={20} className="group-hover:rotate-12 transition-transform" />
-              {t('join_system', 'انضم إلى النظام')}
-            </Button>
-
-            <Button
-              onClick={() => navigate('/register')}
-              className="h-14 px-8 rounded-2xl bg-primary hover:bg-primary/90 text-white font-black text-base shadow-xl shadow-primary/20 hover:scale-105 transition-all flex items-center gap-2 group border-2 border-white/20"
-            >
-              <Zap size={20} className="fill-white group-hover:scale-110 transition-transform" />
-              {t('start_journey_now', 'ابدأ رحلتك الآن')}
-            </Button>
-          </motion.div>
+          {/* Bottom CTA buttons removed per user request */}
         </motion.div>
       </section>
 

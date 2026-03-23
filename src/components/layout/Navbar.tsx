@@ -45,17 +45,16 @@ export const Navbar = () => {
                 <div className="flex items-center gap-4">
                     <div className="flex items-center gap-2">
                         <Button
-                            onClick={() => navigate('/drivers')}
-                            className="bg-[#FF7A00] hover:bg-orange-600 text-white font-black px-4 md:px-6 rounded-xl h-10 text-xs hidden md:flex items-center gap-2"
+                            onClick={() => navigate('/login')}
+                            className="bg-[#005274] hover:bg-[#003d57] text-white font-black px-4 md:px-6 rounded-xl h-10 text-xs hidden md:flex items-center gap-2"
                         >
-                            {t('driver_app')}
-                            <Download size={14} />
+                            {t('login_nav', 'تسجيل دخول')}
                         </Button>
                         <Button
-                            className="bg-[#005274] hover:bg-[#003d57] text-white font-black px-4 md:px-6 rounded-xl h-10 text-xs hidden sm:flex items-center gap-2"
+                            onClick={() => navigate('/register')}
+                            className="bg-[#FF7A00] hover:bg-orange-600 text-white font-black px-4 md:px-6 rounded-xl h-10 text-xs hidden sm:flex items-center gap-2"
                         >
-                            {t('shipper_app')}
-                            <Download size={14} />
+                            {t('register_nav', 'إنشاء تسجيل الدخول')}
                         </Button>
                     </div>
 
@@ -124,8 +123,8 @@ export const Navbar = () => {
                         {t('general_info')} <Home size={22} />
                     </button>
                     <div className="mt-8 flex flex-col gap-4">
-                        <Button onClick={() => { navigate('/drivers'); setIsMobileMenuOpen(false); }} className="h-14 bg-[#FF7A00] text-white font-black text-lg rounded-2xl">{t('driver_app')}</Button>
-                        <Button className="h-14 bg-[#005274] text-white font-black text-lg rounded-2xl">{t('shipper_app')}</Button>
+                        <Button onClick={() => { navigate('/login'); setIsMobileMenuOpen(false); }} className="h-14 bg-[#005274] text-white font-black text-lg rounded-2xl">{t('login_nav', 'تسجيل دخول')}</Button>
+                        <Button onClick={() => { navigate('/register'); setIsMobileMenuOpen(false); }} className="h-14 bg-[#FF7A00] text-white font-black text-lg rounded-2xl">{t('register_nav', 'إنشاء تسجيل الدخول')}</Button>
                         <div className="mt-4 flex justify-center">
                             <span
                                 onClick={toggleLanguage}

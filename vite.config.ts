@@ -5,7 +5,7 @@ import path from "path";
 import obfuscator from "rollup-plugin-javascript-obfuscator";
 
 export default defineConfig(() => ({
-  base: "./",
+  base: "/",
   server: {
     host: "::",
     port: 8080,

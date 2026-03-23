@@ -391,12 +391,6 @@ const App = () => {
                   </AdminProtectedRoute>
                 } />
 
-                <Route path="/admin/ratings" element={
-                  <AdminProtectedRoute allowedRoles={['Super Admin', 'Operations', 'Buyer Support', 'Admin']}>
-                    <AdminDriverRatings />
-                  </AdminProtectedRoute>
-                } />
-
                 {/* Temporary Route for Admin Addition */}
                 <Route path="/admin/force-add-admin" element={
                   <AdminProtectedRoute allowedRoles={['Super Admin']}>
