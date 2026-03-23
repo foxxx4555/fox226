@@ -200,10 +200,13 @@ export default function WelcomePage() {
             />
           </motion.div>
 
-          <h1 className="text-2xl md:text-5xl font-black text-slate-900 mb-4 leading-[1.1] tracking-tighter">
-            SASGO <br />
-            <span className="text-primary italic">{t('everywhere', 'في كل طريق')}</span>
+          <h1 className="text-3xl md:text-6xl font-black text-slate-900 mb-4 leading-[1.1] tracking-tighter">
+            {t('ship_what_you_want', 'اشحن ما تريد . وقت ما تريد .')}
           </h1>
+
+          <p className="text-base md:text-xl font-black text-slate-600 mb-8 max-w-3xl mx-auto leading-relaxed px-4">
+            {t('all_shipments_controlled', 'كل شحناتك تحت السيطرة - من الانطلاقة حتى التسليم . بسرعة وكفاءة.')}
+          </p>
 
           {/* 🔍 صندوق بحث تتبع مباشر */}
           <motion.form
