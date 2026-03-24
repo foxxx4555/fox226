@@ -196,7 +196,7 @@ export default function WelcomePage() {
             <img
               src="/logo.png"
               alt="SAS Logo"
-              className="h-32 md:h-52 w-auto object-contain mx-auto drop-shadow-xl"
+              className="h-28 md:h-52 w-auto object-contain mx-auto drop-shadow-xl active:scale-95 transition-transform"
             />
           </motion.div>
 
@@ -216,18 +216,18 @@ export default function WelcomePage() {
             transition={{ delay: 0.3 }}
             className="relative max-w-2xl mx-auto w-full mb-6 group px-4"
           >
-            <div className="relative flex items-center p-1.5 bg-white/70 backdrop-blur-xl rounded-[1.5rem] shadow-lg border-2 border-white transition-all group-focus-within:border-primary/30">
+            <div className="relative flex flex-col md:flex-row items-center p-1.5 bg-white/70 backdrop-blur-xl rounded-[1.5rem] md:rounded-[2rem] shadow-lg border-2 border-white transition-all group-focus-within:border-primary/30 gap-2">
               <Input
                 value={searchID}
                 onChange={(e) => setSearchID(e.target.value)}
                 placeholder={t('tracking_placeholder_welcome', 'أدخل رقم الشحنة للتتبع المباشر...')}
-                className="h-10 md:h-12 px-6 bg-transparent border-none text-sm font-black focus-visible:ring-0 placeholder:text-slate-300"
+                className="h-12 md:h-14 px-6 bg-transparent border-none text-base font-black focus-visible:ring-0 placeholder:text-slate-300 w-full"
               />
               <Button
                 type="submit"
-                className="h-10 md:h-10 px-8 rounded-[1rem] bg-primary hover:bg-primary/90 text-white font-black flex items-center gap-2 transition-all mr-2 shadow-md shadow-primary/20 text-xs"
+                className="h-12 md:h-12 w-full md:w-auto px-8 rounded-[1rem] md:rounded-[1.2rem] bg-primary hover:bg-primary/90 text-white font-black flex items-center justify-center gap-2 transition-all shadow-md shadow-primary/20 text-sm active:scale-95"
               >
-                <Search size={16} />
+                <Search size={20} />
                 {t('track', 'تتبع')}
               </Button>
             </div>
@@ -260,7 +260,7 @@ export default function WelcomePage() {
               <p className="text-base md:text-lg text-slate-600 font-bold leading-relaxed">
                 {content.aboutUs || t('about_us_default', "نحن شركة رائدة في مجال النقل والخدمات اللوجستية، نسعى دائماً لتقديم أفضل الحلول التقنية لتسهيل عمليات النقل وضمان وصول شحناتكم بأمان وفي أسرع وقت ممكن.")}
               </p>
-              <Button onClick={() => navigate('/register')} className="h-14 px-10 rounded-2xl bg-slate-900 text-white font-black text-lg gap-3 shadow-xl">
+              <Button onClick={() => navigate('/register')} className="w-full md:w-auto h-14 px-10 rounded-2xl bg-slate-900 text-white font-black text-lg gap-3 shadow-xl active:scale-95 transition-transform">
                 {t('start_journey_with_us', 'ابدأ رحلتك معنا')}
                 <ChevronRight className={i18n.language === 'ar' ? "rotate-180" : ""} />
               </Button>

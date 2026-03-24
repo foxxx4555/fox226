@@ -79,6 +79,10 @@
   html[dir="rtl"] {
     direction: rtl;
   }
+  html, body {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
 }
 
 @layer utilities {

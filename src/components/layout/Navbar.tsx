@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Truck, Home, User, Menu, X, Download } from 'lucide-react';
 import { useAppStore } from '@/store/appStore';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export const Navbar = () => {
     const navigate = useNavigate();
@@ -108,34 +109,43 @@ export const Navbar = () => {
                 </div>
             </nav>
 
-            {isMobileMenuOpen && (
-                <div className="fixed inset-0 z-[99] bg-white pt-24 px-8 flex flex-col md:hidden" dir={i18n.language === 'ar' ? 'rtl' : 'ltr'}>
-                    <button onClick={() => { navigate(getHomeRoute()); setIsMobileMenuOpen(false); }} className={`py-4 text-xl font-black border-b border-slate-50 text-right flex items-center justify-end gap-3 ${isActive(getHomeRoute()) ? 'text-primary' : 'text-slate-800'}`}>
-                        {t('home_nav')} <Home size={22} />
-                    </button>
-                    <button onClick={() => { navigate('/drivers'); setIsMobileMenuOpen(false); }} className={`py-4 text-xl font-black border-b border-slate-50 text-right flex items-center justify-end gap-3 ${isActive('/drivers') ? 'text-primary' : 'text-slate-800'}`}>
-                        {t('drivers')} <Truck size={22} />
-                    </button>
-                    <button onClick={() => { navigate('/customers'); setIsMobileMenuOpen(false); }} className={`py-4 text-xl font-black border-b border-slate-50 text-right flex items-center justify-end gap-3 ${isActive('/customers') ? 'text-primary' : 'text-slate-800'}`}>
-                        {t('customers')} <User size={22} />
-                    </button>
-                    <button onClick={() => { navigate('/info'); setIsMobileMenuOpen(false); }} className={`py-4 text-xl font-black border-b border-slate-50 text-right flex items-center justify-end gap-3 ${isActive('/info') ? 'text-primary' : 'text-slate-800'}`}>
-                        {t('general_info')} <Home size={22} />
-                    </button>
-                    <div className="mt-8 flex flex-col gap-4">
-                        <Button onClick={() => { navigate('/login'); setIsMobileMenuOpen(false); }} className="h-14 bg-[#005274] text-white font-black text-lg rounded-2xl">{t('login_nav', 'تسجيل دخول')}</Button>
-                        <Button onClick={() => { navigate('/register'); setIsMobileMenuOpen(false); }} className="h-14 bg-[#FF7A00] text-white font-black text-lg rounded-2xl">{t('register_nav', 'إنشاء تسجيل الدخول')}</Button>
-                        <div className="mt-4 flex justify-center">
-                            <span
-                                onClick={toggleLanguage}
-                                className="bg-[#ffebcc] text-[#FF7A00] font-bold px-6 py-3 rounded-full text-lg flex items-center gap-2 cursor-pointer"
-                            >
-                                {i18n.language.toUpperCase()} <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
-                            </span>
+            <AnimatePresence>
+                {isMobileMenuOpen && (
+                    <motion.div
+                        initial={{ opacity: 0, x: i18n.language === 'ar' ? 100 : -100 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: i18n.language === 'ar' ? 100 : -100 }}
+                        transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                        className="fixed inset-0 z-[99] bg-white pt-24 px-8 flex flex-col md:hidden overflow-y-auto"
+                        dir={i18n.language === 'ar' ? 'rtl' : 'ltr'}
+                    >
+                        <button onClick={() => { navigate(getHomeRoute()); setIsMobileMenuOpen(false); }} className={`py-4 text-xl font-black border-b border-slate-50 text-right flex items-center justify-end gap-3 ${isActive(getHomeRoute()) ? 'text-primary' : 'text-slate-800'}`}>
+                            {t('home_nav')} <Home size={22} />
+                        </button>
+                        <button onClick={() => { navigate('/drivers'); setIsMobileMenuOpen(false); }} className={`py-4 text-xl font-black border-b border-slate-50 text-right flex items-center justify-end gap-3 ${isActive('/drivers') ? 'text-primary' : 'text-slate-800'}`}>
+                            {t('drivers')} <Truck size={22} />
+                        </button>
+                        <button onClick={() => { navigate('/customers'); setIsMobileMenuOpen(false); }} className={`py-4 text-xl font-black border-b border-slate-50 text-right flex items-center justify-end gap-3 ${isActive('/customers') ? 'text-primary' : 'text-slate-800'}`}>
+                            {t('customers')} <User size={22} />
+                        </button>
+                        <button onClick={() => { navigate('/info'); setIsMobileMenuOpen(false); }} className={`py-4 text-xl font-black border-b border-slate-50 text-right flex items-center justify-end gap-3 ${isActive('/info') ? 'text-primary' : 'text-slate-800'}`}>
+                            {t('general_info')} <Home size={22} />
+                        </button>
+                        <div className="mt-8 flex flex-col gap-4 mb-20">
+                            <Button onClick={() => { navigate('/login'); setIsMobileMenuOpen(false); }} className="h-14 bg-[#005274] text-white font-black text-lg rounded-2xl shadow-lg shadow-[#005274]/20 active:scale-95 transition-transform">{t('login_nav', 'تسجيل دخول')}</Button>
+                            <Button onClick={() => { navigate('/register'); setIsMobileMenuOpen(false); }} className="h-14 bg-[#FF7A00] text-white font-black text-lg rounded-2xl shadow-lg shadow-[#FF7A00]/20 active:scale-95 transition-transform">{t('register_nav', 'إنشاء تسجيل الدخول')}</Button>
+                            <div className="mt-4 flex justify-center">
+                                <span
+                                    onClick={toggleLanguage}
+                                    className="bg-[#ffebcc] text-[#FF7A00] font-bold px-6 py-3 rounded-full text-lg flex items-center gap-2 cursor-pointer active:scale-95 transition-transform"
+                                >
+                                    {i18n.language.toUpperCase()} <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+                                </span>
+                            </div>
                         </div>
-                    </div>
-                </div>
-            )}
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </>
     );
 };
