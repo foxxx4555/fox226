@@ -70,6 +70,22 @@ export default function AdminMaintenance() {
         }));
 
         const worksheet = XLSX.utils.json_to_sheet(worksheetData);
+        
+        // ضبط عرض الأعمدة ليكون 25 كما طلب المستخدم لضمان وضوح البيانات
+        const wscols = [
+            { wch: 15 }, // التاريخ
+            { wch: 25 }, // السائق
+            { wch: 15 }, // الهاتف
+            { wch: 25 }, // الشاحنة
+            { wch: 25 }, // الفئة
+            { wch: 25 }, // الشحنة
+            { wch: 35 }, // الوصف
+            { wch: 15 }, // التكلفة
+            { wch: 25 }, // الحالة
+            { wch: 35 }  // ملاحظات الإدارة
+        ];
+        worksheet['!cols'] = wscols;
+
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "طلبات الصيانة");
         XLSX.writeFile(workbook, `تقارير_الصيانة_${new Date().toISOString().split('T')[0]}.xlsx`);
