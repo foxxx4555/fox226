@@ -175,32 +175,38 @@ export default function DriverTrucks() {
     }
   };
 
-  const handleUpdateMaintenanceStatus = async (requestId: string, currentStatus: string) => {
+  const handleUpdateMaintenanceStatus = async (requestId: string, newStatus: string) => {
     try {
-      if (currentStatus === 'approved') {
-        const { error } = await supabase.from('maintenance_requests' as any).update({ status: 'repaired' }).eq('id', requestId);
-        if (error) throw error;
+      const { error } = await supabase.from('maintenance_requests' as any).update({ status: newStatus }).eq('id', requestId);
+      if (error) throw error;
 
-        // إرسال إشعار للإدارة
-        try {
-          const { data: adminRoles } = await supabase.from('user_roles').select('user_id').in('role', ['admin', 'super_admin', 'operations']);
-          if (adminRoles && adminRoles.length > 0) {
-            const adminIds = Array.from(new Set(adminRoles.map(r => r.user_id)));
+      // إرسال إشعار للإدارة حسب الحالة الجديدة
+      try {
+        const { data: adminRoles } = await supabase.from('user_roles').select('user_id').in('role', ['admin', 'super_admin', 'operations']);
+        if (adminRoles && adminRoles.length > 0) {
+          const adminIds = Array.from(new Set(adminRoles.map(r => (r as any).user_id as string)));
+          let title = "";
+          let message = "";
+          
+          if (newStatus === 'repairing') {
+            title = "بدء إصلاح شاحنة 🛠️";
+            message = `قام السائق ${userProfile?.full_name} ببدء عملية الإصلاح الآن.`;
+          } else if (newStatus === 'repaired') {
+            title = "تم الانتهاء من الإصلاح 🔧";
+            message = `قام السائق ${userProfile?.full_name} بالإبلاغ عن انتهاء إصلاح الشاحنة. يرجى المراجعة والاعتماد النهائي.`;
+          }
+
+          if (title) {
             for (const adminId of adminIds) {
-              await api.createNotification(
-                adminId,
-                "تم الانتهاء من الإصلاح 🔧",
-                `قام السائق ${userProfile?.full_name} بالإبلاغ عن انتهاء إصلاح الشاحنة. يرجى المراجعة والاعتماد النهائي.`,
-                'system'
-              );
+              await api.createNotification(adminId, title, message, 'system');
             }
           }
-        } catch (notifErr) {
-          console.error("Failed to send admin notifications:", notifErr);
         }
-
-        toast.success("تم إرسال إشعار للإدارة بانتهاء الإصلاح ✅");
+      } catch (notifErr) {
+        console.error("Failed to send admin notifications:", notifErr);
       }
+
+      toast.success(newStatus === 'repairing' ? "تم تسجيل بدء الإصلاح بنجاح! بالتوفيق 🛠️" : "تم إرسال إشعار للإدارة بانتهاء الإصلاح ✅");
       fetchManagementData();
     } catch (err) {
       toast.error("حدث خطأ أثناء التحديث");
@@ -427,18 +433,29 @@ export default function DriverTrucks() {
                             </Button>
                           </DialogTrigger>
                           <DialogContent className="rounded-[2.5rem] p-0 overflow-hidden border-none max-w-lg">
-                            <MaintenanceChat requestId={req.id} currentUserId={userProfile?.id || ''} />
+                            <MaintenanceChat 
+                              requestId={req.id} 
+                              currentUserId={userProfile?.id || ''} 
+                              status={req.status}
+                            />
                           </DialogContent>
                         </Dialog>
                       </div>
 
                       <div className="border-t pt-4">
                         {req.status === 'approved' ? (
-                          <Button
-                            className="w-full h-12 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black shadow-lg"
-                            onClick={() => handleUpdateMaintenanceStatus(req.id, req.status)}
+                          <Button 
+                            className="w-full h-12 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black shadow-lg flex items-center justify-center gap-2"
+                            onClick={() => handleUpdateMaintenanceStatus(req.id, 'repairing')}
                           >
-                            <CheckCircle2 className="ml-2" size={18} /> تم الإصلاح ✅
+                            <Wrench size={18} /> بدء الإصلاح الآن 🛠️
+                          </Button>
+                        ) : req.status === 'repairing' ? (
+                          <Button
+                            className="w-full h-12 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black shadow-lg flex items-center justify-center gap-2"
+                            onClick={() => handleUpdateMaintenanceStatus(req.id, 'repaired')}
+                          >
+                            <CheckCircle2 size={18} /> تم الإصلاح - إبلاغ الإدارة ✅
                           </Button>
                         ) : req.status === 'pending' ? (
                           <div className="text-center p-3 bg-slate-50 rounded-xl text-slate-400 font-bold text-xs">
@@ -447,6 +464,10 @@ export default function DriverTrucks() {
                         ) : req.status === 'repaired' ? (
                           <div className="text-center p-3 bg-amber-50 rounded-xl text-amber-600 font-bold text-xs flex items-center justify-center gap-2">
                             🔔 بانتظار تأكيد الإدارة على انتهاء العمل
+                          </div>
+                        ) : req.status === 'rejected' ? (
+                           <div className="text-center p-3 bg-rose-50 rounded-xl text-rose-600 font-bold text-xs">
+                            تم رفض هذا الطلب من قبل الإدارة
                           </div>
                         ) : (
                           <div className="text-center p-3 bg-emerald-50 rounded-xl text-emerald-600 font-bold text-xs">

@@ -24,7 +24,8 @@ import {
     Package,
     Loader2,
     ChevronRight,
-    ArrowRight
+    ArrowRight,
+    RotateCcw
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -46,6 +47,15 @@ export default function AdminMaintenance() {
             return;
         }
 
+        const statusMap: any = {
+            pending: 'قيد الانتظار',
+            approved: 'معتمد - بانتظار البدء',
+            repairing: 'جاري الإصلاح',
+            repaired: 'تم الإصلاح - بانتظار الاستلام',
+            resolved: 'تم الإصلاح نهائياً',
+            rejected: 'مرفوض'
+        };
+
         const worksheetData = requests.map(req => ({
             'التاريخ': new Date(req.created_at).toLocaleDateString('ar-SA'),
             'السائق': req.driver?.full_name || 'غير معروف',
@@ -55,7 +65,7 @@ export default function AdminMaintenance() {
             'الشحنة': req.load ? `${req.load.origin} - ${req.load.destination}` : '-',
             'الوصف': req.description,
             'التكلفة (ر.س)': req.repair_cost,
-            'الحالة': req.status === 'approved' ? 'معتمد' : req.status === 'rejected' ? 'مرفوض' : 'قيد الانتظار',
+            'الحالة': statusMap[req.status] || req.status,
             'ملاحظات الإدارة': req.admin_notes || '-'
         }));
 
@@ -68,6 +78,7 @@ export default function AdminMaintenance() {
 
     const fetchRequests = async () => {
         setLoading(true);
+        console.log("🔍 AdminMaintenance: Starting fetchRequests...");
         try {
             const { data, error } = await supabase
                 .from('maintenance_requests' as any)
@@ -79,21 +90,55 @@ export default function AdminMaintenance() {
                 `)
                 .order('created_at', { ascending: false });
 
+            console.log("🔍 AdminMaintenance: Main query result:", { data, error });
+
             if (error) {
-                // Fallback: If join fails because migration not applied yet, get raw data
-                if (error.code === 'PGRST200') {
+                console.warn("⚠️ AdminMaintenance: Main query error:", error);
+                
+                // Fallback: If join fails (e.g., PGRST200 or ambiguity)
+                if (error.code === 'PGRST200' || error.code === 'PGRST100') {
+                    console.log("🛠️ AdminMaintenance: Falling back to primitive fetch...");
                     const { data: rawData, error: rawError } = await supabase
                         .from('maintenance_requests' as any)
                         .select('*')
                         .order('created_at', { ascending: false });
-                    if (rawError) throw rawError;
+                    
+                    if (rawError) {
+                        console.error("❌ AdminMaintenance: Primitive fetch failed:", rawError);
+                        throw rawError;
+                    }
+                    
+                    console.log("✅ AdminMaintenance: Primitive fetch success, count:", rawData?.length);
                     setRequests(rawData || []);
                     return;
                 }
                 throw error;
             }
+
+            // High priority: If query succeeded but returned [], and we suspect data exists,
+            // try a simple select to verify if it's RLS or a restrictive join.
+            if (!data || data.length === 0) {
+                console.log("🔎 AdminMaintenance: Result empty, checking for any records without joins...");
+                const { count, error: countErr } = await supabase
+                    .from('maintenance_requests' as any)
+                    .select('*', { count: 'exact', head: true });
+                
+                if (countErr) {
+                    console.warn("❌ AdminMaintenance: Head count check failed:", countErr);
+                } else if (count && count > 0) {
+                    console.log(`⚠️ AdminMaintenance: ${count} records found in total, but main join query returned 0. Retrying simple fetch.`);
+                    const { data: simpleData } = await supabase
+                        .from('maintenance_requests' as any)
+                        .select('*')
+                        .order('created_at', { ascending: false });
+                    setRequests(simpleData || []);
+                    return;
+                }
+            }
+
             setRequests(data || []);
         } catch (err: any) {
+            console.error("❌ AdminMaintenance: Catch-all error:", err);
             toast.error("فشل تحميل طلبات الصيانة");
         } finally {
             setLoading(false);
@@ -112,6 +157,7 @@ export default function AdminMaintenance() {
     }, []);
 
     const handleUpdateStatus = async (id: string, status: string) => {
+        console.log(`🔍 AdminMaintenance: Attempting to update request ${id} status to: ${status}`);
         try {
             // محاولة التحديث الكامل بما في ذلك حالة الدفع
             const { error: fullError } = await supabase
@@ -125,7 +171,7 @@ export default function AdminMaintenance() {
 
             // إذا كان الخطأ بسبب عدم وجود العمود (PGRST204)
             if (fullError && (fullError as any).code === 'PGRST204') {
-                console.warn("Column payment_status missing, falling back to basic update");
+                console.warn("⚠️ AdminMaintenance: Column payment_status missing, falling back to basic update");
                 const { error: fallbackError } = await supabase
                     .from('maintenance_requests' as any)
                     .update({
@@ -139,8 +185,9 @@ export default function AdminMaintenance() {
                 throw fullError;
             }
 
+            console.log(`✅ AdminMaintenance: Status updated successfully to ${status}`);
             let successMsg = "تم تحديث الحالة";
-            if (status === 'approved') successMsg = "تم اعتماد الطلب بنجاح ✅";
+            if (status === 'approved') successMsg = "تم اعتماد الطلب بنجاح ✅ - بانتظار بدء السائق";
             if (status === 'rejected') successMsg = "تم رفض الطلب";
             if (status === 'resolved') successMsg = "تم إغلاق البلاغ نهائياً ✅";
 
@@ -149,7 +196,14 @@ export default function AdminMaintenance() {
             setAdminNote('');
             fetchRequests();
         } catch (err: any) {
-            toast.error("فشل التحديث: " + (err.message || "خطأ غير معروف"));
+            console.error('❌ AdminMaintenance: Update failed error details:', err);
+            const errorMsg = err.message || "خطأ غير معروف";
+            const errorCode = err.code ? ` (Code: ${err.code})` : "";
+            toast.error(`فشل التحديث: ${errorMsg}${errorCode}`);
+            
+            if (err.code === '42501') {
+                toast.error("⚠️ يبدو أنك تفتقد لصلاحيات التحديث في قاعدة البيانات. يرجى مراجعة دليل الإنجاز.");
+            }
         }
     };
 
@@ -203,7 +257,10 @@ export default function AdminMaintenance() {
                             <div className="text-right">
                                 <p className="text-[10px] font-black text-emerald-600 uppercase">إجمالي المعتمد</p>
                                 <p className="text-xl font-black text-emerald-700">
-                                    {requests.filter(r => r.status === 'approved').reduce((acc, curr) => acc + (parseFloat(curr.repair_cost) || 0), 0).toLocaleString()} <span className="text-xs">ر.س</span>
+                                    {requests
+                                        .filter(r => ['approved', 'repairing', 'repaired', 'resolved'].includes(r.status))
+                                        .reduce((acc, curr) => acc + (parseFloat(curr.repair_cost) || 0), 0)
+                                        .toLocaleString()} <span className="text-xs">ر.س</span>
                                 </p>
                             </div>
                             <TrendingDown className="text-emerald-500" />
@@ -324,6 +381,7 @@ export default function AdminMaintenance() {
                                                 <MaintenanceChat
                                                     requestId={selectedRequest.id}
                                                     currentUserId={userProfile?.id}
+                                                    status={selectedRequest.status}
                                                 />
                                             </div>
                                         </div>
@@ -377,6 +435,18 @@ export default function AdminMaintenance() {
                                                 </>
                                             )}
 
+                                            {selectedRequest.status === 'approved' && (
+                                                <div className="w-full p-6 bg-blue-50 border border-blue-100 rounded-3xl text-center text-blue-700 font-black text-lg flex items-center justify-center gap-3">
+                                                    <Clock className="animate-pulse" /> بانتظار قيام السائق ببدء الإصلاح...
+                                                </div>
+                                            )}
+
+                                            {selectedRequest.status === 'repairing' && (
+                                                <div className="w-full p-6 bg-orange-50 border border-orange-100 rounded-3xl text-center text-orange-700 font-black text-lg flex items-center justify-center gap-3">
+                                                    <Wrench className="animate-spin-slow" /> السائق يقوم بالإصلاح حالياً...
+                                                </div>
+                                            )}
+
                                             {selectedRequest.status === 'repaired' && (
                                                 <Button
                                                     className="h-16 w-full rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-lg gap-2 shadow-xl shadow-emerald-100"
@@ -387,8 +457,19 @@ export default function AdminMaintenance() {
                                             )}
 
                                             {(selectedRequest.status === 'resolved' || selectedRequest.status === 'rejected') && (
-                                                <div className={`w-full text-center p-6 rounded-2xl border font-bold ${selectedRequest.status === 'resolved' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-rose-50 border-rose-200 text-rose-700'}`}>
-                                                    {selectedRequest.status === 'resolved' ? 'تم إصلاح هذا العطل وإغلاق الملف بنجاح.' : 'تم رفض هذا الطلب.'}
+                                                <div className="w-full space-y-4">
+                                                    <div className={`w-full text-center p-6 rounded-2xl border font-bold ${selectedRequest.status === 'resolved' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-rose-50 border-rose-200 text-rose-700'}`}>
+                                                        {selectedRequest.status === 'resolved' ? 'تم إصلاح هذا العطل وإغلاق الملف بنجاح.' : 'تم رفض هذا الطلب.'}
+                                                    </div>
+                                                    {selectedRequest.status === 'rejected' && (
+                                                        <Button
+                                                            variant="outline"
+                                                            className="w-full h-12 rounded-xl border-slate-200 text-slate-600 hover:bg-slate-50 font-bold gap-2"
+                                                            onClick={() => handleUpdateStatus(selectedRequest.id, 'pending')}
+                                                        >
+                                                            <RotateCcw size={18} /> إعادة فتح الطلب للمراجعة
+                                                        </Button>
+                                                    )}
                                                 </div>
                                             )}
                                         </div>
