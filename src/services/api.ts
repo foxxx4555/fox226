@@ -16,7 +16,20 @@ const handleApiError = (err: any) => {
   throw err;
 };
 
+// ⏲️ مساعد للتعامل مع نهايات الوقت (Timeout) لتجنب التعليق اللحظي
+const withTimeout = <T>(promise: Promise<T>, timeoutMs: number = 20000): Promise<T> => {
+    let timeoutId: NodeJS.Timeout;
+    const timeoutPromise = new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error('TIMEOUT')), timeoutMs);
+    });
+
+    return Promise.race([promise, timeoutPromise]).finally(() => {
+        clearTimeout(timeoutId);
+    }) as Promise<T>;
+};
+
 export const api = {
+  supabase,
   // =========================
   // 🔐 المصادقة (Auth)
   // =========================
@@ -31,6 +44,10 @@ export const api = {
         .select('*, user_roles(role)')
         .eq('id', data.user.id)
         .maybeSingle();
+
+      if (!profile) {
+        console.warn("⚠️ No profile found for authenticated user:", data.user.id);
+      }
 
       // --- الزتونة هنا: التأكد من أن الأدوار دائماً مصفوفة ---
       const rawRoles = (profile as any)?.user_roles;
@@ -52,6 +69,32 @@ export const api = {
         role: finalRole as UserRole
       };
     } catch (e) { throw e; }
+  },
+
+  async getCurrentUser() {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return null;
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*, user_roles(role)')
+        .eq('id', session.user.id)
+        .maybeSingle();
+
+      const rawRoles = (profile as any)?.user_roles;
+      const rolesArray = Array.isArray(rawRoles) ? rawRoles : (rawRoles ? [rawRoles] : []);
+      const foundAdminRole = rolesArray.find((r: any) => ADMIN_ROLES.includes(r.role));
+      const finalRole = foundAdminRole ? foundAdminRole.role : (rolesArray[0]?.role || 'shipper');
+
+      return {
+        profile: profile as unknown as UserProfile,
+        role: finalRole as UserRole
+      };
+    } catch (e) {
+      console.error("Error in getCurrentUser:", e);
+      return null;
+    }
   },
 
   async loginAdmin(email: string, password: string) {
@@ -109,20 +152,28 @@ export const api = {
         throw new Error(`فشل حفظ بيانات البروفايل: ${upsertError.message}`);
       }
 
-      // 2. إدراج الدور يدوياً مع تجاهل الخطأ إذا كان موجوداً (Conflict)
+      // 2. إدراج الدور يدوياً مع التأكد من عدم وجوده مسبقاً (تجنب خطأ 409)
       if (profile.role) {
         try {
-          // نستخدم insert مع إهمال أخطاء التعارض لأن الدور قد ينشأ بواسطة Trigger
-          const { error: roleError } = await supabase.from('user_roles').insert({
-            user_id: data.user.id,
-            role: profile.role as any
-          });
-          
-          if (roleError && roleError.code !== '23505') {
-            console.error("⚠️ User Role Insert Warning:", roleError);
+          // فحص استباقي لمنع ظهور الخطأ في الكونسول
+          const { data: existingRole } = await supabase
+            .from('user_roles')
+            .select('role')
+            .eq('user_id', data.user.id)
+            .maybeSingle();
+
+          if (!existingRole) {
+            const { error: roleError } = await supabase.from('user_roles').insert({
+              user_id: data.user.id,
+              role: profile.role as any
+            });
+            
+            if (roleError && roleError.code !== '23505') {
+              console.error("⚠️ User Role Insert Warning:", roleError);
+            }
           }
         } catch (e) {
-          console.warn("User role might have been inserted by trigger already.");
+          console.warn("User role handling skipped - already exists.");
         }
       }
     }
@@ -130,39 +181,56 @@ export const api = {
     return data;
   },
 
-  // ✅ إضافة الدالة الفقودة للتحقق من الكود (OTP)
+  // ✅ إضافة الدالة المفقودة للتحقق من الكود (OTP)
   async verifyEmailOtp(email: string, token: string, type: 'signup' | 'email_change' | 'email' | 'recovery' = 'signup') {
-    const { data, error } = await supabase.auth.verifyOtp({
-      email,
-      token,
-      type
-    });
-    if (error) throw error;
-    return data;
+    try {
+      const response = await withTimeout(supabase.auth.verifyOtp({
+        email,
+        token,
+        type
+      }));
+      
+      const { data, error } = response as any;
+      if (error) {
+        if (error.code === 'otp_expired' || error.status === 403) {
+            const err = new Error("انتهت صلاحية رمز التحقق، يرجى طلب رمز جديد.");
+            (err as any).code = 'otp_expired';
+            throw err;
+        }
+        throw error;
+      }
+      return data;
+    } catch (e) {
+      throw e;
+    }
   },
 
   // ✅ إضافة دالة إعادة إرسال الكود
-  async resendOtp(email: string) {
-    const { data, error } = await supabase.auth.resend({
-      type: 'signup',
+  async resendOtp(email: string, type: 'signup' | 'email_change' | 'email' | 'recovery' = 'signup') {
+    console.log(`📡 [Auth] Resending OTP to: ${email} (Type: ${type})`);
+    const response = await withTimeout(supabase.auth.resend({
+      type,
       email,
-    });
+    }));
+    const { data, error } = response as any;
     if (error) throw error;
     return data;
   },
 
   // ✅ دالة إرسال رابط إعادة تعيين كلمة المرور
-  async forgotPassword(email: string) {
+  async forgotPassword(email: string, resetUrl: string = `${window.location.origin}/reset-password`) {
     try {
-      // الزتونة: بنحدد المسار الكامل لصفحة إعادة التعيين وبنمنع المسافات
-      const resetUrl = `${window.location.origin}/reset-password`;
-
-      const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+      const response = await withTimeout(supabase.auth.resetPasswordForEmail(email, {
         redirectTo: resetUrl,
-      });
+      }));
+      const { data, error } = response as any;
       if (error) throw error;
       return data;
-    } catch (e) {
+    } catch (e: any) {
+      if (e.message === 'TIMEOUT') {
+          console.warn("Forgot password request initiated but response timed out. Email might still be sent.");
+          return { timedOut: true };
+      }
       throw e;
     }
   },
@@ -195,34 +263,44 @@ export const api = {
 
   // ✅ دالة البحث عن البريد الإلكتروني باستخدام اسم المستخدم أو الهاتف
   async resolveIdentifierToEmail(identifier: string) {
-    if (identifier.includes('@')) return identifier.trim().toLowerCase();
-    
+    if (!identifier) return null;
     const cleanId = identifier.trim();
-    
-    // البحث في البروفايلات باستخدام اسم المستخدم أو الهاتف (تجاهل حالة الأحرف للاسم)
-    // نستخدم ilike لضمان العثور على اسم المستخدم بغض النظر عن حالة الأحرف
-    const { data, error: resolveError } = await supabase
+
+    // 1. إذا كان المدخل إيميل حقيقي (يحتوي على @)
+    if (cleanId.includes('@')) return cleanId.toLowerCase();
+
+    // 2. البحث في جدول profiles عن طريق الاسم أو الهاتف
+    const { data, error } = await supabase
       .from('profiles')
-      .select('email, phone, username')
-      .or(`username.ilike.${cleanId},phone.eq.${cleanId}`)
+      .select('email, phone')
+      .or(`username.eq."${cleanId}",phone.eq."${cleanId}"`)
       .maybeSingle();
 
-    if (resolveError) console.error("⚠️ Resolve Identity Error:", resolveError);
-    
-    // سجل تتبع لمعرفة ما تم العثور عليه بالتفصيل
-    console.log(`🔍 [Auth] Debug Profile Data for "${cleanId}":`, data);
+    if (data) {
+      console.log(`✅ [Auth] Identity found in profile:`, data);
+      
+      // إذا وجدنا إيميل حقيقي للمستخدم نستخدمه
+      if (data.email && data.email !== 'NA' && data.email.includes('@')) {
+        return data.email;
+      }
+      
+      // إذا لم نجد إيميل حقيقي، نستخدم الإيميل الوهمي المرتبط بالهاتف المخزن في البروفايل
+      if (data.phone) {
+        const cleanPhone = data.phone.trim().replace(/\s+/g, '');
+        return `${cleanPhone}@sasgo.com`;
+      }
+    }
 
-    // إذا كان البريد موجوداً وصحيحاً (ليس NA)
-    if (data?.email && data.email !== 'NA') return data.email;
-    
-    // إذا كان البريد مخزناً كـ NA أو غير موجود ولكن الهاتف موجود، نستخدم البريد التقني
-    if (data?.phone) return `${data.phone}@sasgo.com`;
-    
-    // Fallback: إذا لم نجد في البروفايل، نجرّب الصيغة الافتراضية اللاتينية
-    // ملاحظة: قد لا يعمل هذا إذا كان المستخدم مسجلاً بهاتف مختلف
-    const fallbackEmail = `${cleanId.replace(/\s+/g, '.')}@sasgo.com`;
-    console.warn(`⚠️ [Auth] Fallback email used: ${fallbackEmail}`);
-    return fallbackEmail;
+    if (error) {
+      console.error("⚠️ [Auth] Profile lookup error:", error);
+    }
+
+    // 3. إذا لم يجد شيئاً في البروفايلات، وكان المدخل رقم هاتف، نستخدم الصيغة الافتراضية بناءً على المدخل
+    if (/^\d+$/.test(cleanId)) {
+      return `${cleanId}@sasgo.com`;
+    }
+
+    return null; // فشل العثور على أي هوية
   },
 
   // ✅ دالة تحديث بيانات البروفايل

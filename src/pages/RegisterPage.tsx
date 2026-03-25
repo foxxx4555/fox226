@@ -224,10 +224,11 @@ export default function RegisterPage() {
     if (timer > 0 || loading) return;
     setLoading(true);
     try {
-      await api.resendOtp(form.email);
+      await api.resendOtp(form.email, 'signup');
       setTimer(60);
       toast.success(t('otp_resent'));
     } catch (err: any) {
+      console.error("Resend OTP Error:", err);
       if (err.code === 'over_email_send_rate_limit' || err.message?.includes('rate limit')) {
         toast.error('لقد تجاوزت الحد المسموح به لإرسال رسائل البريد. يرجى المحاولة بعد قليل.');
       } else {

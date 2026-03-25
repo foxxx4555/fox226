@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { Loader2, User, Building, Shield, Image as ImageIcon, CheckCircle2, Trash2, FileText, ShieldCheck } from 'lucide-react';
+import { Loader2, User, Building, Shield, Image as ImageIcon, CheckCircle2, Trash2, FileText, ShieldCheck, Mail, RefreshCcw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Link } from 'react-router-dom';
 import {
@@ -19,6 +19,7 @@ import {
     DialogTitle,
     DialogFooter,
 } from "@/components/ui/dialog";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 
 export default function ShipperAccount() {
   const { userProfile } = useAuth();
@@ -79,28 +80,57 @@ export default function ShipperAccount() {
       toast.error('يرجى إدخال بريد إلكتروني صالح أولاً');
       return;
     }
+
     setVerifying(true);
+    
+    // انتقال تفاؤلي للواجهة (Optimistic UI) لضمان ظهور شاشة الكود للمستخدم فوراً
+    // لأن البريد قد يصل بينما الطلب لا يزال معلقاً
+    const timer = setTimeout(() => {
+        setVerifyStep('otp');
+    }, 1500);
+
     try {
-      // إذا كان البريد المدخل مختلف عن البريد الحالي، نقوم بتحديثه أولاً
+      // 1. فحص الحالة الفورية من Auth قبل المحاولة
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user?.email_confirmed_at && form.email === user.email) {
+        clearTimeout(timer);
+        setIsVerified(true);
+        toast.success("حسابك موثق بالفعل ✅");
+        setShowVerifyModal(false);
+        return;
+      }
+
+      // 2. معالجة الإرسال
       if (form.email !== userProfile?.email) {
         setOtpType('email_change');
-        const { error } = await supabase.auth.updateUser({ email: form.email });
-        if (error) throw error;
-        toast.success('تم إرسال رمز التحقق للبريد الجديد');
+        // نحدث البريد أولاً ليبدأ سوبابيز عملية التغيير
+        const { error: updateError } = await supabase.auth.updateUser({ email: form.email });
+        if (updateError) throw updateError;
+        
+        // ثم نطلب إرسال رمز OTP خصيصاً للتغيير بدلاً من الرابط الافتراضي
+        await api.resendOtp(form.email, 'email_change');
+        toast.success('تم إرسال رمز التحقق لبريدك الجديد 📧');
       } else {
         setOtpType('signup');
-        await api.resendOtp(form.email);
+        await api.resendOtp(form.email, 'signup');
         toast.success('تم إعادة إرسال رمز التحقق');
       }
+
       setVerifyStep('otp');
     } catch (err: any) {
-      if (err.code === 'over_email_send_rate_limit' || err.message?.includes('rate limit')) {
-        toast.error('لقد تجاوزت الحد المسموح به لإرسال رسائل البريد. يرجى المحاولة بعد قليل.');
+      console.error("OTP Send Process:", err);
+      // إذا حدث Timeout، ننتقل للخطوة التالية بفرض أن البريد تم إرساله (لأن المستخدم أبلغ عن وصوله)
+      if (err.message === 'TIMEOUT') {
+          setVerifyStep('otp');
+          toast.info("تم بدء الإرسال، يرجى فحص بريدك الآن 📧");
+      } else if (err.code === 'over_email_send_rate_limit' || err.message?.includes('rate limit')) {
+          toast.error('لقد تجاوزت الحد المسموح به لإرسال رسائل البريد. يرجى المحاولة بعد قليل.');
       } else {
-        toast.error(err.message || 'فشل إرسال رمز التحقق');
+          toast.error(err.message || 'فشل إرسال رمز التحقق');
       }
     } finally {
       setVerifying(false);
+      clearTimeout(timer);
     }
   };
 
@@ -156,7 +186,13 @@ export default function ShipperAccount() {
         }
       }
 
-      toast.success('تم حفظ التغييرات بنجاح');
+      // تحذير في حالة تغيير البريد بدون توثيقه
+      if (form.email && form.email !== userProfile?.email && !isVerified) {
+          toast.warning("لقد قمت بتغيير البريد الإلكتروني. يرجى الضغط على 'توثيق الآن' وتأكيد الرمز لتتمكن من استخدامه في تسجيل الدخول مستقبلاً.");
+      } else {
+          toast.success('تم حفظ التغييرات بنجاح');
+      }
+      
       setForm(p => ({ ...p, password: '' }));
     } catch (err: any) {
       toast.error(err.message || 'حدث خطأ أثناء الحفظ');
@@ -368,18 +404,31 @@ export default function ShipperAccount() {
           ) : (
             <div className="space-y-4">
               <p className="text-slate-500 font-bold text-sm text-center">أدخل الرمز المكون من 6 أرقام المرسل إلى {form.email}</p>
-              <Input 
-                value={otpCode} 
-                onChange={e => setOtpCode(e.target.value)} 
-                className="h-14 text-center text-2xl tracking-[0.5em] font-black rounded-xl bg-slate-50 border-2" 
-                placeholder="------"
-                maxLength={6}
-                dir="ltr"
-              />
+              
+              <div className="flex justify-center" dir="ltr">
+                <InputOTP maxLength={6} value={otpCode} onChange={setOtpCode} autoFocus>
+                  <InputOTPGroup className="gap-2">
+                    {[0, 1, 2, 3, 4, 5].map((i) => (
+                      <InputOTPSlot
+                        key={i}
+                        index={i}
+                        className="h-12 w-10 text-xl font-black rounded-xl border-2 bg-slate-50 border-slate-100 focus-within:border-primary transition-all"
+                      />
+                    ))}
+                  </InputOTPGroup>
+                </InputOTP>
+              </div>
+
               <Button onClick={handleVerifyOtp} disabled={verifying} className="w-full h-12 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black shadow-lg">
-                {verifying ? <Loader2 className="animate-spin" /> : "تأكيد التوثيق"}
+                {verifying ? <Loader2 className="animate-spin" /> : "تأكيد التوثيق ✅"}
               </Button>
-              <Button variant="ghost" onClick={() => setVerifyStep('email')} className="w-full font-bold">رجوع</Button>
+              
+              <div className="flex flex-col gap-2">
+                <Button variant="ghost" onClick={handleSendOtp} disabled={verifying} className="w-full font-bold text-xs gap-2">
+                  <RefreshCcw size={14} /> إعادة إرسال الرمز
+                </Button>
+                <Button variant="ghost" onClick={() => setVerifyStep('email')} className="w-full font-bold text-slate-400">رجوع</Button>
+              </div>
             </div>
           )}
         </DialogContent>

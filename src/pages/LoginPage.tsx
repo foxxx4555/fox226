@@ -33,10 +33,19 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      const loginIdentity = await api.resolveIdentifierToEmail(email.trim());
-      console.log("Attempting login for:", loginIdentity);
+      const input = email.trim();
       
-      const { profile, role } = await api.loginByEmail(loginIdentity, password);
+      // البحث عن الإيميل الحقيقي المرتبط بما كتبه المستخدم (سواء اسم أو هاتف أو إيميل)
+      const loginEmail = await api.resolveIdentifierToEmail(input);
+      
+      if (!loginEmail) {
+        throw new Error(i18n.language === 'ar' ? 'بيانات الدخول غير صحيحة' : 'Invalid login credentials');
+      }
+
+      console.log("Found login email:", loginEmail);
+
+      // تسجيل الدخول بالإيميل الذي وجدناه
+      const { profile, role } = await api.loginByEmail(loginEmail, password);
 
       if (profile && role) {
         setAuth(profile, role);
@@ -78,10 +87,15 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      const loginIdentity = await api.resolveIdentifierToEmail(adminEmail.trim());
-      console.log("Attempting admin login for:", loginIdentity);
+      const input = adminEmail.trim();
+      const loginEmail = await api.resolveIdentifierToEmail(input);
       
-      await api.loginAdmin(loginIdentity, adminPassword);
+      if (!loginEmail) {
+        throw new Error(i18n.language === 'ar' ? 'بيانات المشرف غير صحيحة' : 'Admin credentials not found');
+      }
+
+      console.log("Attempting admin login for:", loginEmail);
+      await api.loginAdmin(loginEmail, adminPassword);
       setCurrentRole('admin' as any);
       toast.success(t('success'));
       navigate('/admin/dashboard');

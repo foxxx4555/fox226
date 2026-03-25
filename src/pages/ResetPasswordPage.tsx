@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { api } from '@/services/api';
@@ -10,25 +10,87 @@ import { toast } from 'sonner';
 import { Loader2, Lock, ShieldCheck } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
+import { useAppStore } from '@/store/appStore';
 
 export default function ResetPasswordPage() {
     const { t, i18n } = useTranslation();
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [loading, setLoading] = useState(false);
+    const [isSessionReady, setIsSessionReady] = useState(false); // حالة جديدة للتأكد من الجلسة
     const navigate = useNavigate();
+    const setAuth = useAppStore(state => state.setAuth);
+
+    // التأكد من أن الرابط يحتوي على جلسة صالحة عند تحميل الصفحة
+    useEffect(() => {
+        const checkSession = async () => {
+            const { data } = await api.supabase.auth.getSession();
+            if (data.session) {
+                setIsSessionReady(true);
+            } else {
+                // إذا لم توجد جلسة، ننتظر قليلاً ربما سوبابيز يعالج الرابط
+                setTimeout(async () => {
+                    const { data: retryData } = await api.supabase.auth.getSession();
+                    if (retryData.session) {
+                        setIsSessionReady(true);
+                    } else {
+                        // إذا كان الرابط يحتوي على خطأ في العنوان
+                        if (window.location.hash.includes('error=access_denied')) {
+                            toast.error(i18n.language === 'ar' ? "رابط استعادة كلمة المرور منتهي أو غير صالح" : "Password reset link expired or invalid");
+                            navigate('/login');
+                        }
+                    }
+                }, 1500);
+            }
+        };
+        checkSession();
+    }, [navigate, i18n.language]);
 
     const handleUpdate = async (e: React.FormEvent) => {
         e.preventDefault();
+        
+        // التحقق من الجلسة قبل البدء
+        if (!isSessionReady) {
+            toast.error(i18n.language === 'ar' ? "يرجى الانتظار حتى يتم التحقق من الرابط..." : "Please wait while verifying the link...");
+            return;
+        }
+
         if (password !== confirmPassword) return toast.error(t('pass_mismatch'));
+        if (password.length < 6) return toast.error(t('pass_too_short'));
 
         setLoading(true);
         try {
-            await api.updatePassword(password);
-            toast.success(t('success_reset'));
-            navigate('/login');
+            // تحديث كلمة المرور
+            const { error } = await api.supabase.auth.updateUser({ password });
+            if (error) throw error;
+            
+            // جلب البيانات وتوجيه المستخدم
+            const userData = await api.getCurrentUser();
+            if (userData) {
+                setAuth(userData.profile, userData.role);
+                toast.success(t('success_reset'));
+
+                const adminRoles = [
+                    'super_admin', 'admin', 'finance', 'operations', 
+                    'carrier_manager', 'vendor_manager', 'support', 'analytics'
+                ];
+                
+                const userRole = userData.role.toLowerCase();
+                if (adminRoles.includes(userRole)) {
+                    navigate('/admin/dashboard');
+                } else if (userRole === 'shipper') {
+                    navigate('/shipper/dashboard');
+                } else if (userRole === 'driver') {
+                    navigate('/driver/dashboard');
+                } else {
+                    navigate('/');
+                }
+            } else {
+                navigate('/login');
+            }
         } catch (error: any) {
-            toast.error(error.message || t('error'));
+            console.error('Password reset error:', error);
+            toast.error(error.message || (i18n.language === 'ar' ? "حدث خطأ أثناء التحديث" : "An error occurred during update"));
         } finally {
             setLoading(false);
         }

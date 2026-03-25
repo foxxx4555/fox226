@@ -7,27 +7,38 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'; // Added CardHeader, CardTitle
 import { toast } from 'sonner';
-import { Loader2, ArrowRight, Mail, KeySquare } from 'lucide-react'; // Changed ArrowLeft to ArrowRight, ShieldAlert to KeySquare
+import { Loader2, ArrowRight, Mail, KeySquare, User } from 'lucide-react'; // Changed ArrowLeft to ArrowRight, ShieldAlert to KeySquare, added User
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils'; // Added cn for conditional classes
 
 export default function ForgotPasswordPage() {
   const { t, i18n } = useTranslation(); // Destructured i18n
   const navigate = useNavigate();
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState(''); // Email, Username, or Phone
   const [loading, setLoading] = useState(false);
-  const [submitted, setSubmitted] = useState(false); // Renamed 'sent' to 'submitted'
+  const [submitted, setSubmitted] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!identifier.trim()) return;
+
     setLoading(true);
     try {
-      await api.forgotPassword(email);
+      // 1. Resolve identifier to email first (handles usernames and phone numbers)
+      const resolvedEmail = await api.resolveIdentifierToEmail(identifier.trim());
+      
+      if (!resolvedEmail) {
+        throw new Error(i18n.language === 'ar' ? 'لم نتمكن من العثور على حساب مرتبط بهذه البيانات' : 'Could not find an account with this information');
+      }
+
+      // 2. Send the actual forgot password request
+      await api.forgotPassword(resolvedEmail);
       setSubmitted(true);
       toast.success(t('success'));
     } catch (err: any) {
+      console.error("Forgot Password Error:", err);
       if (err.code === 'over_email_send_rate_limit' || err.message?.includes('rate limit')) {
-        toast.error('لقد تجاوزت الحد المسموح به لإرسال رسائل البريد. يرجى المحاولة بعد قليل.');
+        toast.error(i18n.language === 'ar' ? 'لقد تجاوزت الحد المسموح به لإرسال رسائل البريد. يرجى المحاولة بعد قليل.' : 'Email rate limit exceeded. Please try again later.');
       } else {
         toast.error(err.message || t('error'));
       }
@@ -67,14 +78,16 @@ export default function ForgotPasswordPage() {
             {!submitted ? (
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="space-y-2">
-                  <Label className="text-xs font-black text-slate-500 ms-1 uppercase tracking-wider">{t('email')}</Label>
+                  <Label className="text-xs font-black text-slate-500 ms-1 uppercase tracking-wider">
+                    {i18n.language === 'ar' ? 'البريد، اسم المستخدم، أو الهاتف' : 'Email, Username, or Phone'}
+                  </Label>
                   <div className="relative group">
-                    <Mail className={cn("absolute top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-primary transition-colors", i18n.language === 'ar' ? "right-4" : "left-4")} size={20} />
+                    <User className={cn("absolute top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-primary transition-colors", i18n.language === 'ar' ? "right-4" : "left-4")} size={20} />
                     <Input
-                      type="email"
-                      placeholder="name@company.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
+                      type="text"
+                      placeholder={i18n.language === 'ar' ? "مثال: user123 أو 050..." : "e.g. user123 or 050..."}
+                      value={identifier}
+                      onChange={(e) => setIdentifier(e.target.value)}
                       required
                       dir="ltr"
                       className={cn("h-14 rounded-2xl border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all font-bold text-lg", i18n.language === 'ar' ? "pr-12" : "pl-12")}
